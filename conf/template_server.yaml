@@ -1,0 +1,48 @@
+address: "0.0.0.0:8387"
+key: "" 
+
+# outbound address, if server has more than one ip
+# inbound and outbound connection can have different ip
+# can hides the link between inbound and outbound traffic
+# if nginx is used as https proxy it should not listen this address 
+# out_address: Option<SocketAddr>,
+
+# min a max waiting data time (ms) before close the connection
+# needed to prevent probe for header size
+# reads random number of bytes, at most u16::MAX (65535)
+# random timeout for the read is selected in specified range
+# unauth_cooldown: 50...777
+
+##
+# The setting below MUST be the same on client and server
+##
+
+# maximum delay before client connect to server (replay protection)
+# should be the same for server and client
+# 10000 (10 sec) default
+# max_connect_delay: 10000
+
+# min a max header padding in bytes
+# header_padding: 50..777
+
+# data random padding
+# max: maximum number of bytes of padding, default 255. Max value is 65535.
+# rate: a ratio of padding size to payload size as a percentage. default is 20 (padding is 20% of payload). Max value is 100.
+# zero rate or max means no padding
+# data_padding:
+#   max: 255
+#   rate: 20
+
+# encryption limit
+# default is usize::MAX (encrypt all data)
+# can be used to avoid triple encryption in https mode
+# zero is not recommened, better set something like 1024
+# client and server hallo are not fully encrypted so it's ok to encrypt it twice :-)
+# encryption_limit: 1024
+
+# kdf used, values: argon2, blake3
+# Blake3 is much faster, but Argon2id is more secure
+# kdf: blake3
+
+# Cipher used, values: Aes256Gcm, ChaCha20Poly1305
+# cipher: Aes256Gcm

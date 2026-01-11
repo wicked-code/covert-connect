@@ -1,0 +1,47 @@
+name: "publish server"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - server-release
+
+jobs:
+  publish-server:
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Get current rust app version
+        id: ver
+        run: |
+            VERSION=`grep -A 10 '\[workspace\.package\]' Cargo.toml | grep '^version' | cut -d'"' -f2`
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: build
+        run: cargo build --release -p cc-server
+
+      - name: Archive 
+        uses: thedoctor0/zip-release@master
+        with:
+          type: "zip"
+          filename: ../../cc-server-${{ steps.ver.outputs.version }}.zip
+          directory: target/release/
+          path: ./cc-server
+
+      - name: Add to release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Server release ${{ steps.ver.outputs.version }}
+          files: "*.zip"

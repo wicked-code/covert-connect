@@ -1,0 +1,36 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "frb-generate",
+            "type": "shell",
+            "command": "flutter_rust_bridge_codegen generate",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "build-flutter-windows",
+            "type": "shell",
+            "command": "flutter build windows --debug",
+            "problemMatcher": []
+        },
+        {
+            "label": "copy-pdb",
+            "type": "shell",
+            "command": "copy ${workspaceFolder}/build/windows/x64/plugins/rust_lib_covert_connect/Debug/rust_lib_covert_connect.pdb ${workspaceFolder}/build/windows/x64/runner/Debug/rust_lib_covert_connect.pdb",
+            "problemMatcher": []
+        },
+        {
+            "label": "build-all-windows",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "frb-generate",
+                "build-flutter-windows",
+                "copy-pdb"
+            ]
+        }
+    ]
+}

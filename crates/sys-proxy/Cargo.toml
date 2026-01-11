@@ -1,0 +1,19 @@
+[package]
+name = "sys-proxy"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+parking_lot.workspace = true
+block2 = "0.5.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.52"
+winapi = { version = "0.3.9", features = ["winreg", "wininet"] }

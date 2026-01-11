@@ -1,0 +1,17 @@
+[package]
+name = "tests"
+
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+
+client.workspace = true
+crypto.workspace = true
+cc-server.workspace = true
+
+reqwest = "0.12.4"

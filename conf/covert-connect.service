@@ -1,0 +1,13 @@
+[Unit]
+Description=covert-connect
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+LimitNOFILE=32768
+WorkingDirectory=/etc/covert-connect
+ExecStart=/usr/local/bin/cc-server -c ./server.yaml
+
+[Install]
+WantedBy=multi-user.target
