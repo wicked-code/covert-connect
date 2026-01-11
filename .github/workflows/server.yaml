@@ -45,3 +45,4 @@ jobs:
           draft: true
           name: Server release ${{ steps.ver.outputs.version }}
           files: "*.zip"
+
