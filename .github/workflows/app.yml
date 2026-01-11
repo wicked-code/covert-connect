@@ -89,3 +89,4 @@ jobs:
           draft: true
           name: App release ${{ steps.version.outputs.version-number }}
           files: "*.zip"
+
