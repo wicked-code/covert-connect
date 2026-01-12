@@ -53,6 +53,17 @@
             "preLaunchTask": "copy-pdb"
         },
         {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug rust (Macos)",
+            "program": "${workspaceFolder}/build/macos/Build/Products/Debug/covert_connect.app",
+            "stopAtEntry": false,
+            "console": "integratedTerminal",
+            "environment": [],
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        },
+        {
             "type": "cppvsdbg",
             "request": "launch",
             "name": "Debug rust (Win with buld)",
