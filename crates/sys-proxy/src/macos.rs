@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use parking_lot::Mutex;
-use std::{mem, net::IpAddr, process::Command, str::FromStr, sync::Arc};
+use std::{ffi::OsStr, mem, net::IpAddr, process::Command, str::FromStr, sync::Arc};
 
 mod ffi;
 mod nw_path_monitor;
@@ -57,7 +57,7 @@ impl SytemProxyInner {
     fn set_pac(&self, auto_config_url: &str) -> Result<()> {
         let services = get_services(true)?;
         for service in services {
-            networksetup().args([SET_PAC, &service, auto_config_url]).output()?;
+            networksetup_with_check([SET_PAC, &service, auto_config_url])?;
         }
 
         let new_state = ProxyState::Pac(auto_config_url.to_owned());
@@ -80,9 +80,7 @@ impl SytemProxyInner {
 
         let services = get_services(true)?;
         for service in services {
-            networksetup()
-                .args([SET_HTTPS, &service, domain, port, STATE_OFF])
-                .output()?;
+            networksetup_with_check([SET_HTTPS, &service, domain, port, STATE_OFF])?;
         }
 
         let new_state = ProxyState::Proxy(address.to_owned());
@@ -125,10 +123,10 @@ fn restore(state: ProxyState) -> Result<()> {
         match state {
             ProxyState::Off => {}
             ProxyState::Pac(_) => {
-                networksetup().args([SET_PAC_STATE, service, STATE_OFF]).output()?;
+                networksetup_with_check([SET_PAC_STATE, service, STATE_OFF])?;
             }
             ProxyState::Proxy(_) => {
-                networksetup().args([SET_HTTPS_STATE, service, STATE_OFF]).output()?;
+                networksetup_with_check([SET_HTTPS_STATE, service, STATE_OFF])?;
             }
         }
     }
@@ -138,6 +136,20 @@ fn restore(state: ProxyState) -> Result<()> {
 
 fn networksetup() -> Command {
     Command::new("networksetup")
+}
+
+fn networksetup_with_check<I, S>(args: I) -> Result<()>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let result = networksetup().args(args).output()?;
+    if !result.status.success() {
+        tracing::error!("{:?}", result);
+        Err(anyhow!("networksetup exit code {:?}", result.status.code()))
+    } else {
+        Ok(())
+    }
 }
 
 fn get_services(active_only: bool) -> Result<Vec<String>> {
