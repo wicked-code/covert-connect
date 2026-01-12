@@ -55,6 +55,7 @@ class _StateToggleState extends State<StateToggle> {
         selectedIconScale: 1.0,
         height: indicatorSize.height,
         indicatorSize: indicatorSize,
+        loading: false,
         iconAnimationType: AnimationType.onHover,
         styleAnimationType: AnimationType.onHover,
         style: ToggleStyle(borderColor: Colors.transparent, borderRadius: borderRadius),
