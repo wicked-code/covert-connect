@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:covert_connect/di.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -12,6 +13,7 @@ import 'package:covert_connect/src/widgets/desktop/caption_button_base.dart';
 import 'package:covert_connect/src/widgets/desktop/caption_buttons_macos.dart';
 import 'package:covert_connect/src/widgets/desktop/caption_buttons_windows.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -265,6 +267,9 @@ class _DesktopAppBarState extends State<DesktopAppBar>
       _showWindow();
     } else if (menuItem.key == 'exit_app') {
       appWindow.close();
+      if (Platform.isMacOS) {
+        ServicesBinding.instance.exitApplication(AppExitType.required);
+      }
     }
   }
 
