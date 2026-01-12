@@ -1,7 +1,7 @@
 use std::{
     net::SocketAddr, sync::{atomic::{AtomicBool, AtomicU64, Ordering}, Arc}
 };
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt}, net::{TcpListener, TcpStream}, select, sync::{oneshot, Mutex, RwLock}
@@ -311,6 +311,9 @@ impl Proxy {
         }
     
         let servers = self.servers.read().await;
+        if servers.len() == 0 {
+            bail!("no servers found")
+        }
 
         let mut total_weight = 0_usize;
         let mut enabled_count = 0_usize;
