@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/domains/widgets/add_domain.dart';
-import 'package:covert_connect/src/domains/widgets/domains_list.dart';
+import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
 import 'package:covert_connect/src/utils/debounce.dart';
@@ -21,8 +21,8 @@ class DomainsPage extends StatefulWidget {
 }
 
 class _DomainsPageState extends State<DomainsPage> {
-  List<DomainInfo> _domains = [];
-  List<DomainInfo> _filtered = [];
+  List<RouteInfo> _domains = [];
+  List<RouteInfo> _filtered = [];
 
   bool _urlError = false;
   bool _urlShowError = false;
@@ -38,9 +38,9 @@ class _DomainsPageState extends State<DomainsPage> {
       di<ProxyServiceBase>().getDomains(),
       di<ProxyServiceBase>().getStateFull(),
     ]);
-    _domains = rootDomains.map((d) => DomainInfo(d, "")).toList();
+    _domains = rootDomains.map((d) => RouteInfo(d, "")).toList();
     for (final srv in state.servers) {
-      _domains.addAll(srv.config.domains?.map((d) => DomainInfo(d, srv.config.host)) ?? []);
+      _domains.addAll(srv.config.domains?.map((d) => RouteInfo(d, srv.config.host)) ?? []);
     }
 
     _filterDomains(_inputValue);
@@ -61,13 +61,13 @@ class _DomainsPageState extends State<DomainsPage> {
     }
   }
 
-  void _editDomain(DomainInfo info) async {
+  void _editDomain(RouteInfo info) async {
     final state = await di<ProxyServiceBase>().getStateFull();
     if (!mounted) return;
 
     final result = await AddDomainDialog.show(
       context,
-      domain: info.domain,
+      domain: info.value,
       servers: state.servers,
       selectedServer: info.server,
     );
@@ -76,17 +76,17 @@ class _DomainsPageState extends State<DomainsPage> {
     }
   }
 
-  void _deleteDomain(DomainInfo info) async {
-    await di<ProxyServiceBase>().removeDomain(info.domain);
+  void _deleteDomain(RouteInfo info) async {
+    await di<ProxyServiceBase>().removeDomain(info.value);
     await _loadDomains();
     if (!mounted) return;
 
     Toast.warning(
       context,
-      caption: info.domain,
+      caption: info.value,
       text: "was removed, ${isDesktop ? 'click to undo' : 'tap to undo'}",
       onTap: () async {
-        await di<ProxyServiceBase>().setDomain(info.domain, info.server);
+        await di<ProxyServiceBase>().setDomain(info.value, info.server);
         await _loadDomains();
       },
     );
@@ -121,7 +121,7 @@ class _DomainsPageState extends State<DomainsPage> {
 
   void _filterDomains(String value) {
     if (value.isNotEmpty) {
-      _filtered = _domains.where((d) => d.domain.contains(value)).toList();
+      _filtered = _domains.where((d) => d.value.contains(value)).toList();
     } else {
       _filtered = _domains;
     }
@@ -208,7 +208,13 @@ class _DomainsPageState extends State<DomainsPage> {
             ],
           ),
           Flexible(
-            child: DomainList(domains: _filtered, onDeleteDomain: _deleteDomain, onEditDomain: _editDomain),
+            child: RouteList(
+              routeName: "Domain",
+              routes: _filtered,
+              onDeleteRoute: _deleteDomain,
+              onEditRoute: _editDomain,
+              decodeValue: (value) => value.decodePunycode(),
+            ),
           ),
         ],
       ),

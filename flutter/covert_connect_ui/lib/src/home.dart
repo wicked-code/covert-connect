@@ -1,5 +1,5 @@
+import 'package:covert_connect/src/apps/apps.dart';
 import 'package:covert_connect/src/domains/domains.dart';
-import 'package:covert_connect/src/log.dart';
 import 'package:covert_connect/src/options.dart';
 import 'package:covert_connect/src/status/status.dart';
 import 'package:covert_connect/src/utils/child_router.dart';
@@ -17,6 +17,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   static GlobalKey<ChildNavigatorState> statusPageNavigatorKey = GlobalKey<ChildNavigatorState>();
+  static GlobalKey<ChildNavigatorState> optionsPageNavigatorKey = GlobalKey<ChildNavigatorState>();
   late TabController _tabController;
 
   void _onTabChanged() {
@@ -53,8 +54,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   builder: (context) => StatusPage(),
                 ),
                 DomainsPage(),
-                LogPage(),
-                OptionsPage(),
+                AppsPage(),
+                ChildNavigator(
+                  key: optionsPageNavigatorKey,
+                  selected: _tabController.index == 3,
+                  builder: (context) => OptionsPage(),
+                )
               ],
             ),
           ),

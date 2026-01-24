@@ -155,18 +155,19 @@ class _DesktopAppBarState extends State<DesktopAppBar>
       }
     }
 
-    CaptionButtonIconColorTheme theme = Platform.isMacOS
+    CaptionButtonIconColorTheme btnTheme = Platform.isMacOS
         ? brightness == Brightness.dark
               ? kMacOSIconThemeDark
               : kMacOSIconTheme
         : brightness == Brightness.dark
         ? kWindowsIconThemeDark
         : kWindowsIconTheme;
-    Color captionColor = theme.normal;
+    Color captionColor = btnTheme.normal;
     if (!_isFocused) {
-      captionColor = theme.notFocused;
+      captionColor = btnTheme.notFocused;
     }
 
+    final theme = Theme.of(context);
     return Column(
       children: [
         SizedBox(
@@ -198,7 +199,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
               left: 0,
               right: 0,
               bottom: 0,
-              child: Container(height: 1, color: Theme.of(context).dividerColor),
+              child: Container(height: 1, color: theme.dividerColor),
             ),
             Center(
               child: TabBar(
@@ -208,9 +209,9 @@ class _DesktopAppBarState extends State<DesktopAppBar>
                 dividerColor: Colors.transparent,
                 tabs: [
                   Tab(height: kTabHeight, child: Text("Status")),
-                  Tab(height: kTabHeight, child: Text("Domains")),
-                  Tab(height: kTabHeight, child: Text("Log")),
-                  Tab(height: kTabHeight, child: Text("Options")),
+                  Tab(height: kTabHeight, child: Text("Routes")),
+                  Tab(height: kTabHeight, child: Text("Apps")),
+                  Tab(height: kTabHeight, child: buildSvg("assets/icons/settings2.svg", width: 20, height: 20, color: theme.colorScheme.onSecondary)),
                 ],
               ),
             ),

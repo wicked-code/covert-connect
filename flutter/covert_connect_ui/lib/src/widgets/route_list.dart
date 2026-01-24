@@ -1,6 +1,5 @@
 import 'package:collection/collection.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
-import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
@@ -8,25 +7,27 @@ import 'package:covert_connect/src/widgets/text_with_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class DomainInfo {
-  const DomainInfo(this.domain, this.server);
+class RouteInfo {
+  const RouteInfo(this.value, this.server);
 
-  final String domain;
+  final String value;
   final String server;
 }
 
-class DomainList extends StatefulWidget {
-  const DomainList({super.key, required this.domains, required this.onDeleteDomain, required this.onEditDomain});
+class RouteList extends StatefulWidget {
+  const RouteList({super.key, required this.routeName, required this.routes, required this.onDeleteRoute, required this.onEditRoute, this.decodeValue});
 
-  final List<DomainInfo> domains;
-  final ValueChanged<DomainInfo> onDeleteDomain;
-  final ValueChanged<DomainInfo> onEditDomain;
+  final String routeName;
+  final List<RouteInfo> routes;
+  final ValueChanged<RouteInfo> onDeleteRoute;
+  final ValueChanged<RouteInfo> onEditRoute;
+  final String Function(String)? decodeValue;
 
   @override
-  State<DomainList> createState() => _DomainListState();
+  State<RouteList> createState() => _RouteListState();
 }
 
-class _DomainListState extends State<DomainList> {
+class _RouteListState extends State<RouteList> {
   int _hoverIndex = -1;
 
   void _hoverRow(int index, bool hovering) {
@@ -36,7 +37,7 @@ class _DomainListState extends State<DomainList> {
   }
 
   void _edit(int index) {
-    widget.onEditDomain(widget.domains[index]);
+    widget.onEditRoute(widget.routes[index]);
   }
 
   Color _highlightRow(Color color, Color highlightColor, int index) {
@@ -45,6 +46,11 @@ class _DomainListState extends State<DomainList> {
     }
 
     return Color.alphaBlend(highlightColor, color);
+  }
+
+  String _decodeValue(String value) {
+    final decodeValue = widget.decodeValue;
+    return decodeValue == null ? value : decodeValue(value);
   }
 
   @override
@@ -88,7 +94,7 @@ class _DomainListState extends State<DomainList> {
                     Container(),
                     Padding(
                       padding: EdgeInsets.only(top: 9, bottom: 9),
-                      child: Text("Domain", style: headerTextStyle),
+                      child: Text(widget.routeName, style: headerTextStyle),
                     ),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -105,7 +111,7 @@ class _DomainListState extends State<DomainList> {
                   columnWidths: columnSizes,
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   children: [
-                    ...widget.domains.mapIndexed((idx, info) {
+                    ...widget.routes.mapIndexed((idx, info) {
                       return TableRow(
                         decoration: BoxDecoration(
                           color: _highlightRow(idx % 2 == 0 ? rowColorEven : colorScheme.surface, selectedColor, idx),
@@ -117,7 +123,7 @@ class _DomainListState extends State<DomainList> {
                             index: idx,
                             onHover: _hoverRow,
                             onTap: _edit,
-                            child: TextWithTooltip(info.domain.decodePunycode(), style: cellTextStyle),
+                            child: TextWithTooltip(_decodeValue(info.value), style: cellTextStyle),
                           ),
                           _Cell(
                             index: idx,
@@ -144,7 +150,7 @@ class _DomainListState extends State<DomainList> {
                                 AppIconButton(
                                   asset: "assets/icons/delete.svg",
                                   assetColor: Colors.redAccent,
-                                  onPressed: () => widget.onDeleteDomain(info),
+                                  onPressed: () => widget.onDeleteRoute(info),
                                 ),
                                 SizedBox(width: hPadding),
                               ],
