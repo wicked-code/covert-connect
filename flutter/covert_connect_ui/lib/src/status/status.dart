@@ -14,6 +14,7 @@ import 'package:ntp/ntp.dart';
 
 const kMaxSyncOffsetMs = 5 * 1000; // 5 seconds
 const kCheckSyncInterval = Duration(minutes: 60);
+final kUpdateIntervalMs = kUpdateInterval.inMilliseconds;
 double timeFromIndex(int index) => (index * kUpdateIntervalMs).toDouble();
 
 class StatusPage extends StatefulWidget {
@@ -30,7 +31,7 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
   TrafficSample? _prevSample;
   final _speedHistory = List.generate(
     kTrafficGraphSamplesCount,
-    (index) => TrafficSample(time: timeFromIndex(index), rx: BigInt.zero, tx: BigInt.zero),
+    (index) => TrafficSample(time: timeFromIndex(index), rx: 0, tx: 0),
     growable: true,
   );
 
@@ -40,21 +41,33 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
 
   DateTime? _lastSyncCheck;
 
+  Future<void> _updateServers() async {
+    _proxyStateFull = await di<ProxyServiceBase>().getStateFull();
+  }
+
   void _update() async {
     if (!di.isReadySync<ProxyServiceBase>()) return;
     _checkSync();
 
-    _proxyStateFull = await di<ProxyServiceBase>().getStateFull();
+    await _updateServers();
     final newSample = _proxyStateFull!.servers.fold(
-      TrafficSample(time: _time, rx: BigInt.zero, tx: BigInt.zero),
-      (acc, server) => TrafficSample(time: _time, rx: acc.rx + server.state.rxTotal, tx: acc.tx + server.state.txTotal),
+      TrafficSample(time: _time, rx: 0, tx: 0),
+      (acc, server) => TrafficSample(
+        time: _time,
+        rx: acc.rx + server.state.rxTotal.toDouble(),
+        tx: acc.tx + server.state.txTotal.toDouble(),
+      ),
     );
     if (_prevSample != null) {
       if (_speedHistory.length >= kTrafficGraphSamplesCount) {
         _speedHistory.removeAt(0);
       }
       _speedHistory.add(
-        TrafficSample(time: _time, rx: newSample.rx - _prevSample!.rx, tx: newSample.tx - _prevSample!.tx),
+        TrafficSample(
+          time: _time,
+          rx: (newSample.rx - _prevSample!.rx) * 1000 / kUpdateIntervalMs,
+          tx: (newSample.tx - _prevSample!.tx) * 1000 / kUpdateIntervalMs,
+        ),
       );
     }
     _prevSample = newSample;
@@ -117,7 +130,7 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
         children: [
           StateToggle(),
           Flexible(
-            child: ServerList(servers: _proxyStateFull!.servers, updateServers: _update),
+            child: ServerList(servers: _proxyStateFull!.servers, updateServers: _updateServers),
           ),
           SizedBox(height: 24),
           SizedBox(

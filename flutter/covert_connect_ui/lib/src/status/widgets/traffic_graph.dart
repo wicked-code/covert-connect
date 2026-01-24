@@ -20,7 +20,7 @@ const rxColor = Color(0xFF808000);
 
 class TrafficSample {
   const TrafficSample({required this.rx, required this.tx, required this.time});
-  final BigInt rx, tx;
+  final double rx, tx;
   final double time;
 }
 
@@ -40,8 +40,6 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
   List<TrafficSample> get data => widget.data;
   double _offsetX = 0.0;
   bool _smoothEnabled = true;
-
-  FlSpot fromValue(double time, BigInt value) => FlSpot(time, value.toDouble());
 
   @override
   void didUpdateWidget(covariant TrafficGraph oldWidget) {
@@ -101,7 +99,7 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.57),
     );
 
-    final maxY = data.fold(BigInt.zero, (acc, sm) {
+    final maxY = data.fold(0.0, (acc, sm) {
       final value = sm.rx + sm.tx;
       return value > acc ? value : acc;
     }).toDouble();
@@ -162,14 +160,14 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
                       ),
                       lineBarsData: [
                         LineChartBarData(
-                          spots: data.map((sm) => fromValue(sm.time, sm.tx + sm.rx)).toList(),
+                          spots: data.map((sm) => FlSpot(sm.time, sm.tx + sm.rx)).toList(),
                           dotData: const FlDotData(show: false),
                           color: txColor,
                           barWidth: 1,
                           isCurved: true,
                         ),
                         LineChartBarData(
-                          spots: data.map((sm) => fromValue(sm.time, sm.rx)).toList(),
+                          spots: data.map((sm) => FlSpot(sm.time, sm.rx)).toList(),
                           dotData: const FlDotData(show: false),
                           color: rxColor,
                           barWidth: 1,
