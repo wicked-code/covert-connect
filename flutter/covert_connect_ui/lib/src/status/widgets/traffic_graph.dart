@@ -13,6 +13,7 @@ const kLeftAxisTitleSize = 63.0;
 
 const kUpdateIntervalMs = 500;
 const kUpdateInterval = Duration(milliseconds: kUpdateIntervalMs);
+const kMinVisiblePositionChange = 4;
 
 const kTrafficGraphSamplesCount = 150;
 const txColor = Color(0xFF800000);
@@ -39,7 +40,10 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
 
   List<TrafficSample> get data => widget.data;
   double _offsetX = 0.0;
+  double _prevOffsetX = 0.0;
   bool _smoothEnabled = true;
+
+  double _minVisibleXChange = 0;
 
   @override
   void didUpdateWidget(covariant TrafficGraph oldWidget) {
@@ -68,7 +72,10 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
       if (_offsetX >= kUpdateIntervalMs.toDouble()) {
         _offsetX = kUpdateIntervalMs.toDouble();
       }
-      setState(() {});
+      if ((_offsetX - _prevOffsetX).abs() >= _minVisibleXChange) {
+        _prevOffsetX = _offsetX;
+        setState(() {});
+      }
     });
   }
 
@@ -91,6 +98,9 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
     final graphWidth = width - kPadding - kLeftAxisTitleSize;
     final stepWidth = graphWidth / kTrafficGraphSamplesCount;
 
+    _minVisibleXChange =
+        kUpdateIntervalMs / (stepWidth * mediaQueryResult.devicePixelRatio * kMinVisiblePositionChange);
+
     const kFontSize = 11.0;
     final thinTextStyle = GoogleFonts.inter(
       fontSize: kFontSize,
@@ -108,7 +118,7 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
 
     final titles = <Widget>[Text("0", style: thinTextStyle)];
     for (double value = horizontalInterval; value < maxY; value += horizontalInterval) {
-        titles.add(Text(toDataSize(BigInt.from(value), true), style: thinTextStyle));
+      titles.add(Text(toDataSize(BigInt.from(value), true), style: thinTextStyle));
     }
     final titleInterval = maxY > 0 ? (widget.height * horizontalInterval) / maxY : 0;
 
@@ -138,7 +148,8 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
                 maxWidth: graphWidth + 2 * stepWidth,
                 child: Transform.translate(
                   offset: Offset(-stepWidth * (_offsetX / kUpdateIntervalMs), 0),
-                  filterQuality: FilterQuality.high,
+                  filterQuality: FilterQuality.medium,
+                  transformHitTests: false,
                   child: LineChart(
                     duration: Duration.zero,
                     LineChartData(
