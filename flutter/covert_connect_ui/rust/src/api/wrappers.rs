@@ -12,6 +12,7 @@ pub struct ServerConfig {
     pub host: String,
     pub weight: Option<u8>,
     pub domains: Option<Vec<String>>,
+    pub apps: Option<Vec<String>>,
     pub enabled: bool,
     pub protocol: ProtocolConfig,
 }
@@ -23,6 +24,7 @@ impl Into<ClientServerConfig> for ServerConfig {
             host: self.host.clone(),
             weight: self.weight.clone(),
             domains: self.domains.clone(),
+            apps: self.apps.clone(),
             enabled: self.enabled,
             protocol: self.protocol.into(),
             url_path: None,
@@ -38,6 +40,7 @@ impl From<ClientServerConfig> for ServerConfig {
             host: cfg.host.clone(),
             weight: cfg.weight.clone(),
             domains: cfg.domains.clone(),
+            apps: cfg.apps.clone(),
             enabled: cfg.enabled,
             protocol: cfg.protocol.into(),
         }

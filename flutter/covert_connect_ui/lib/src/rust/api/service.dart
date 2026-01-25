@@ -21,6 +21,8 @@ abstract class ProxyService implements RustOpaqueInterface {
 
   Future<void> deleteServer({required String host});
 
+  Future<List<String>> getApps();
+
   static Future<bool> getAutostart() =>
       RustLib.instance.api.crateApiServiceProxyServiceGetAutostart();
 
@@ -50,7 +52,11 @@ abstract class ProxyService implements RustOpaqueInterface {
   factory ProxyService() =>
       RustLib.instance.api.crateApiServiceProxyServiceNew();
 
+  Future<void> removeApp({required String app});
+
   Future<void> removeDomain({required String domain});
+
+  Future<void> setApp({required String app, required String serverHost});
 
   static Future<void> setAutostart({required bool enabled}) => RustLib
       .instance
@@ -79,18 +85,24 @@ class ProxyConfig {
   final ProxyState state;
   final int port;
   final List<String> domains;
+  final List<String> apps;
   final List<ServerConfig> servers;
 
   const ProxyConfig({
     required this.state,
     required this.port,
     required this.domains,
+    required this.apps,
     required this.servers,
   });
 
   @override
   int get hashCode =>
-      state.hashCode ^ port.hashCode ^ domains.hashCode ^ servers.hashCode;
+      state.hashCode ^
+      port.hashCode ^
+      domains.hashCode ^
+      apps.hashCode ^
+      servers.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -100,6 +112,7 @@ class ProxyConfig {
           state == other.state &&
           port == other.port &&
           domains == other.domains &&
+          apps == other.apps &&
           servers == other.servers;
 }
 

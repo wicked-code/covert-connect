@@ -25,7 +25,7 @@ class ProxyServiceImpl implements ProxyServiceBase {
     if (configStr.isNotEmpty) {
       cfg = proxyConfigFromString(configStr);
     } else {
-      cfg = ProxyConfig(state: ProxyState.off, port: kDefaultPort, domains: [], servers: []);
+      cfg = ProxyConfig(state: ProxyState.off, port: kDefaultPort, domains: [], apps: [], servers: []);
     }
 
     await proxy.start(cfg: cfg);
@@ -72,6 +72,11 @@ class ProxyServiceImpl implements ProxyServiceBase {
   }
 
   @override
+  Future<List<String>> getApps() {
+    return proxy.getApps();
+  }
+
+  @override
   Future<void> setDomain(String domain, String serverHost) async {
     await proxy.setDomain(domain: domain, serverHost: serverHost);
     await saveConfig();
@@ -80,6 +85,18 @@ class ProxyServiceImpl implements ProxyServiceBase {
   @override
   Future<void> removeDomain(String domain) async {
     await proxy.removeDomain(domain: domain);
+    saveConfig();
+  }
+
+  @override
+  Future<void> setApp(String app, String serverHost) async {
+    await proxy.setApp(app: app, serverHost: serverHost);
+    await saveConfig();
+  }
+
+  @override
+  Future<void> removeApp(String app) async {
+    await proxy.removeApp(app: app);
     saveConfig();
   }
 

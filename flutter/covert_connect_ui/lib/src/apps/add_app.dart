@@ -1,7 +1,6 @@
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
-import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
 import 'package:flutter/material.dart';
@@ -11,67 +10,44 @@ const int kSamplesCount = 3;
 const int kDelayBetweenSamplesMs = 100;
 const String kDirectHost = "Direct";
 
-class AddDomainDialog extends StatefulWidget {
-  const AddDomainDialog({super.key, required this.domain, required this.servers, this.selectedServer});
+class AddAppDialog extends StatefulWidget {
+  const AddAppDialog({super.key, required this.app, required this.servers, this.selectedServer});
 
-  final String domain;
+  final String app;
   final List<ServerInfo> servers;
   final String? selectedServer;
 
   static Future<bool?> show(
     BuildContext context, {
-    required String domain,
+    required String app,
     required List<ServerInfo> servers,
-    String selectedServer = "",
+    String? selectedServer,
   }) => showDialog<bool>(
     context: context,
-    builder: (_) => AddDomainDialog(domain: domain, servers: servers, selectedServer: selectedServer),
+    builder: (_) => AddAppDialog(app: app, servers: servers, selectedServer: selectedServer),
   );
 
   @override
-  State<AddDomainDialog> createState() => _AddDomainDialogState();
+  State<AddAppDialog> createState() => _AddAppDialogState();
 }
 
-class _AddDomainDialogState extends State<AddDomainDialog> {
+class _AddAppDialogState extends State<AddAppDialog> {
   List<ServerInfo> get servers => widget.servers;
 
   String _selected = kDirectHost;
-  Map<String, ({double ping, int count})> pingMap = {};
 
   void _selectServer() {
     if (_selected != widget.selectedServer) {
-      di<ProxyServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
+      di<ProxyServiceBase>().setApp(widget.app, _selected == kDirectHost ? "" : _selected);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
     }
   }
 
-  void _init() async {
-    for (int i = 0; i < kSamplesCount; i++) {
-      for (final server in servers) {
-        final host = server.config.host;
-        di<ProxyServiceBase>().getTTFB(host, widget.domain).then((ping) {
-          if (pingMap.containsKey(host)) {
-            final old = pingMap[host]!;
-            final newCount = old.count + 1;
-            final newPing = (old.ping * old.count + ping) / newCount;
-            pingMap[host] = (ping: newPing, count: newCount);
-          } else {
-            pingMap[host] = (ping: ping.toDouble(), count: 1);
-          }
-          if (!mounted) return;
-          setState(() {});
-        });
-      }
-      await Future.delayed(Duration(milliseconds: kDelayBetweenSamplesMs));
-    }
-  }
-
   @override
   void initState() {
     _selected = widget.selectedServer?.isNotEmpty == true ? widget.selectedServer! : kDirectHost;
-    _init();
     super.initState();
   }
 
@@ -96,7 +72,7 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "${widget.selectedServer == null ? "Add" : "Edit"} domain",
+              "${widget.selectedServer == null ? "Add" : "Edit"} application",
               style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             RichText(
@@ -104,10 +80,7 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
                 style: textTheme.labelLarge?.copyWith(color: textTheme.labelLarge?.color?.withValues(alpha: 0.75)),
                 children: [
                   TextSpan(text: "select server for: "),
-                  TextSpan(
-                    text: widget.domain.decodePunycode(),
-                    style: thinTextStyle,
-                  ),
+                  TextSpan(text: widget.app, style: thinTextStyle),
                 ],
               ),
             ),
@@ -123,8 +96,6 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
                 ...servers.map(
                   (server) => _Server(
                     host: server.config.host,
-                    ping: pingMap[server.config.host]?.ping ?? 0,
-                    count: pingMap[server.config.host]?.count ?? 0,
                     selected: _selected == server.config.host,
                     onSelect: () => setState(() => _selected = server.config.host),
                   ),
@@ -148,12 +119,10 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
 }
 
 class _Server extends StatelessWidget {
-  const _Server({required this.selected, required this.host, this.ping, this.count, required this.onSelect});
+  const _Server({required this.selected, required this.host, required this.onSelect});
 
   final bool selected;
   final String host;
-  final double? ping;
-  final int? count;
   final VoidCallback onSelect;
 
   @override
@@ -163,9 +132,6 @@ class _Server extends StatelessWidget {
     final textTheme = theme.textTheme;
     final selectTextColor = selected ? colorScheme.onSecondary : colorScheme.primary;
     final textStyle = textTheme.bodyMedium?.copyWith(fontSize: 13, fontWeight: FontWeight.w500, color: selectTextColor);
-    final pingStyle = count == null || count == kSamplesCount
-        ? textStyle
-        : textStyle?.copyWith(color: theme.disabledColor);
 
     return HoverBuilder(
       builder: (_, isHovering) => GestureDetector(
@@ -186,18 +152,6 @@ class _Server extends StatelessWidget {
                 Expanded(
                   child: Text(host, overflow: TextOverflow.ellipsis, style: textStyle),
                 ),
-                if (ping != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text("ping: ", style: textStyle),
-                      SizedBox(
-                        width: 27,
-                        child: Center(child: Text("${ping! > 0 ? ping?.toStringAsFixed(0) : "..."}", style: pingStyle)),
-                      ),
-                      Text(" ms", style: textStyle),
-                    ],
-                  ),
               ],
             ),
           ),

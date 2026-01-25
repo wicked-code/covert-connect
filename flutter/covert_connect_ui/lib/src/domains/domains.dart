@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:covert_connect/di.dart';
-import 'package:covert_connect/src/domains/widgets/add_domain.dart';
+import 'package:covert_connect/src/domains/add_domain.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';

@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -998444796;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -499140144;
 
 // Section: executor
 
@@ -163,6 +163,51 @@ fn wire__crate__api__service__ProxyService_delete_server_impl(
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
                             crate::api::service::ProxyService::delete_server(&*api_that_guard, api_host).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__service__ProxyService_get_apps_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ProxyService_get_apps",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::service::ProxyService::get_apps(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -615,6 +660,53 @@ fn wire__crate__api__service__ProxyService_new_impl(
         },
     )
 }
+fn wire__crate__api__service__ProxyService_remove_app_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ProxyService_remove_app",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_app = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::service::ProxyService::remove_app(&*api_that_guard, api_app).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__service__ProxyService_remove_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -654,6 +746,55 @@ fn wire__crate__api__service__ProxyService_remove_domain_impl(
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
                             crate::api::service::ProxyService::remove_domain(&*api_that_guard, api_domain).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__service__ProxyService_set_app_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ProxyService_set_app",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_app = <String>::sse_decode(&mut deserializer);
+            let api_server_host = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::service::ProxyService::set_app(&*api_that_guard, api_app, api_server_host)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1317,11 +1458,13 @@ impl SseDecode for crate::api::service::ProxyConfig {
         let mut var_state = <crate::api::service::ProxyState>::sse_decode(deserializer);
         let mut var_port = <u16>::sse_decode(deserializer);
         let mut var_domains = <Vec<String>>::sse_decode(deserializer);
+        let mut var_apps = <Vec<String>>::sse_decode(deserializer);
         let mut var_servers = <Vec<crate::api::wrappers::ServerConfig>>::sse_decode(deserializer);
         return crate::api::service::ProxyConfig {
             state: var_state,
             port: var_port,
             domains: var_domains,
+            apps: var_apps,
             servers: var_servers,
         };
     }
@@ -1359,6 +1502,7 @@ impl SseDecode for crate::api::wrappers::ServerConfig {
         let mut var_host = <String>::sse_decode(deserializer);
         let mut var_weight = <Option<u8>>::sse_decode(deserializer);
         let mut var_domains = <Option<Vec<String>>>::sse_decode(deserializer);
+        let mut var_apps = <Option<Vec<String>>>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
         let mut var_protocol = <crate::api::wrappers::ProtocolConfig>::sse_decode(deserializer);
         return crate::api::wrappers::ServerConfig {
@@ -1366,6 +1510,7 @@ impl SseDecode for crate::api::wrappers::ServerConfig {
             host: var_host,
             weight: var_weight,
             domains: var_domains,
+            apps: var_apps,
             enabled: var_enabled,
             protocol: var_protocol,
         };
@@ -1456,27 +1601,30 @@ fn pde_ffi_dispatcher_primary_impl(
         1 => wire__crate__api__service__ProxyService_add_server_impl(port, ptr, rust_vec_len, data_len),
         2 => wire__crate__api__service__ProxyService_check_domain_impl(port, ptr, rust_vec_len, data_len),
         3 => wire__crate__api__service__ProxyService_delete_server_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__service__ProxyService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__service__ProxyService_get_config_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__service__ProxyService_get_domains_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__service__ProxyService_get_log_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__service__ProxyService_get_proxy_port_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__service__ProxyService_get_proxy_state_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__service__ProxyService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__service__ProxyService_get_state_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__service__ProxyService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__service__ProxyService_log_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__service__ProxyService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__service__ProxyService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__service__ProxyService_set_domain_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__service__ProxyService_set_proxy_port_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__service__ProxyService_set_proxy_state_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__service__ProxyService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__service__ProxyService_start_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__service__ProxyService_stop_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__service__ProxyService_update_server_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__service__ProxyService_get_apps_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__service__ProxyService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__service__ProxyService_get_config_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__service__ProxyService_get_domains_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__service__ProxyService_get_log_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__service__ProxyService_get_proxy_port_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__service__ProxyService_get_proxy_state_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__service__ProxyService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__service__ProxyService_get_state_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__service__ProxyService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__service__ProxyService_log_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__service__ProxyService_remove_app_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__service__ProxyService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__service__ProxyService_set_app_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__service__ProxyService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__service__ProxyService_set_domain_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__service__ProxyService_set_proxy_port_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__service__ProxyService_set_proxy_state_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__service__ProxyService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__service__ProxyService_start_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__service__ProxyService_stop_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__service__ProxyService_update_server_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1489,7 +1637,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        14 => wire__crate__api__service__ProxyService_new_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__service__ProxyService_new_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1606,6 +1754,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::service::ProxyConfig {
             self.state.into_into_dart().into_dart(),
             self.port.into_into_dart().into_dart(),
             self.domains.into_into_dart().into_dart(),
+            self.apps.into_into_dart().into_dart(),
             self.servers.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -1660,6 +1809,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::wrappers::ServerConfig {
             self.host.into_into_dart().into_dart(),
             self.weight.into_into_dart().into_dart(),
             self.domains.into_into_dart().into_dart(),
+            self.apps.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
             self.protocol.into_into_dart().into_dart(),
         ]
@@ -1893,6 +2043,7 @@ impl SseEncode for crate::api::service::ProxyConfig {
         <crate::api::service::ProxyState>::sse_encode(self.state, serializer);
         <u16>::sse_encode(self.port, serializer);
         <Vec<String>>::sse_encode(self.domains, serializer);
+        <Vec<String>>::sse_encode(self.apps, serializer);
         <Vec<crate::api::wrappers::ServerConfig>>::sse_encode(self.servers, serializer);
     }
 }
@@ -1929,6 +2080,7 @@ impl SseEncode for crate::api::wrappers::ServerConfig {
         <String>::sse_encode(self.host, serializer);
         <Option<u8>>::sse_encode(self.weight, serializer);
         <Option<Vec<String>>>::sse_encode(self.domains, serializer);
+        <Option<Vec<String>>>::sse_encode(self.apps, serializer);
         <bool>::sse_encode(self.enabled, serializer);
         <crate::api::wrappers::ProtocolConfig>::sse_encode(self.protocol, serializer);
     }

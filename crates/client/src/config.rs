@@ -21,9 +21,13 @@ pub struct ServerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub weight: Option<u8>,
 
-    /// the server should be used for this domains
+    /// the server should be used for these domains
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domains: Option<Vec<String>>,
+
+    /// the server should be used for these apps
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apps: Option<Vec<String>>,
 
     /// enabled if None
     #[serde(skip_serializing_if = "is_true")]
@@ -109,6 +113,10 @@ impl ServerConfig {
 
         if let Some(domains) = &mut self.domains {
             domains.sort();
+        }
+
+        if let Some(apps) = &mut self.apps {
+            apps.sort();
         }
 
         Ok(())

@@ -91,6 +91,11 @@ class ProxyServiceMock implements ProxyServiceBase {
   }
 
   @override
+  Future<List<String>> getApps() async {
+    return apps;
+  }
+
+  @override
   Future<void> setDomain(String domain, String serverHost) async {
     if (serverHost.isNotEmpty) {
       domains.remove(domain);
@@ -122,6 +127,41 @@ class ProxyServiceMock implements ProxyServiceBase {
     domains.remove(domain);
     for (final srv in servers) {
       srv.config.domains?.remove(domain);
+    }
+  }
+
+  @override
+  Future<void> setApp(String app, String serverHost) async {
+    if (serverHost.isNotEmpty) {
+      apps.remove(app);
+      servers.forEachIndexed((index, srv) {
+        if (srv.config.host == serverHost) {
+          if (srv.config.apps == null) {
+            servers.setAll(index, [srv.copyWith(config: srv.config.copyWith(apps: []))]);
+          }
+          if (!(srv.config.apps?.contains(app) ?? false)) {
+            srv.config.apps?.add(app);
+          }
+        } else {
+          srv.config.apps?.remove(app);
+        }
+      });
+    } else {
+      if (!apps.contains(app)) {
+        apps.add(app);
+      }
+
+      for (final srv in servers) {
+        srv.config.apps?.remove(app);
+      }
+    }
+  }
+
+  @override
+  Future<void> removeApp(String app) async {
+    apps.remove(app);
+    for (final srv in servers) {
+      srv.config.apps?.remove(app);
     }
   }
 
@@ -225,6 +265,7 @@ extension ServerConfigEx on ServerConfig {
     String? host,
     int? weight,
     List<String>? domains,
+    List<String>? apps,
     bool? enabled,
     ProtocolConfig? protocol,
   }) => ServerConfig(
@@ -232,6 +273,7 @@ extension ServerConfigEx on ServerConfig {
     host: host ?? this.host,
     weight: weight ?? this.weight,
     domains: domains ?? this.domains,
+    apps: apps ?? this.apps,
     enabled: enabled ?? this.enabled,
     protocol: protocol ?? this.protocol,
   );
@@ -240,7 +282,7 @@ extension ServerConfigEx on ServerConfig {
 int _proxyPort = 25445;
 bool _autostart = true;
 int _noValueCount = 0;
-ProxyState _proxyState = ProxyState.off;
+ProxyState _proxyState = ProxyState.all;
 List<String> _log = ["log line 1", "\x1B[31mlog line 2", "\x1B[32mlog line 3", "\x1B[33mlog line 4", "\x1B[34mlog line 5"];
 
 List<String> domains = [
@@ -250,6 +292,10 @@ List<String> domains = [
   'gtest-very-long-domain-name.com',
   'gtest.space',
   'onemore.it',
+];
+
+List<String> apps = [
+  'test-app'
 ];
 
 List<ServerInfo> servers = [
@@ -289,6 +335,7 @@ List<ServerInfo> servers = [
       caption: "",
       host: "cconnect.space",
       domains: ["xxx1.com", "xxx2.com", "xxx3.net", "tmp2.space"],
+      apps: ["test-space-app"],
       enabled: true,
       protocol: ProtocolConfig(
         key: "key",

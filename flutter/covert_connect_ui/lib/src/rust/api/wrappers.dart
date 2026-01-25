@@ -96,6 +96,7 @@ class ServerConfig {
   final String host;
   final int? weight;
   final List<String>? domains;
+  final List<String>? apps;
   final bool enabled;
   final ProtocolConfig protocol;
 
@@ -104,6 +105,7 @@ class ServerConfig {
     required this.host,
     this.weight,
     this.domains,
+    this.apps,
     required this.enabled,
     required this.protocol,
   });
@@ -114,6 +116,7 @@ class ServerConfig {
       host.hashCode ^
       weight.hashCode ^
       domains.hashCode ^
+      apps.hashCode ^
       enabled.hashCode ^
       protocol.hashCode;
 
@@ -126,6 +129,7 @@ class ServerConfig {
           host == other.host &&
           weight == other.weight &&
           domains == other.domains &&
+          apps == other.apps &&
           enabled == other.enabled &&
           protocol == other.protocol;
 }

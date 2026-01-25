@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 
-const kStateKey = "state";
-const kPortKey = "port";
-const kDomainsKey = "domains";
-const kServersKey = "servers";
+const kState = "state";
+const kPort = "port";
+const kApps = "apps";
+const kDomains = "domains";
+const kServers = "servers";
 
 const kCaption = "caption";
 const kHost = "host";
 const kWeight = "weight";
-const kDomains = "domains";
 const kEnabled = "enabled";
 const kProtocol = "protocol";
 
@@ -29,10 +29,11 @@ ProxyConfig proxyConfigFromString(String configStr) {
   final json = jsonDecode(configStr);
 
   return ProxyConfig(
-    state: ProxyState.values.byName(json[kStateKey] as String),
-    port: json[kPortKey] as int,
-    domains: (json[kDomainsKey] as List<dynamic>).map((x) => x as String).toList(),
-    servers: (json[kServersKey] as List<dynamic>).map((x) => serverConfigFromJson(x as Map<String, dynamic>)).toList(),
+    state: ProxyState.values.byName(json[kState] as String),
+    port: json[kPort] as int,
+    domains: (json[kDomains] as List<dynamic>).map((x) => x as String).toList(),
+    apps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList() ?? [],
+    servers: (json[kServers] as List<dynamic>?)?.map((x) => serverConfigFromJson(x as Map<String, dynamic>)).toList() ?? [],
   );
 }
 
@@ -42,6 +43,7 @@ ServerConfig serverConfigFromJson(Map<String, dynamic> json) {
     host: json[kHost] as String,
     weight: json[kWeight] as int?,
     domains: (json[kDomains] as List<dynamic>?)?.map((x) => x as String).toList(),
+    apps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList(),
     enabled: json[kEnabled] as bool,
     protocol: protocolConfigFromJson(json[kProtocol] as Map<String, dynamic>),
   );
@@ -60,10 +62,10 @@ ProtocolConfig protocolConfigFromJson(Map<String, dynamic> json) {
 }
 
 Map<String, dynamic> proxyCofigToJson(ProxyConfig value) => {
-  kStateKey: value.state.name,
-  kPortKey: value.port,
-  kDomainsKey: value.domains,
-  kServersKey: value.servers.map((s) => serverConfigToJson(s)).toList(),
+  kState: value.state.name,
+  kPort: value.port,
+  kDomains: value.domains,
+  kServers: value.servers.map((s) => serverConfigToJson(s)).toList(),
 };
 
 Map<String, dynamic> serverConfigToJson(ServerConfig value) => {

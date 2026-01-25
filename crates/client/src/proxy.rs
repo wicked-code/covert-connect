@@ -42,6 +42,7 @@ pub enum ProxyState {
 
 pub struct Proxy {
     servers: RwLock<Vec<Server>>,
+    apps: RwLock<Vec<String>>,
     pac_service: Arc<PacFileService>,
     proxy_state: RwLock<ProxyState>,
     tls_cfg: Arc<rustls::ClientConfig>,
@@ -72,6 +73,7 @@ impl Proxy {
         Ok(Arc::new(Proxy {
             pac_service: PacFileService::new(proxy_port)?,
             servers: Default::default(),
+            apps: Default::default(),
             proxy_state: RwLock::new(proxy_state),
             tls_cfg: Arc::new(tls_cfg),
             initialized: AtomicBool::new(false),
@@ -94,6 +96,14 @@ impl Proxy {
         self.reset_proxy().await
     }
 
+    pub async fn get_apps(&self) -> Vec<String> {
+        self.apps.read().await.clone()
+    }
+
+    pub async fn add_apps(&self, apps: &Vec<String>) {
+        self.apps.write().await.extend_from_slice(apps.as_slice());
+    }
+
     pub async fn add_domains(&self, hosts: &Vec<String>) {
         self.pac_service.add_domains(hosts).await;
     }
@@ -104,6 +114,8 @@ impl Proxy {
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
         if !server_host.is_empty() {
+            self.pac_service.remove_domain(&domain).await.ok();
+
             let mut servers = self.servers.write().await;
             if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
                 let config = &mut((*servers)[pos].config);
@@ -145,6 +157,63 @@ impl Proxy {
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
         self.pac_service.remove_domain(&domain).await?;
         self.remove_domain_from_servers(&domain).await
+    }
+
+    pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
+        if !server_host.is_empty() {
+            self.remove_app_internal(&app).await.ok();
+
+            let mut servers = self.servers.write().await;
+            if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
+                let config = &mut((*servers)[pos].config);
+                if let Some(apps) = &mut config.apps {
+                    if !apps.iter().any(|d| d == &app) {
+                        apps.push(app);
+                        apps.sort();
+                    }
+                } else {
+                    config.apps = Some(vec![app]);
+                }
+
+                Ok(())
+            } else {
+                Err(anyhow!("host not found"))
+            }
+        } else {
+            if !self.apps.read().await.iter().any(|d| d == &app) {
+                self.apps.write().await.push(app.clone());
+            }
+
+            self.remove_app_from_servers(&app).await
+        }
+    }
+
+    async fn remove_app_from_servers(&self, app: &str) -> Result<()> {
+        let mut servers = self.servers.write().await;
+        for srv in servers.iter_mut() {
+            if let Some(apps) = &mut srv.config.apps {
+                if let Some(idx) = apps.iter().position(|d| d == app) {
+                    apps.remove(idx);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove_app_internal(&self, app: &str) -> Result<()> {
+        let mut wr_apps = self.apps.write().await;
+        if let Some(idx) = wr_apps.iter().position(|d| d == app) {
+            wr_apps.remove(idx);
+            Ok(())
+        } else {
+            Err(anyhow!("app not found"))
+        }
+    }
+
+    pub async fn remove_app(&self, app: String) -> Result<()> {
+        self.remove_app_internal(&app).await?;
+        self.remove_app_from_servers(&app).await
     }
 
     pub async fn update_pac_content(&self) {

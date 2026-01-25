@@ -14,6 +14,7 @@ pub struct ProxyConfig {
     pub state: ProxyState,
     pub port: u16,
     pub domains: Vec<String>,
+    pub apps: Vec<String>,
     pub servers: Vec<ServerConfig>,
 }
 
@@ -67,6 +68,7 @@ impl ProxyService {
             .map_err(|_| anyhow!("proxy already initialized"))?;
 
         flutter_rust_bridge::spawn(async move {
+            proxy_instance.add_apps(&cfg.apps).await;
             proxy_instance.add_domains(&cfg.domains).await;
             proxy_instance.update_pac_content().await;
 
@@ -97,6 +99,7 @@ impl ProxyService {
                 .map(|srv| srv.config.into())
                 .collect(),
             domains: proxy.get_domains().await,
+            apps: proxy.get_apps().await,
         });
     }
 
@@ -147,6 +150,10 @@ impl ProxyService {
         self.get_proxy()?.set_proxy_state(ProxyState::Off).await
     }
 
+    pub async fn get_apps(&self) -> Result<Vec<String>> {
+        Ok(self.get_proxy()?.get_apps().await)
+    }
+
     pub async fn get_domains(&self) -> Result<Vec<String>> {
         Ok(self.get_proxy()?.get_domains().await)
     }
@@ -177,6 +184,18 @@ impl ProxyService {
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
         let proxy = self.get_proxy()?;
         proxy.remove_domain(domain).await?;
+        proxy.reset_proxy().await
+    }
+
+    pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
+        let proxy = self.get_proxy()?;
+        proxy.set_app(app, server_host).await?;
+        proxy.reset_proxy().await
+    }
+
+    pub async fn remove_app(&self, app: String) -> Result<()> {
+        let proxy = self.get_proxy()?;
+        proxy.remove_app(app).await?;
         proxy.reset_proxy().await
     }
 

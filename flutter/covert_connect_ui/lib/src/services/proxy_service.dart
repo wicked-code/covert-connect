@@ -14,9 +14,12 @@ abstract class ProxyServiceBase {
   Future<void> setServerEnabled(String host, bool value);
   Future<ProtocolConfig> getServerProtocol(String host, String key);
   Future<List<String>> getDomains();
+  Future<List<String>> getApps();
   Future<void> setDomain(String domain, String serverHost);
   Future<void> removeDomain(String domain);
   Future<bool> checkDomain(String domain);
+  Future<void> setApp(String app, String serverHost);
+  Future<void> removeApp(String app);
   Future<void> addServer(ServerConfig newConfig);
   Future<void> updateServer(String origHost, ServerConfig newConfig);
   Future<void> deleteServer(String host);
