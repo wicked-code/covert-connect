@@ -211,7 +211,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
                   Tab(height: kTabHeight, child: Text("Status")),
                   Tab(height: kTabHeight, child: Text("Routes")),
                   Tab(height: kTabHeight, child: Text("Apps")),
-                  Tab(height: kTabHeight, child: buildSvg("assets/icons/settings2.svg", width: 20, height: 20, color: theme.colorScheme.onSecondary)),
+                  Tab(height: kTabHeight, child: buildSvg("assets/icons/settings2.svg", width: 20, height: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.81))),
                 ],
               ),
             ),
