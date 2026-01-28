@@ -49,6 +49,7 @@ const_format = "0.2.32"
 num_enum = "0.7.2"
 
 sys-proxy = { path = "crates/sys-proxy" }
+sys-connections = { path = "crates/sys-connections" }
 crypto = { path = "crates/crypto" }
 client = { path = "crates/client" }
 cc-server = { path = "crates/cc-server" }

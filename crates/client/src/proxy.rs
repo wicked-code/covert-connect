@@ -1,36 +1,45 @@
-use std::{
-    net::SocketAddr, sync::{atomic::{AtomicBool, AtomicU64, Ordering}, Arc}
-};
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
+use std::{
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
+    },
+};
+use sys_connections::{get_process_name_by_local_addr, Protocol};
 use tokio::{
-    io::{AsyncRead, AsyncWriteExt}, net::{TcpListener, TcpStream}, select, sync::{oneshot, Mutex, RwLock}
+    io::{AsyncRead, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    select,
+    sync::{oneshot, Mutex, RwLock},
 };
 
-use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
 use axum::{
     body::Body,
-    http::{Method, uri, StatusCode},
     extract::Request,
-    response::{Response, IntoResponse}
+    http::{uri, Method, StatusCode},
+    response::{IntoResponse, Response},
 };
+use hyper::{body::Incoming, server::conn::http1, upgrade::Upgraded};
 use hyper_util::rt::TokioIo;
-use hyper::{
-    body::Incoming,
-    upgrade::Upgraded,
-    server::conn::http1,
+use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
+use tokio_rustls::{
+    client::TlsStream,
+    rustls::{self, client::Tls12Resumption, pki_types, RootCertStore},
+    TlsConnector,
 };
 use tower::util::ServiceExt;
-use tokio_rustls::{
-    client::TlsStream, rustls::{self, client::Tls12Resumption, pki_types, RootCertStore}, TlsConnector
-};
 
-use crypto::config::ProtocolConfig;
-use crate::{config::{ServerConfig, ServerConnectConfig, default_server_address}, ttfb_stream::TtfbStream};
 use crate::pac_file_service::PacFileService;
+use crate::protocol::{self, SelectedServer, Server};
 use crate::upgrade_stream::UgradeStream;
-use crate::protocol::{self, Server, SelectedServer};
+use crate::{
+    config::{default_server_address, ServerConfig, ServerConnectConfig},
+    ttfb_stream::TtfbStream,
+};
+use crypto::config::ProtocolConfig;
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
 pub enum ProxyState {
@@ -52,7 +61,7 @@ pub struct Proxy {
 
 enum StreamType {
     TcpStream(TcpStream),
-    UgradeStream(UgradeStream<TlsStream<TcpStream>>)
+    UgradeStream(UgradeStream<TlsStream<TcpStream>>),
 }
 
 impl Proxy {
@@ -63,7 +72,7 @@ impl Proxy {
         let mut tls_cfg = rustls::ClientConfig::builder()
             .with_root_certificates(root_store)
             .with_no_client_auth();
-    
+
         // it's ok to set it true, because we have internal replay protection
         // it's default to 10 sec thus replay may result in outbound connection only if sent in less than 10 sec
         // moreover if outbound ip is different there is no practical usage of such replay
@@ -88,7 +97,8 @@ impl Proxy {
     pub async fn set_proxy_port(&self, port: u16) -> Result<()> {
         self.pac_service.set_new_port(port);
         self.restart
-            .lock().await
+            .lock()
+            .await
             .take()
             .ok_or_else(|| anyhow!("restart channel not initialized"))?
             .send(())
@@ -118,7 +128,7 @@ impl Proxy {
 
             let mut servers = self.servers.write().await;
             if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
-                let config = &mut((*servers)[pos].config);
+                let config = &mut ((*servers)[pos].config);
                 if let Some(domains) = &mut config.domains {
                     if !domains.iter().any(|d| d == &domain) {
                         domains.push(domain);
@@ -165,7 +175,7 @@ impl Proxy {
 
             let mut servers = self.servers.write().await;
             if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
-                let config = &mut((*servers)[pos].config);
+                let config = &mut ((*servers)[pos].config);
                 if let Some(apps) = &mut config.apps {
                     if !apps.iter().any(|d| d == &app) {
                         apps.push(app);
@@ -249,12 +259,10 @@ impl Proxy {
     }
 
     pub async fn add_server(&self, config: ServerConfig) {
-        self.servers.write().await.push(
-            Server { 
-                config,
-                state: Default::default() 
-            } 
-        );
+        self.servers.write().await.push(Server {
+            config,
+            state: Default::default(),
+        });
     }
 
     pub async fn del_server(&self, host: &str) -> Result<()> {
@@ -298,7 +306,10 @@ impl Proxy {
     pub async fn get_server_protocol(&self, host: &str, key: &str) -> Result<ProtocolConfig> {
         let conn_cfg = ServerConnectConfig::new(host, key).await?;
 
-        match self.connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path).await? {
+        match self
+            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
+            .await?
+        {
             StreamType::TcpStream(stream) => protocol::get_server_protocol(stream, key).await,
             StreamType::UgradeStream(stream) => protocol::get_server_protocol(stream, key).await,
         }
@@ -336,7 +347,9 @@ impl Proxy {
         let req_stream = TtfbStream::new(ttfb.clone());
 
         let rng = ChaCha20Rng::from_entropy();
-        let res = self.start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng).await;
+        let res = self
+            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng)
+            .await;
 
         let ttfb = ttfb.load(Ordering::Relaxed) as usize;
         // ignore errors if we have ttfb > 0
@@ -362,7 +375,24 @@ impl Proxy {
         self.servers.read().await.iter().cloned().collect()
     }
 
-    pub async fn select_server(&self, target_host: &str, mut rng: impl CryptoRng + Rng) -> Result<SelectedServer> {
+    pub async fn select_server(
+        &self,
+        target_host: &str,
+        mut rng: impl CryptoRng + Rng,
+        client_addr: SocketAddr,
+    ) -> Result<SelectedServer> {
+
+        // TODO: ??? implement direct connection
+        // TEMPORARY LOGGING OF PROCESS NAME
+        let process_name = get_process_name_by_local_addr(client_addr, Protocol::TCP);
+        match process_name {
+            Ok(process_name) => {
+                tracing::info!("proxy request from process: {} - {}", process_name, client_addr)
+            }
+            Err(err) => tracing::info!("proxy request from: {}, error: {}", client_addr, err),
+        }
+        //
+
         let mut domain = target_host.to_owned();
         if let Some(port_pos) = target_host.rfind(':') {
             domain.truncate(port_pos);
@@ -378,7 +408,7 @@ impl Proxy {
             }
             accumulated.insert(0, '.');
         }
-    
+
         let servers = self.servers.read().await;
         if servers.len() == 0 {
             bail!("no servers found")
@@ -399,23 +429,23 @@ impl Proxy {
                     }
                 }
             }
-    
+
             enabled_count += 1;
             if let Some(weight) = srv.config.weight {
-                total_weight += weight as usize;    
+                total_weight += weight as usize;
             } else {
                 unweighted_count += 1;
             }
         }
-    
+
         let avr_weight = if total_weight > 0 {
             total_weight / (enabled_count - unweighted_count)
         } else {
             100 / unweighted_count
         };
-    
+
         let rnd_val = rng.gen_range(0..avr_weight * servers.len());
-    
+
         let mut cur_weight = 0_usize;
         for srv in servers.iter() {
             if !srv.config.enabled {
@@ -423,12 +453,12 @@ impl Proxy {
             }
 
             cur_weight += srv.config.weight.unwrap_or(avr_weight as u8) as usize;
-    
+
             if cur_weight >= rnd_val {
                 return Ok(srv.into());
             }
         }
-    
+
         Ok(servers.first().unwrap().into())
     }
 
@@ -440,27 +470,24 @@ impl Proxy {
         self.initialized.store(true, Ordering::Relaxed);
 
         let pac_router = self.pac_service.clone().new_router().await?;
-    
+
         let proxy = self.clone();
-        let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
+        let handle_request = move |request: Request<Incoming>, client_addr: SocketAddr| {
             let pac_router = pac_router.clone();
             let req = request.map(Body::new);
             let proxy = proxy.clone();
             async move {
                 if req.method() == Method::CONNECT {
-                    serve_proxy_connection(req, proxy).await
+                    serve_proxy_connection(req, proxy, client_addr).await
                 } else if req.uri().scheme() == Some(&uri::Scheme::HTTP) {
                     let loc = req.uri().to_string().replace("http", "https");
-                    Ok((
-                        StatusCode::TEMPORARY_REDIRECT,
-                        [("Location", loc.as_str())],
-                    ).into_response())
+                    Ok((StatusCode::TEMPORARY_REDIRECT, [("Location", loc.as_str())]).into_response())
                 } else {
                     pac_router.oneshot(req).await.map_err(|err| match err {})
                 }
-            }        
-        });
-    
+            }
+        };
+
         let proxy_state = *self.proxy_state.read().await;
         if proxy_state != ProxyState::Off {
             self.set_proxy_state_int(proxy_state).await?;
@@ -473,19 +500,22 @@ impl Proxy {
         let mut listener = TcpListener::bind(proxy_address).await?;
 
         tracing::info!("proxy server started: {:?}", proxy_address);
-    
+
         loop {
             select! {
                 result = listener.accept() => {
                     match result {
-                        Ok((stream, _)) => {
+                        Ok((stream, client_addr)) => {
                             let io = TokioIo::new(stream);
-                            let hyper_service = hyper_service.clone();
+                            let handle_request = handle_request.clone();
                             tokio::task::spawn(async move {
+                                let service =
+                                    hyper::service::service_fn(move |request: Request<Incoming>| handle_request(request, client_addr));
+
                                 if let Err(err) = http1::Builder::new()
                                     .preserve_header_case(true)
                                     .title_case_headers(true)
-                                    .serve_connection(io, hyper_service)
+                                    .serve_connection(io, service)
                                     .with_upgrades()
                                     .await
                                 {
@@ -504,7 +534,7 @@ impl Proxy {
                     let (new_restart_tx, new_restart_rx) = oneshot::channel();
                     restart_rx = new_restart_rx;
                     self.restart.lock().await.replace(new_restart_tx);
-            
+
                     let proxy_address = self.pac_service.get_proxy_address();
                     listener = TcpListener::bind(proxy_address).await?;
                 }
@@ -517,23 +547,20 @@ impl Proxy {
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target_host: String,
         selected: SelectedServer,
-        rng: impl CryptoRng + Rng
+        rng: impl CryptoRng + Rng,
     ) -> Result<()> {
-        match self.connect(selected.address, &selected.host, &selected.url_path).await? {
-            StreamType::TcpStream(stream) => 
-                protocol::process_tunnel(stream, client, target_host, rng, selected).await,
-            StreamType::UgradeStream(stream) =>
-                protocol::process_tunnel(stream, client, target_host, rng, selected).await,
+        match self
+            .connect(selected.address, &selected.host, &selected.url_path)
+            .await?
+        {
+            StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, target_host, rng, selected).await,
+            StreamType::UgradeStream(stream) => {
+                protocol::process_tunnel(stream, client, target_host, rng, selected).await
+            }
         }
     }
 
-    async fn connect(
-        &self,
-        address: SocketAddr,
-        host: &str,
-        url_path: &Option<String>,
-    ) -> Result<StreamType> 
-    {
+    async fn connect(&self, address: SocketAddr, host: &str, url_path: &Option<String>) -> Result<StreamType> {
         let server = TcpStream::connect(address).await?;
         Ok(if let Some(http_path) = url_path {
             // HTTPS connect
@@ -546,7 +573,7 @@ impl Proxy {
             let domain = pki_types::ServerName::try_from(host)?.to_owned();
             let tls_conn = TlsConnector::from(self.tls_cfg.clone());
             let server = tls_conn.connect(domain, server).await?;
-    
+
             StreamType::UgradeStream(UgradeStream::from_stream(server, host, http_path))
         } else {
             StreamType::TcpStream(server)
@@ -557,12 +584,13 @@ impl Proxy {
 async fn start_tunnel(
     upgraded: Upgraded,
     target_host: String,
-    proxy: Arc<Proxy>
+    proxy: Arc<Proxy>,
+    client_addr: SocketAddr,
 ) -> Result<()> {
     let client = TokioIo::new(upgraded);
 
     let mut rng = ChaCha20Rng::from_entropy();
-    let selected = proxy.select_server(&target_host, &mut rng).await?;
+    let selected = proxy.select_server(&target_host, &mut rng, client_addr).await?;
     proxy.ensure_config_initialized(&selected).await;
 
     proxy.start_tunnel_with_server(client, target_host, selected, rng).await
@@ -571,12 +599,13 @@ async fn start_tunnel(
 pub async fn serve_proxy_connection(
     req: Request,
     proxy: Arc<Proxy>,
+    client_addr: SocketAddr,
 ) -> Result<Response, hyper::Error> {
     if let Some(host_addr) = req.uri().authority().map(|auth| auth.to_string()) {
         tokio::task::spawn(async move {
             match hyper::upgrade::on(req).await {
                 Ok(upgraded) => {
-                    if let Err(e) = start_tunnel(upgraded, host_addr, proxy).await {
+                    if let Err(e) = start_tunnel(upgraded, host_addr, proxy, client_addr).await {
                         tracing::warn!("server io error: {}", e);
                     };
                 }
@@ -588,5 +617,5 @@ pub async fn serve_proxy_connection(
     } else {
         tracing::warn!("CONNECT host is not socket addr: {:?}", req.uri());
         Ok(StatusCode::BAD_REQUEST.into_response())
-    }        
+    }
 }

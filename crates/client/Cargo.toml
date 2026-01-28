@@ -29,6 +29,7 @@ webpki-roots.workspace = true
 
 crypto.workspace = true
 sys-proxy.workspace = true
+sys-connections.workspace = true
 
 
 [features]
