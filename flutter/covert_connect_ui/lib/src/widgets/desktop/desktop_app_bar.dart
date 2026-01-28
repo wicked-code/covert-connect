@@ -62,7 +62,9 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     } else {
       await trayManager.setIcon("assets/images/app-icon-dark.png");
     }
-    await trayManager.setToolTip("Covert Connect");
+    if (!Platform.isLinux) {
+      await trayManager.setToolTip("Covert Connect");
+    }
   }
 
   void back() {

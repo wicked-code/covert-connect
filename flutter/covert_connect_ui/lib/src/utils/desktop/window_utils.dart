@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter_acrylic/flutter_acrylic.dart';
@@ -9,7 +10,7 @@ Future<void> updateEffect(Brightness? brightness) async {
   if (useBrightness == null) return;
 
   _lastBrightness = useBrightness;
-  await Window.setEffect(effect: WindowEffect.mica, dark: useBrightness == Brightness.dark);
+  await Window.setEffect(effect: Platform.isLinux ? WindowEffect.solid : WindowEffect.mica, dark: useBrightness == Brightness.dark);
 }
 
 class WindowState {

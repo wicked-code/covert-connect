@@ -16,7 +16,9 @@ Future<void> initDesktop() async {
 
   await windowManager.ensureInitialized();
   await Window.initialize();
-  await Window.hideWindowControls();
+  if (!Platform.isLinux) {
+    await Window.hideWindowControls();
+  }
 
   final windowState = await WindowState.load();
 
