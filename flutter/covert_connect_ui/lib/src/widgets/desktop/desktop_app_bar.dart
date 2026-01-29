@@ -40,6 +40,13 @@ class _DesktopAppBarState extends State<DesktopAppBar>
   void _initTray() async {
     if (!isDesktop) return;
 
+    // TODO: ??? remove after fix https://github.com/leanflutter/tray_manager/issues/81
+    // REMOVE >>
+    if (Platform.isLinux) {
+      await Future.delayed(Duration(milliseconds: 500));
+    }
+    // REMOVE <<
+
     await _setIcons();
 
     Menu menu = Menu(
