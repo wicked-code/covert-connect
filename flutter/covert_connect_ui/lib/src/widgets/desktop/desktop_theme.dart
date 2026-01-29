@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:covert_connect/src/widgets/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -20,10 +22,11 @@ class DesktopThemeState extends State<DesktopTheme> {
       strokeWidth: 3,
     );
 
+    final background = Platform.isLinux ? null : Colors.transparent;
     return widget.builder(
       context,
-      widget.theme.copyWith(scaffoldBackgroundColor: Colors.transparent, progressIndicatorTheme: progressIndicatorTheme),
-      widget.darkTheme.copyWith(scaffoldBackgroundColor: Colors.transparent, progressIndicatorTheme: progressIndicatorTheme),
+      widget.theme.copyWith(scaffoldBackgroundColor: background, progressIndicatorTheme: progressIndicatorTheme),
+      widget.darkTheme.copyWith(scaffoldBackgroundColor: background, progressIndicatorTheme: progressIndicatorTheme),
     );
   }
 }
