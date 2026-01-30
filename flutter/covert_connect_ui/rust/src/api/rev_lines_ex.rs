@@ -54,7 +54,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                 None => SeekFrom::End(0),
             })
             .await?;
-        println!("|||=== with_capacity {} | {}", reader_size, pos.unwrap_or(0) as i64);
+        
         let rev_lines = RevLines {
             reader: reader,
             reader_pos: reader_size,
