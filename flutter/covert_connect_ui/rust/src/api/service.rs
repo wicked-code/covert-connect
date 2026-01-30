@@ -9,6 +9,11 @@ use client::proxy::Proxy;
 
 pub use client::proxy::ProxyState;
 
+use flutter_rust_bridge::{DartFnFuture, frb};
+
+use crate::api::log::{LogLine, WriterNotifier, get_trace_log, init_trace_log};
+use crate::api::wrappers::{ProtocolConfig, ServerConfig};
+
 #[derive(Clone)]
 pub struct ProxyConfig {
     pub state: ProxyState,
@@ -41,16 +46,23 @@ pub struct ServerState {
 }
 
 pub struct ProxyService {
+    /// flutter_rust_bridge:ignore
     proxy: OnceLock<Arc<Proxy>>,
+    /// flutter_rust_bridge:ignore
+    writer_notifier: OnceLock<Arc<WriterNotifier>>,
 }
 
 impl ProxyService {
     #[frb(sync)]
     pub fn new() -> ProxyService {
-        let _ = init_trace_log();
+        let writer_notifier = OnceLock::new();
+        if let Ok(notifier) = init_trace_log() {
+            writer_notifier.set(notifier);
+        }
         return {
             ProxyService {
                 proxy: Default::default(),
+                writer_notifier: writer_notifier,
             }
         };
     }
@@ -262,15 +274,23 @@ impl ProxyService {
         Ok(auto)
     }
 
+    pub async fn register_logger(&self, callback: impl Fn(String) -> DartFnFuture<()> + Send + Sync + 'static) -> Result<u64> {
+        self.get_writer_notifier()?.register_logger(callback).await
+    }
+
+    pub async fn unregister_logger(&self, id: u64) -> Result<()> {
+        self.get_writer_notifier()?.unregister_logger(id).await
+    }
+
+    fn get_writer_notifier(&self) -> Result<&Arc<WriterNotifier>> {
+        self.writer_notifier.get().ok_or_else(|| anyhow!("writer notifier not initialized"))
+    }
+
     fn get_proxy(&self) -> Result<&Arc<Proxy>> {
         self.proxy.get().ok_or_else(|| anyhow!("proxy not initialized"))
     }
 }
 
-use flutter_rust_bridge::frb;
-
-use crate::api::log::{LogLine, get_trace_log, init_trace_log};
-use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 #[frb(mirror(ProxyState))]
 pub enum _ProxyState {
     Pac,

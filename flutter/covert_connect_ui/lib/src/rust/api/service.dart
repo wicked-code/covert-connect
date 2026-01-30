@@ -8,7 +8,7 @@ import 'log.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_proxy`, `init_autostart`
+// These functions are ignored because they are not marked as `pub`: `get_proxy`, `get_writer_notifier`, `init_autostart`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>
@@ -56,6 +56,10 @@ abstract class ProxyService implements RustOpaqueInterface {
   factory ProxyService() =>
       RustLib.instance.api.crateApiServiceProxyServiceNew();
 
+  Future<BigInt> registerLogger({
+    required FutureOr<void> Function(String) callback,
+  });
+
   Future<void> removeApp({required String app});
 
   Future<void> removeDomain({required String domain});
@@ -78,6 +82,8 @@ abstract class ProxyService implements RustOpaqueInterface {
   Future<void> start({required ProxyConfig cfg});
 
   Future<void> stop();
+
+  Future<void> unregisterLogger({required BigInt id});
 
   Future<void> updateServer({
     required String origHost,

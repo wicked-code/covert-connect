@@ -1,5 +1,5 @@
 import 'package:covert_connect/di.dart';
-import 'package:covert_connect/src/log.dart';
+import 'package:covert_connect/src/log/log.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:covert_connect/src/utils/router.dart';

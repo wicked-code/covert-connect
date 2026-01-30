@@ -168,6 +168,16 @@ class ProxyServiceImpl implements ProxyServiceBase {
   }
 
   @override
+  Future<BigInt> registerLogger(Future<void> Function(String) callback) {
+    return proxy.registerLogger(callback: callback);
+  }
+
+  @override
+  Future<void> unregisterLogger(BigInt id) async {
+    return proxy.unregisterLogger(id: id);
+  }
+
+  @override
   Future<List<LogLine>> getLog(BigInt? start, int limit) =>
       ProxyService.getLog(start: start, limit: BigInt.from(limit));
 

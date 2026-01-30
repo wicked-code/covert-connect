@@ -31,4 +31,6 @@ abstract class ProxyServiceBase {
   Future<bool> getAutostart();
   Future<void> setAutostart(bool enabled);
   Future<List<LogLine>> getLog(BigInt? start, int limit);
+  Future<BigInt> registerLogger(Future<void> Function(String) callback);
+  Future<void> unregisterLogger(BigInt id);
 }

@@ -261,6 +261,17 @@ class ProxyServiceMock implements ProxyServiceBase {
   }
 
   @override
+  Future<BigInt> registerLogger(Future<void> Function(String) callback) async {
+    // TODO: Implement
+    return BigInt.from(0);
+  }
+
+  @override
+  Future<void> unregisterLogger(BigInt id) async {
+    // TODO: Implement
+  }
+
+  @override
   Future<int> getProxyPort() async {
     return _proxyPort;
   }
