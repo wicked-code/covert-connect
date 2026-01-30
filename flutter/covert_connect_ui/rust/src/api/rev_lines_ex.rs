@@ -48,33 +48,18 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
         mut reader: BufReader<R>,
     ) -> Result<impl Stream<Item = Result<RevLine, Error>>, Error> {
         // Seek to end of reader now
-        let reader_size = reader.seek(SeekFrom::End(pos.unwrap_or(0) as i64)).await?;
-        let mut rev_lines = RevLines {
+        let reader_size = reader
+            .seek(match pos {
+                Some(pos) => SeekFrom::Start(pos),
+                None => SeekFrom::End(0),
+            })
+            .await?;
+        println!("|||=== with_capacity {} | {}", reader_size, pos.unwrap_or(0) as i64);
+        let rev_lines = RevLines {
             reader: reader,
             reader_pos: reader_size,
             buf_size: cap as u64,
         };
-
-        // Handle any trailing new line characters for the reader
-        // so the first next call does not return Some("")
-
-        // Read at most 2 bytes
-        let end_size = min(reader_size, 2);
-        let end_buf = rev_lines.read_to_buffer(end_size).await?;
-
-        if end_size == 1 {
-            if end_buf[0] != LF_BYTE {
-                rev_lines.move_reader_position(1).await?;
-            }
-        } else if end_size == 2 {
-            if end_buf[0] != CR_BYTE {
-                rev_lines.move_reader_position(1).await?;
-            }
-
-            if end_buf[1] != LF_BYTE {
-                rev_lines.move_reader_position(1).await?;
-            }
-        }
 
         let stream = stream::unfold(rev_lines, |mut rev_lines| async {
             match rev_lines.next_line().await {
@@ -97,13 +82,6 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
         self.reader_pos -= size;
 
         Ok(buf)
-    }
-
-    async fn move_reader_position(&mut self, offset: u64) -> Result<(), tokio::io::Error> {
-        self.reader.seek(SeekFrom::Current(offset as i64)).await?;
-        self.reader_pos += offset;
-
-        Ok(())
     }
 
     async fn next_line(&mut self) -> Option<Result<RevLine, Error>> {

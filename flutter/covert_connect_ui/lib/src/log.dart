@@ -169,7 +169,7 @@ class _LogPageState extends State<LogPage> {
       return;
     }
 
-    _logMessages.addAll(newMessages.reversed);
+    _logMessages.addAll(newMessages);
     _updateIfMounted();
   }
 
@@ -181,7 +181,18 @@ class _LogPageState extends State<LogPage> {
     do {
       toAdd.clear();
       final start = toAddFull.lastOrNull?.position;
-      final newMessages = await di<ProxyServiceBase>().getLog(start, kReadChunkSize);
+      final newMessages = (await di<ProxyServiceBase>().getLog(start, kReadChunkSize)).reversed.toList();
+      if (start == null) {
+        int pos = newMessages.length;
+        while(pos > 0) {
+          if (newMessages[pos - 1].line.isNotEmpty) {
+            break;
+          }
+          pos --;
+        }
+        newMessages.removeRange(pos, newMessages.length);
+      }
+
       for (int idx = newMessages.length - 1; idx >= 0; idx--) {
         final msg = newMessages[idx];
         if (msg.position > firstPos) {

@@ -257,7 +257,7 @@ class ProxyServiceMock implements ProxyServiceBase {
 
     final pos = max(0, (start?.toInt() ?? _log.length) - limit);
     final logLines = _log.sublist(pos, min(_log.length, pos + limit));
-    return logLines.mapIndexed((idx, line) => LogLine(line: line, position: BigInt.from(pos + idx))).toList();
+    return logLines.mapIndexed((idx, line) => LogLine(line: line, position: BigInt.from(pos + idx))).toList().reversed.toList();
   }
 
   @override
