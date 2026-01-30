@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:covert_connect/di.dart';
+import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,8 @@ class LogPage extends StatefulWidget {
 
 class _LogPageState extends State<LogPage> {
   late Timer _timer;
-  List<String> _logMessages = [];
+  final List<LogLine> _logMessages = [];
+  bool _endReached = false;
 
   List<TextSpan> _parseAnsi(String text, Brightness brightness) {
     final List<TextSpan> spans = [];
@@ -157,8 +159,41 @@ class _LogPageState extends State<LogPage> {
     return brightness == Brightness.dark ? color : darken(color, 0.7, 1.0, brightness);
   }
 
-  void _readLog() async {
-    _logMessages = await di<ProxyServiceBase>().getLog(kReadChunkSize);
+  void _loadMore() async {
+    if (_endReached) return;
+
+    final lastPosition = _logMessages.last.position;
+    final newMessages = await di<ProxyServiceBase>().getLog(lastPosition, kReadChunkSize);
+    if (newMessages.isEmpty) {
+      _endReached = true;
+      return;
+    }
+
+    _logMessages.addAll(newMessages.reversed);
+    _updateIfMounted();
+  }
+
+  void _readLogNew() async {
+    final List<LogLine> toAdd = [];
+    final List<LogLine> toAddFull = [];
+    final firstPos = _logMessages.isNotEmpty ? _logMessages.first.position : BigInt.from(-1);
+
+    do {
+      toAdd.clear();
+      final start = toAddFull.lastOrNull?.position;
+      final newMessages = await di<ProxyServiceBase>().getLog(start, kReadChunkSize);
+      for (int idx = newMessages.length - 1; idx >= 0; idx--) {
+        final msg = newMessages[idx];
+        if (msg.position > firstPos) {
+          toAdd.add(msg);
+        } else {
+          break;
+        }
+      }
+      toAddFull.addAll(toAdd);
+    } while (toAdd.length == kReadChunkSize && _logMessages.isNotEmpty);
+    _logMessages.insertAll(0, toAddFull);
+
     _updateIfMounted();
   }
 
@@ -168,8 +203,8 @@ class _LogPageState extends State<LogPage> {
 
   @override
   void initState() {
-    _readLog();
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) => _readLog());
+    _readLogNew();
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) => _readLogNew());
     super.initState();
   }
 
@@ -186,12 +221,18 @@ class _LogPageState extends State<LogPage> {
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: CustomScrollView(
+          reverse: true,
+          shrinkWrap: true,
           slivers: <Widget>[
             SliverList(
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+                if (index == _logMessages.length - 1) {
+                  _loadMore();
+                }
+
                 return RichText(
                   text: TextSpan(
-                    children: _parseAnsi(_logMessages[index], brightness),
+                    children: _parseAnsi(_logMessages[index].line, brightness),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 );

@@ -203,8 +203,8 @@ impl ProxyService {
         tracing::info!(message);
     }
 
-    pub async fn get_log(limit: usize) -> Result<Vec<String>> {
-        get_trace_log(limit).await
+    pub async fn get_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+        get_trace_log(start, limit).await
     }
 
     pub async fn check_domain(domain: String) -> Result<bool> {
@@ -269,7 +269,7 @@ impl ProxyService {
 
 use flutter_rust_bridge::frb;
 
-use crate::api::log::{get_trace_log, init_trace_log};
+use crate::api::log::{LogLine, get_trace_log, init_trace_log};
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 #[frb(mirror(ProxyState))]
 pub enum _ProxyState {

@@ -10,9 +10,9 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.11.1"
-tokio-rev-lines = "0.2.1"
 futures-util = "0.3"
 auto-launch = "0.5.0"
+thiserror = "2"
 
 tokio-rustls.workspace = true 
 webpki-roots.workspace = true

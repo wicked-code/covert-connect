@@ -103,7 +103,8 @@ abstract class RustLibApi extends BaseApi {
     required ProxyService that,
   });
 
-  Future<List<String>> crateApiServiceProxyServiceGetLog({
+  Future<List<LogLine>> crateApiServiceProxyServiceGetLog({
+    BigInt? start,
     required BigInt limit,
   });
 
@@ -188,7 +189,10 @@ abstract class RustLibApi extends BaseApi {
     required ServerConfig newConfig,
   });
 
-  Future<List<String>> crateApiLogGetTraceLog({required BigInt limit});
+  Future<List<LogLine>> crateApiLogGetTraceLog({
+    BigInt? start,
+    required BigInt limit,
+  });
 
   Future<void> crateApiLogInitTraceLog();
 
@@ -457,13 +461,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<String>> crateApiServiceProxyServiceGetLog({
+  Future<List<LogLine>> crateApiServiceProxyServiceGetLog({
+    BigInt? start,
     required BigInt limit,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_box_autoadd_u_64(start, serializer);
           sse_encode_usize(limit, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -473,11 +479,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_String,
+          decodeSuccessData: sse_decode_list_log_line,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiServiceProxyServiceGetLogConstMeta,
-        argValues: [limit],
+        argValues: [start, limit],
         apiImpl: this,
       ),
     );
@@ -486,7 +492,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiServiceProxyServiceGetLogConstMeta =>
       const TaskConstMeta(
         debugName: "ProxyService_get_log",
-        argNames: ["limit"],
+        argNames: ["start", "limit"],
       );
 
   @override
@@ -1143,11 +1149,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<String>> crateApiLogGetTraceLog({required BigInt limit}) {
+  Future<List<LogLine>> crateApiLogGetTraceLog({
+    BigInt? start,
+    required BigInt limit,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_box_autoadd_u_64(start, serializer);
           sse_encode_usize(limit, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -1157,18 +1167,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_String,
+          decodeSuccessData: sse_decode_list_log_line,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiLogGetTraceLogConstMeta,
-        argValues: [limit],
+        argValues: [start, limit],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiLogGetTraceLogConstMeta =>
-      const TaskConstMeta(debugName: "get_trace_log", argNames: ["limit"]);
+  TaskConstMeta get kCrateApiLogGetTraceLogConstMeta => const TaskConstMeta(
+    debugName: "get_trace_log",
+    argNames: ["start", "limit"],
+  );
 
   @override
   Future<void> crateApiLogInitTraceLog() {
@@ -1263,6 +1275,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1317,6 +1335,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LogLine> dco_decode_list_log_line(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_log_line).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -1335,9 +1359,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LogLine dco_decode_log_line(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return LogLine(
+      line: dco_decode_String(arr[0]),
+      position: dco_decode_u_64(arr[1]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
   }
 
   @protected
@@ -1556,6 +1598,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_8(deserializer));
@@ -1610,6 +1658,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LogLine> sse_decode_list_log_line(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LogLine>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_log_line(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1643,11 +1703,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LogLine sse_decode_log_line(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_line = sse_decode_String(deserializer);
+    var var_position = sse_decode_u_64(deserializer);
+    return LogLine(line: var_line, position: var_position);
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
     } else {
       return null;
     }
@@ -1893,6 +1972,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self, serializer);
@@ -1940,6 +2025,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_log_line(List<LogLine> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_log_line(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1974,12 +2068,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_log_line(LogLine self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.line, serializer);
+    sse_encode_u_64(self.position, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
     }
   }
 

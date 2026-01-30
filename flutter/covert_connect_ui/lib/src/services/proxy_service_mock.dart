@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
@@ -228,9 +230,34 @@ class ProxyServiceMock implements ProxyServiceBase {
     _log.add(message);
   }
 
+  int index = 4;
+  Timer? _timer;
+  void _getLog() {
+    if (index > 350) return;
+    final count = Random().nextInt(75) - 5;
+    for(int i = 0; i < count; i++) {
+      final value = Random().nextInt(5);
+      if (value == 0) {
+        index++;
+        _log.add("\x1B[31m$index Error log line");
+      } else if (value == 1) {
+        index++;
+        _log.add("\x1B[33m$index Warning log line");
+      } else if (value == 2) {
+        index++;
+        _log.add("$index Info log line");
+      }
+    }
+  }
+
   @override
-  Future<List<String>> getLog(int limit) async {
-    return _log.take(limit).toList();
+  Future<List<LogLine>> getLog(BigInt? start, int limit) async {
+    _timer ??= Timer.periodic(Duration(seconds: 1), (timer) => _getLog());
+    if (start == BigInt.from(0)) return [];
+
+    final pos = max(0, (start?.toInt() ?? _log.length) - limit);
+    final logLines = _log.sublist(pos, min(_log.length, pos + limit));
+    return logLines.mapIndexed((idx, line) => LogLine(line: line, position: BigInt.from(pos + idx))).toList();
   }
 
   @override

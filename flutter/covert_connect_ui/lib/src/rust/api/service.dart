@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'log.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
@@ -30,8 +31,11 @@ abstract class ProxyService implements RustOpaqueInterface {
 
   Future<List<String>> getDomains();
 
-  static Future<List<String>> getLog({required BigInt limit}) =>
-      RustLib.instance.api.crateApiServiceProxyServiceGetLog(limit: limit);
+  static Future<List<LogLine>> getLog({BigInt? start, required BigInt limit}) =>
+      RustLib.instance.api.crateApiServiceProxyServiceGetLog(
+        start: start,
+        limit: limit,
+      );
 
   Future<int> getProxyPort();
 

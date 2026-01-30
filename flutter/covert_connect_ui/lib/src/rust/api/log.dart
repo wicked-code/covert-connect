@@ -6,7 +6,27 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-Future<List<String>> getTraceLog({required BigInt limit}) =>
-    RustLib.instance.api.crateApiLogGetTraceLog(limit: limit);
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
+
+Future<List<LogLine>> getTraceLog({BigInt? start, required BigInt limit}) =>
+    RustLib.instance.api.crateApiLogGetTraceLog(start: start, limit: limit);
 
 Future<void> initTraceLog() => RustLib.instance.api.crateApiLogInitTraceLog();
+
+class LogLine {
+  final String line;
+  final BigInt position;
+
+  const LogLine({required this.line, required this.position});
+
+  @override
+  int get hashCode => line.hashCode ^ position.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LogLine &&
+          runtimeType == other.runtimeType &&
+          line == other.line &&
+          position == other.position;
+}

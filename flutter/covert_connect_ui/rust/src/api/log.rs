@@ -6,8 +6,9 @@ use std::{
 };
 use tokio::io::BufReader;
 use tracing_subscriber::{filter, prelude::*};
-use tokio_rev_lines::RevLines;
 use futures_util::{pin_mut, StreamExt};
+
+use crate::api::rev_lines_ex::{RevLine, RevLines};
 
 #[cfg(debug_assertions)]
 const LOG_FILE_NAME: &str = "covert-connect.debug.log";
@@ -19,7 +20,21 @@ const LOG_FILE_NAME: &str = "covert-connect.log";
 #[cfg(not(debug_assertions))]
 const PREV_FILE_NAME: &str = "covert-connect.log.old";
 
-pub async fn get_trace_log(limit: usize) -> Result<Vec<String>> {
+pub struct LogLine {
+    pub line: String,
+    pub position: u64,
+}
+
+impl From<RevLine> for LogLine {
+    fn from(rev_line: RevLine) -> Self {
+        LogLine {
+            line: rev_line.line,
+            position: rev_line.position,
+        }
+    }
+}
+
+pub async fn get_trace_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
     let path = temp_dir().join(LOG_FILE_NAME);
 
     // TODO: implement custom buffered reverse reader
@@ -27,7 +42,7 @@ pub async fn get_trace_log(limit: usize) -> Result<Vec<String>> {
     // it helps to read only new lines and merge them
 
     let file = tokio::fs::File::open(path).await?;
-    let rev_lines = RevLines::new(BufReader::new(file)).await?;
+    let rev_lines = RevLines::new(BufReader::new(file), start).await?;
     pin_mut!(rev_lines);
 
     let mut result = Vec::new();
@@ -38,7 +53,7 @@ pub async fn get_trace_log(limit: usize) -> Result<Vec<String>> {
         result.push(line?);
     }
     
-    Ok(result)
+    Ok(result.into_iter().map(LogLine::from).collect())
 }
 
 pub fn init_trace_log() -> Result<()> {

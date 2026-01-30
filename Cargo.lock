@@ -2447,8 +2447,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sys-proxy",
+ "thiserror 2.0.18",
  "tokio",
- "tokio-rev-lines",
  "tokio-rustls",
  "tracing",
  "tracing-subscriber",
@@ -2964,17 +2964,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
- "tokio",
-]
-
-[[package]]
-name = "tokio-rev-lines"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfaf42fa0dfb3a10dec17445275e106d5eaaa360941d9bfe6f7cc86e4780ff55"
-dependencies = [
- "futures-util",
- "thiserror 1.0.61",
  "tokio",
 ]
 

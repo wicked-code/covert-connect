@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
@@ -167,7 +168,8 @@ class ProxyServiceImpl implements ProxyServiceBase {
   }
 
   @override
-  Future<List<String>> getLog(int limit) => ProxyService.getLog(limit: BigInt.from(limit));
+  Future<List<LogLine>> getLog(BigInt? start, int limit) =>
+      ProxyService.getLog(start: start, limit: BigInt.from(limit));
 
   Future<void> saveConfig() async {
     final cfg = await proxy.getConfig();
