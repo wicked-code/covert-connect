@@ -95,8 +95,12 @@ class _LogPageState extends State<LogPage> {
       messages = messages.sublist(0, splitIndex);
     }
 
-    // TODO: ??? Merge with probably already notified the same message
-    _newMessages.insertAll(0, messages.map((m) => m.line).toList().reversed);
+    // Remove possible duplicats
+    var newMessages = messages.reversed.map((m) => m.line);
+    if (_newMessages.isNotEmpty) {
+      newMessages = newMessages.where((m) => !_newMessages.contains(m));
+    }
+    _newMessages.insertAll(0, newMessages);
 
     _updateIfMounted();
 
