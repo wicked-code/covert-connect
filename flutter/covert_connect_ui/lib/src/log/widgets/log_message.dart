@@ -1,7 +1,10 @@
 import 'package:covert_connect/src/log/utils/ansi_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
+final thinTextStyle = GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300, height: 1.0);
 
 class LogMessage extends StatelessWidget {
   const LogMessage({super.key, required this.message});
@@ -28,7 +31,7 @@ class LogMessage extends StatelessWidget {
         } else if (code == ansiBold) {
           style = style.copyWith(fontWeight: FontWeight.bold);
         } else if (code == ansiFaint) {
-          style = style.copyWith(color: Colors.grey[600], fontWeight: FontWeight.w300);
+          style = thinTextStyle.copyWith(color: Colors.grey[600]);
         } else if (code == ansiItalic) {
           style = style.copyWith(fontStyle: FontStyle.italic);
         } else if (code == ansiUnderline) {
@@ -76,10 +79,23 @@ class LogMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return RichText(
-      text: TextSpan(
+    return SelectableText.rich(
+      TextSpan(
         children: [
-          TextSpan(text: DateFormat('HH:mm:ss ').format(message.timestamp), style: TextStyle(color: Colors.grey)),
+          TextSpan(
+            text: DateFormat('HH:mm:ss ').format(message.timestamp),
+            style: thinTextStyle.copyWith(color: Colors.grey[600]),
+          ),
+          TextSpan(
+            text: "${message.level.name} ",
+            style: TextStyle(
+              color: switch (message.level) {
+                LogLevel.INFO => basicColor(2, brightness),
+                LogLevel.WARN => basicColor(3, brightness),
+                LogLevel.ERROR => basicColor(1, brightness),
+              },
+            ),
+          ),
           ..._parseAnsi(message.message, brightness),
         ],
         style: Theme.of(context).textTheme.bodySmall,

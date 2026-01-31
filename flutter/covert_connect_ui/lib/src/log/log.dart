@@ -6,6 +6,7 @@ import 'package:covert_connect/src/log/widgets/log_message.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
 import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/retainable_scroll.dart';
 import 'package:flutter/material.dart';
 
 const kReadChunkSize = 100;

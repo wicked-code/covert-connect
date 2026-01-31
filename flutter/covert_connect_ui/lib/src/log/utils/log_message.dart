@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 enum LogLevel {
   // ignore: constant_identifier_names
   INFO,
@@ -16,9 +18,16 @@ class LogMessageDto {
   final String? target;
 
   static LogMessageDto fromJson(Map<String, dynamic> json) {
+    LogLevel level = LogLevel.INFO;
+    try {
+      level = LogLevel.values.byName(json["level"] as String);
+    } catch (e) {
+      log("Failed to parse log message JSON: $e");
+    }
+
     return LogMessageDto(
       timestamp: DateTime.parse(json["timestamp"] as String),
-      level: LogLevel.values.byName(json["level"] as String),
+      level: level,
       message: json["fields"]["message"] as String,
       target: json["target"] as String?,
     );

@@ -215,44 +215,53 @@ class ProxyServiceMock implements ProxyServiceBase {
 
   @override
   Future<void> log(String message, {LogErrorType? type}) async {
+    String level = "INFO";
     if (type != null) {
       switch (type) {
         case LogErrorType.message:
           break;
         case LogErrorType.warning:
-          message = "\x1B[33m$message";
+          level = "WARN";
           break;
         case LogErrorType.error:
-          message = "\x1B[31m$message";
+          level = "ERROR";
           break;
       }
     }
-    _log.add(message);
+    final now = DateTime.now().toUtc().toIso8601String();
+    final logMessage = "{\"timestamp\":\"$now\",\"level\":\"$level\",\"fields\":{\"message\":\"$message\"},\"target\":\"client::proxy\"}";
+    _log.add(logMessage);
   }
 
   int index = 4;
   Timer? _timer;
-  void _getLog() {
-    if (index > 350) return;
-    final count = Random().nextInt(75) - 5;
+  Future<void> Function(String)? _callback;
+
+  void _sendLog() {
+    final count = Random().nextInt(10) - 5;
     for(int i = 0; i < count; i++) {
-      final value = Random().nextInt(5);
-      if (value == 0) {
+      final chance = Random().nextInt(14);
+      String value = "";
+      if (chance < 6) {
+        value = r'{"timestamp":"2026-01-30T23:47:00.536233Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62772"},"target":"client::proxy"}';
+      } else if (chance == 6 || chance == 7) {
+        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"WARN","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}';
+      } else if (chance == 8) {
+        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"some error with text"},"target":"client::proxy"}';
+      } else if (chance == 9) {
+        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"some error, logn error, very very log erorr with path C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"},"target":"client::proxy"}';
+      }
+
+      if (value.isNotEmpty) {
         index++;
-        _log.add("\x1B[31m$index Error log line");
-      } else if (value == 1) {
-        index++;
-        _log.add("\x1B[33m$index Warning log line");
-      } else if (value == 2) {
-        index++;
-        _log.add("$index Info log line");
+        _log.add(value);
+        _callback?.call(_log.last);
       }
     }
   }
 
   @override
   Future<List<LogLine>> getLog(BigInt? start, int limit) async {
-    _timer ??= Timer.periodic(Duration(seconds: 1), (timer) => _getLog());
     if (start == BigInt.from(0)) return [];
 
     final pos = max(0, (start?.toInt() ?? _log.length) - limit);
@@ -262,13 +271,16 @@ class ProxyServiceMock implements ProxyServiceBase {
 
   @override
   Future<BigInt> registerLogger(Future<void> Function(String) callback) async {
-    // TODO: Implement
-    return BigInt.from(0);
+    _callback = callback;
+    _timer ??= Timer.periodic(Duration(seconds: 1), (timer) => _sendLog());
+    return BigInt.from(1);
   }
 
   @override
   Future<void> unregisterLogger(BigInt id) async {
-    // TODO: Implement
+    _timer?.cancel();
+    _timer = null;
+    _callback = null;
   }
 
   @override
@@ -321,7 +333,14 @@ int _proxyPort = 25445;
 bool _autostart = true;
 int _noValueCount = 0;
 ProxyState _proxyState = ProxyState.all;
-List<String> _log = ["log line 1", "\x1B[31mlog line 2", "\x1B[32mlog line 3", "\x1B[33mlog line 4", "\x1B[34mlog line 5"];
+List<String> _log = [
+  r'{"timestamp":"2026-01-30T23:41:38.682840Z","level":"INFO","fields":{"message":"proxy server started: 127.0.0.1:25445"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:64372"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:40.632655Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe - 127.0.0.1:59235"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:42.110039Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62420"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"WARN","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}',
+];
 
 List<String> domains = [
   'test.com',
