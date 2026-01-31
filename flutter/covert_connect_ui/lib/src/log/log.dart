@@ -6,10 +6,10 @@ import 'package:covert_connect/src/log/widgets/log_message.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
 import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/services/proxy_service.dart';
-import 'package:covert_connect/src/services/retainable_scroll.dart';
 import 'package:flutter/material.dart';
 
 const kReadChunkSize = 100;
+const kLoadMoreThreshold = 25;
 
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
@@ -19,34 +19,50 @@ class LogPage extends StatefulWidget {
 }
 
 class _LogPageState extends State<LogPage> {
-  final List<LogLine> _logMessages = [];
+  final Key _centerKey = const ValueKey('bottom-sliver');
+
+  final _scrollController = ScrollController();
+
+  final List<String> _newMessages = [];
+  final List<LogLine> _oldMessages = [];
   bool _endReached = false;
 
   BigInt? _loggerId;
-  final List<String> _beforeInitMessages = [];
+
+  bool _loadMoreInProgress = false;
 
   void _loadMore() async {
-    if (_endReached) return;
+    if (_endReached || _loadMoreInProgress || _oldMessages.isEmpty) return;
 
-    final lastPosition = _logMessages.last.position;
-    final newMessages = await di<ProxyServiceBase>().getLog(lastPosition, kReadChunkSize);
-    if (newMessages.isEmpty) {
-      _endReached = true;
-      return;
+    _loadMoreInProgress = true;
+    try {
+      final lastPosition = _oldMessages.first.position;
+      final newMessages = await di<ProxyServiceBase>().getLog(lastPosition, kReadChunkSize);
+      if (newMessages.length < kReadChunkSize) {
+        _endReached = true;
+        return;
+      }
+
+      _oldMessages.addAll(newMessages.reversed);
+      _updateIfMounted();
+    } finally {
+      _loadMoreInProgress = false;
     }
-
-    _logMessages.addAll(newMessages);
-    _updateIfMounted();
   }
 
   Future<void> _onLogMessage(String message) async {
-    if (_logMessages.isEmpty) {
-      _beforeInitMessages.add(message);
-      return;
-    }
-
-    _logMessages.insert(0, LogLine(position: BigInt.zero, line: message));
+    _newMessages.add(message);
     _updateIfMounted();
+
+    if (_scrollController.hasClients && _scrollController.offset > _scrollController.position.maxScrollExtent - 32) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Durations.medium1,
+          curve: Curves.easeOut,
+        ),
+      );
+    }
   }
 
   void _disposeLogger() {
@@ -59,27 +75,38 @@ class _LogPageState extends State<LogPage> {
   void _init() async {
     _loggerId = await di<ProxyServiceBase>().registerLogger(_onLogMessage);
 
-    final newMessages = (await di<ProxyServiceBase>().getLog(null, kReadChunkSize)).reversed.toList();
+    List<LogLine> messages = (await di<ProxyServiceBase>().getLog(null, kReadChunkSize)).toList();
 
     // Remove trailing empty lines
-    int pos = newMessages.length;
-    while(pos > 0) {
-      if (newMessages[pos - 1].line.isNotEmpty) {
+    int pos = messages.length;
+    while (pos > 0) {
+      if (messages[pos - 1].line.isNotEmpty) {
         break;
       }
-      pos --;
+      pos--;
     }
-    newMessages.removeRange(pos, newMessages.length);
-    _logMessages.addAll(newMessages);
+    messages.removeRange(pos, messages.length);
 
-    for (final msg in _beforeInitMessages) {
-      if (_logMessages.indexWhere((x) => x.line == msg) == -1) {
-        _logMessages.insert(0, LogLine(position: BigInt.zero, line: msg));
-      }
+    if (messages.length >= kReadChunkSize) {
+      int splitIndex = kReadChunkSize ~/ 2;
+      _oldMessages.addAll(messages.sublist(splitIndex));
+      messages = messages.sublist(0, splitIndex);
     }
-    _beforeInitMessages.clear();
+
+    // TODO: ??? Merge with probably already notified the same message
+    _newMessages.insertAll(0, messages.map((m) => m.line).toList().reversed);
 
     _updateIfMounted();
+
+    if (_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent + 100,
+          duration: Durations.medium1,
+          curve: Curves.easeOut,
+        ),
+      );
+    }
   }
 
   void _updateIfMounted() {
@@ -104,17 +131,22 @@ class _LogPageState extends State<LogPage> {
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: CustomScrollView(
-          reverse: true,
-          shrinkWrap: true,
+          center: _centerKey,
+          controller: _scrollController,
           slivers: <Widget>[
             SliverList(
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
-                if (index == _logMessages.length - 1) {
+                if (index < kLoadMoreThreshold) {
                   _loadMore();
                 }
-
-                return LogMessage(message: LogMessageDto.fromJson(jsonDecode(_logMessages[index].line)));
-              }, childCount: _logMessages.length),
+                return LogMessage(message: LogMessageDto.fromJson(jsonDecode(_oldMessages[index].line)));
+              }, childCount: _oldMessages.length),
+            ),
+            SliverList(
+              key: _centerKey,
+              delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+                return LogMessage(message: LogMessageDto.fromJson(jsonDecode(_newMessages[index])));
+              }, childCount: _newMessages.length),
             ),
           ],
         ),
