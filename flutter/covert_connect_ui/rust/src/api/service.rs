@@ -56,8 +56,13 @@ impl ProxyService {
     #[frb(sync)]
     pub fn new() -> ProxyService {
         let writer_notifier = OnceLock::new();
-        if let Ok(notifier) = init_trace_log() {
-            writer_notifier.set(notifier);
+        match init_trace_log() {
+            Ok(notifier) => {
+                writer_notifier.set(notifier).ok();
+            }
+            Err(e) => {
+                println!("Failed to initialize trace log: {:?}", e);
+            },
         }
         return {
             ProxyService {
