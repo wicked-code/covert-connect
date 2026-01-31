@@ -36,14 +36,14 @@ class _LogPageState extends State<LogPage> {
 
     _loadMoreInProgress = true;
     try {
-      final lastPosition = _oldMessages.first.position;
+      final lastPosition = _oldMessages.last.position;
       final newMessages = await di<ProxyServiceBase>().getLog(lastPosition, kReadChunkSize);
       if (newMessages.length < kReadChunkSize) {
         _endReached = true;
         return;
       }
 
-      _oldMessages.addAll(newMessages.reversed);
+      _oldMessages.addAll(newMessages);
       _updateIfMounted();
     } finally {
       _loadMoreInProgress = false;
@@ -54,7 +54,8 @@ class _LogPageState extends State<LogPage> {
     _newMessages.add(message);
     _updateIfMounted();
 
-    if (_scrollController.hasClients && _scrollController.offset > _scrollController.position.maxScrollExtent - 32) {
+    if (_scrollController.hasClients && _scrollController.offset > _scrollController.position.maxScrollExtent - 64) {
+      Future.delayed(Durations.short1);
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -99,6 +100,7 @@ class _LogPageState extends State<LogPage> {
     _updateIfMounted();
 
     if (_scrollController.hasClients) {
+      Future.delayed(Durations.short1);
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollController.animateTo(
           _scrollController.position.maxScrollExtent + 100,
