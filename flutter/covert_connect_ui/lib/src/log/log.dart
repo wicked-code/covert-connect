@@ -77,6 +77,7 @@ class _LogPageState extends State<LogPage> {
     _loggerId = await di<ProxyServiceBase>().registerLogger(_onLogMessage);
 
     List<LogLine> messages = (await di<ProxyServiceBase>().getLog(null, kReadChunkSize)).toList();
+    bool fullChunk = messages.length >= kReadChunkSize;
 
     // Remove trailing empty lines
     int pos = messages.length;
@@ -88,8 +89,8 @@ class _LogPageState extends State<LogPage> {
     }
     messages.removeRange(pos, messages.length);
 
-    if (messages.length >= kReadChunkSize) {
-      int splitIndex = kReadChunkSize ~/ 2;
+    if (fullChunk) {
+      int splitIndex = messages.length ~/ 2;
       _oldMessages.addAll(messages.sublist(splitIndex));
       messages = messages.sublist(0, splitIndex);
     }
