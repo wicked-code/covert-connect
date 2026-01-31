@@ -215,6 +215,10 @@ class ProxyServiceMock implements ProxyServiceBase {
 
   @override
   Future<void> log(String message, {LogErrorType? type}) async {
+    logInternal(message, type: type);
+  }
+
+  String logInternal(String message, {LogErrorType? type}) {
     String level = "INFO";
     if (type != null) {
       switch (type) {
@@ -231,9 +235,9 @@ class ProxyServiceMock implements ProxyServiceBase {
     final now = DateTime.now().toUtc().toIso8601String();
     final logMessage = "{\"timestamp\":\"$now\",\"level\":\"$level\",\"fields\":{\"message\":\"$message\"},\"target\":\"client::proxy\"}";
     _log.add(logMessage);
+    return logMessage;
   }
 
-  int index = 4;
   Timer? _timer;
   Future<void> Function(String)? _callback;
 
@@ -243,18 +247,16 @@ class ProxyServiceMock implements ProxyServiceBase {
       final chance = Random().nextInt(14);
       String value = "";
       if (chance < 6) {
-        value = r'{"timestamp":"2026-01-30T23:47:00.536233Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62772"},"target":"client::proxy"}';
+        value = logInternal(r'proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62772');
       } else if (chance == 6 || chance == 7) {
-        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"WARN","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}';
+        value = logInternal(r'server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof', type: LogErrorType.warning);
       } else if (chance == 8) {
-        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"some error with text"},"target":"client::proxy"}';
+        value = logInternal("some error with text", type: LogErrorType.error);
       } else if (chance == 9) {
-        value = r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"some error, logn error, very very log erorr with path C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"},"target":"client::proxy"}';
+        value = logInternal(r"some error, logn error, very very log erorr with path C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", type: LogErrorType.error);
       }
 
       if (value.isNotEmpty) {
-        index++;
-        _log.add(value);
         _callback?.call(_log.last);
       }
     }
