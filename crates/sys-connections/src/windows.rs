@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use windows::Win32::{
     Foundation::MAX_PATH,
     System::Threading::{

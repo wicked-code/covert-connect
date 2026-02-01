@@ -247,7 +247,7 @@ class ProxyServiceMock implements ProxyServiceBase {
       final chance = Random().nextInt(14);
       String value = "";
       if (chance < 6) {
-        value = logInternal(r'proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62772');
+        value = logInternal(r'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to lh4.googleusercontent.com:443');
       } else if (chance == 6 || chance == 7) {
         value = logInternal(r'server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof', type: LogErrorType.warning);
       } else if (chance == 8) {
@@ -337,9 +337,9 @@ int _noValueCount = 0;
 ProxyState _proxyState = ProxyState.all;
 List<String> _log = [
   r'{"timestamp":"2026-01-30T23:41:38.682840Z","level":"INFO","fields":{"message":"proxy server started: 127.0.0.1:25445"},"target":"client::proxy"}',
-  r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:64372"},"target":"client::proxy"}',
-  r'{"timestamp":"2026-01-30T23:41:40.632655Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe - 127.0.0.1:59235"},"target":"client::proxy"}',
-  r'{"timestamp":"2026-01-30T23:41:42.110039Z","level":"INFO","fields":{"message":"proxy request from process: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe - 127.0.0.1:62420"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to jrpc.venom.foundation:443"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:40.632655Z","level":"INFO","fields":{"message":"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe connecting to browser.events.data.msn.com:443"},"target":"client::proxy"}',
+  r'{"timestamp":"2026-01-30T23:41:42.110039Z","level":"INFO","fields":{"message":"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to graph.facebook.com:443"},"target":"client::proxy"}',
   r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"ERROR","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}',
   r'{"timestamp":"2026-01-30T23:46:41.761705Z","level":"WARN","fields":{"message":"server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof"},"target":"client::proxy"}',
 ];

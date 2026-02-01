@@ -7,9 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 final thinTextStyle = GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300, height: 1.0);
-final RegExp regexColors = RegExp(r'\x1B\[([0-9;]+)m');
-final RegExp pathRegexWin = RegExp(r'([a-zA-Z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/])*[^\\/:*?"<>|\r\n]*\.?\w*)', caseSensitive: false);
-final RegExp pathRegexUnix = RegExp(r'(/(?:[^/\0]+/)*[^/\0]*\.?\w*)');
+final regexColors = RegExp(r'\x1B\[([0-9;]+)m');
+final connectingMessageRegex = RegExp(r'^(.+?) connecting to ([a-zA-Z0-9.-]+):(\d+)$', caseSensitive: false);
+final pathDelimeter = RegExp(r'[\\/]');
 
 class LogMessage extends StatelessWidget {
   const LogMessage({super.key, required this.message});
@@ -23,24 +23,27 @@ class LogMessage extends StatelessWidget {
       spans.add(TextSpan(text: text, style: style));
     }
 
-    String replaceConnecting(String value) => value.replaceAll("connecting to", "->");
-
     void addSpanEx(String text, TextStyle style) {
-      int lastIndex = 0;
-      final regex = Platform.isWindows ? pathRegexWin : pathRegexUnix;
-      for (final match in regex.allMatches(text)) {
-        final prefix = text.substring(lastIndex, match.start);
-        if (prefix.isNotEmpty) {
-          addSpan(prefix, style);
-        }
-
-        final name = match.group(0)!.split(r'/').last.split(r'\').last;
-        addSpan(replaceConnecting(name), thinTextStyle);
-        lastIndex = match.end;
+      // check for connecting message
+      final match = connectingMessageRegex.firstMatch(text);
+      if (match == null) {
+        addSpan(text, style);
+        return;
       }
 
-      if (lastIndex < text.length) {
-        addSpan(text.substring(lastIndex), style);
+      final path = match.group(1);
+      final domain = match.group(2);
+      final port = match.group(3);
+      if (path == null || domain == null) {
+        addSpan(text, style);
+        return;
+      }
+
+      addSpan(path.substring(path.lastIndexOf(pathDelimeter) + 1), thinTextStyle);
+      addSpan(' -> ', style);
+      addSpan(domain, thinTextStyle);
+      if (port != null && port.isNotEmpty && port != "443") {
+        addSpan(':$port', thinTextStyle);
       }
     }
 
