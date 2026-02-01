@@ -60,7 +60,10 @@ fn get_name_by_pids(pids: Vec<u32>, addr: SocketAddr) -> Result<String> {
         tracing::warn!("socket with multiple pids: {:?}, socket: {:?}", pids, addr);
     }
     if let Some(pid) = pids.first() {
-        get_name_by_pid(*pid)
+        get_name_by_pid(*pid).or_else(|err| {
+            tracing::debug!("can't get name by pid {}: {}", pid, err);
+            Ok(format!("pid {}", pid))
+        })
     } else {
         bail!("no pid associated with socket: {:?}", addr);
     }

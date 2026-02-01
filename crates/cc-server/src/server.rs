@@ -343,7 +343,7 @@ async fn terminate_slowly(stream: &mut TcpStream, cooldown: Range<u16>) {
     // avoid testing for required header size
     let mut rng = ChaCha20Rng::from_entropy();
 
-    let max_read : u16 = rng.gen();
+    let max_read : u16 = rng.r#gen();
     let max_time_ms = rng.gen_range(cooldown) as u64;
 
     let mut data = BytesMut::with_capacity(max_read as usize);

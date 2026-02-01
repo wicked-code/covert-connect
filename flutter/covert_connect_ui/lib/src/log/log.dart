@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/widgets/log_message.dart';
@@ -80,14 +81,14 @@ class _LogPageState extends State<LogPage> {
     bool fullChunk = messages.length >= kReadChunkSize;
 
     // Remove trailing empty lines
-    int pos = messages.length;
-    while (pos > 0) {
-      if (messages[pos - 1].line.isNotEmpty) {
+    int pos = 0;
+    while (pos < messages.length) {
+      if (messages[pos].line.isNotEmpty) {
         break;
       }
-      pos--;
+      pos++;
     }
-    messages.removeRange(pos, messages.length);
+    messages.removeRange(0, pos);
 
     if (fullChunk) {
       int splitIndex = messages.length ~/ 2;
@@ -132,6 +133,16 @@ class _LogPageState extends State<LogPage> {
     super.dispose();
   }
 
+  Widget buildLogMessage(String messageStr) {
+    try {
+      final message = LogMessageDto.fromJson(jsonDecode(messageStr));
+      return LogMessage(message: message);
+    } catch (e) {
+      log("Error create message: $e");
+    }
+    return Container();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,13 +157,13 @@ class _LogPageState extends State<LogPage> {
                 if (index < kLoadMoreThreshold) {
                   _loadMore();
                 }
-                return LogMessage(message: LogMessageDto.fromJson(jsonDecode(_oldMessages[index].line)));
+                return buildLogMessage(_oldMessages[index].line);
               }, childCount: _oldMessages.length),
             ),
             SliverList(
               key: _centerKey,
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
-                return LogMessage(message: LogMessageDto.fromJson(jsonDecode(_newMessages[index])));
+                return buildLogMessage(_newMessages[index]);
               }, childCount: _newMessages.length),
             ),
           ],

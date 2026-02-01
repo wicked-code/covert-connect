@@ -135,7 +135,7 @@ impl PacFileService {
     }
 
     pub async fn set_proxy_pac(&self) -> Result<()> {
-        let rand_part = format!("{:X}", rand::thread_rng().gen::<u128>());
+        let rand_part = format!("{:X}", rand::thread_rng().r#gen::<u128>());
 
         let addr_str = &self.get_proxy_address().to_string();
         self.system_proxy.set_pac(&(HTTP.to_owned() + addr_str + PAC_ROUTE + &rand_part))?;

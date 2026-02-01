@@ -22,8 +22,6 @@ const ansiBrightBackgroundEnd = 107;
 const ansiColorRGB = 2;
 const ansiColorIndex = 5;
 
-final RegExp regex = RegExp(r'\x1B\[([0-9;]+)m');
-
 (int? len, Color? color) getColor(List<int> codes, int index, Brightness brightness) {
   int? len;
   Color? color;

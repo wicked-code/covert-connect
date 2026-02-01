@@ -6,7 +6,7 @@ resolver = "2"
 version = "0.1.0"
 authors = ["WickedCode"]
 documentation = ""
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 [workspace.dependencies]

@@ -1,24 +1,24 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::{
     net::SocketAddr,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
-use sys_connections::{get_process_name_by_local_addr, Protocol};
+use sys_connections::{Protocol, get_process_name_by_local_addr};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     select,
-    sync::{oneshot, Mutex, RwLock},
+    sync::{Mutex, RwLock, oneshot},
 };
 
 use axum::{
     body::Body,
     extract::Request,
-    http::{uri, Method, StatusCode},
+    http::{Method, StatusCode, uri},
     response::{IntoResponse, Response},
 };
 use hyper::{body::Incoming, server::conn::http1, upgrade::Upgraded};
@@ -26,9 +26,9 @@ use hyper_util::rt::TokioIo;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use tokio_rustls::{
-    client::TlsStream,
-    rustls::{self, client::Tls12Resumption, pki_types, RootCertStore},
     TlsConnector,
+    client::TlsStream,
+    rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 use tower::util::ServiceExt;
 
@@ -36,7 +36,7 @@ use crate::pac_file_service::PacFileService;
 use crate::protocol::{self, SelectedServer, Server};
 use crate::upgrade_stream::UgradeStream;
 use crate::{
-    config::{default_server_address, ServerConfig, ServerConnectConfig},
+    config::{ServerConfig, ServerConnectConfig, default_server_address},
     ttfb_stream::TtfbStream,
 };
 use crypto::config::ProtocolConfig;
@@ -381,15 +381,15 @@ impl Proxy {
         mut rng: impl CryptoRng + Rng,
         client_addr: SocketAddr,
     ) -> Result<SelectedServer> {
-
         // TODO: ??? implement direct connection
+        // chose server by process name
         // TEMPORARY LOGGING OF PROCESS NAME
         let process_name = get_process_name_by_local_addr(client_addr, Protocol::TCP);
         match process_name {
             Ok(process_name) => {
-                tracing::info!("proxy request from process: {} - {}", process_name, client_addr)
+                tracing::info!("{} connecting to {}", process_name, target_host)
             }
-            Err(err) => tracing::info!("proxy request from: {}, error: {}", client_addr, err),
+            Err(err) => tracing::warn!("unknown connecting to {}\n{}", target_host, err),
         }
         //
 
@@ -606,6 +606,14 @@ pub async fn serve_proxy_connection(
             match hyper::upgrade::on(req).await {
                 Ok(upgraded) => {
                     if let Err(e) = start_tunnel(upgraded, host_addr, proxy, client_addr).await {
+                        if let Some(io_err) = e.downcast_ref::<std::io::Error>()
+                            && io_err.kind() == std::io::ErrorKind::UnexpectedEof
+                        {
+                            // suppress logging of unexpected eof errors
+                            // https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
+                            return;
+                        }
+
                         tracing::warn!("server io error: {}", e);
                     };
                 }

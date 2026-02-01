@@ -7,12 +7,6 @@ use windows::Win32::{
 };
 
 pub fn get_name_by_pid(pid: u32) -> Result<String> {
-    return get_name_by_pid_internal(pid).map_err(|err| {
-        anyhow!("failed to get process name by pid {}: {}", pid, err)
-    });
-}
-
-fn get_name_by_pid_internal(pid: u32) -> Result<String> {
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?;
 
