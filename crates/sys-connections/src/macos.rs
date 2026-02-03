@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use libc::{c_int, proc_pidpath, PROC_PIDPATHINFO_MAXSIZE};
 use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
-pub fn get_name_by_pid(pid: u32) -> Result<String> {
+pub fn path_by_pid(pid: u32) -> Result<String> {
     let mut buffer = vec![0u8; PROC_PIDPATHINFO_MAXSIZE as usize];
     let len = unsafe {
         proc_pidpath(

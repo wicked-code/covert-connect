@@ -6,7 +6,7 @@ use windows::Win32::{
     },
 };
 
-pub fn get_name_by_pid(pid: u32) -> Result<String> {
+pub fn path_by_pid(pid: u32) -> Result<String> {
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?;
 

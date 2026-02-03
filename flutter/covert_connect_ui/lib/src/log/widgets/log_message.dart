@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:covert_connect/src/log/utils/ansi_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';

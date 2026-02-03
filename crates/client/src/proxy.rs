@@ -2,15 +2,16 @@ use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::{
     net::SocketAddr,
+    path::Path,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
-use sys_connections::{Protocol, get_process_name_by_local_addr};
+use sys_connections::{Protocol, process_path_by_local_addr};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
+    net::{TcpListener, TcpStream, lookup_host},
     select,
     sync::{Mutex, RwLock, oneshot},
 };
@@ -380,19 +381,32 @@ impl Proxy {
         target_host: &str,
         mut rng: impl CryptoRng + Rng,
         client_addr: SocketAddr,
-    ) -> Result<SelectedServer> {
-        // TODO: ??? implement direct connection
-        // chose server by process name
-        // TEMPORARY LOGGING OF PROCESS NAME
-        let process_name = get_process_name_by_local_addr(client_addr, Protocol::TCP);
-        match process_name {
-            Ok(process_name) => {
-                tracing::info!("{} connecting to {}", process_name, target_host)
+    ) -> Result<Option<SelectedServer>> {
+        let mut process_name = String::from("");
+        match process_path_by_local_addr(client_addr, Protocol::TCP) {
+            Ok(process_path) => {
+                tracing::info!("{} connecting to {}", process_path, target_host);
+                let a = Path::new(&process_path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy();
+                process_name = a.into_owned();
             }
             Err(err) => tracing::warn!("unknown connecting to {}\n{}", target_host, err),
         }
-        //
 
+        // process filter, check for direct first
+        if !process_name.is_empty() {
+            let apps = self.apps.read().await;
+            for app in apps.iter() {
+                if process_name.contains(app) {
+                    return Ok(None);
+                }
+            }
+            drop(apps);
+        }
+
+        // prepare domain filter
         let mut domain = target_host.to_owned();
         if let Some(port_pos) = target_host.rfind(':') {
             domain.truncate(port_pos);
@@ -414,6 +428,22 @@ impl Proxy {
             bail!("no servers found")
         }
 
+        // select server by process name
+        for srv in servers.iter() {
+            if !srv.config.enabled {
+                continue;
+            }
+
+            if let Some(apps) = &srv.config.apps {
+                for app in apps.iter() {
+                    if process_name.contains(app) {
+                        return Ok(Some(srv.into()));
+                    }
+                }
+            }
+        }
+
+        // select server by domain
         let mut total_weight = 0_usize;
         let mut enabled_count = 0_usize;
         let mut unweighted_count = 0_usize;
@@ -425,7 +455,7 @@ impl Proxy {
             if let Some(domains) = &srv.config.domains {
                 for domain in &domain_variants {
                     if domains.binary_search(domain).is_ok() {
-                        return Ok(srv.into());
+                        return Ok(Some(srv.into()));
                     }
                 }
             }
@@ -455,11 +485,11 @@ impl Proxy {
             cur_weight += srv.config.weight.unwrap_or(avr_weight as u8) as usize;
 
             if cur_weight >= rnd_val {
-                return Ok(srv.into());
+                return Ok(Some(srv.into()));
             }
         }
 
-        Ok(servers.first().unwrap().into())
+        Ok(Some(servers.first().unwrap().into()))
     }
 
     pub fn is_initialized(&self) -> bool {
@@ -579,6 +609,34 @@ impl Proxy {
             StreamType::TcpStream(server)
         })
     }
+
+    async fn direct_connection(
+        &self,
+        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target_host: String,
+    ) -> Result<()> {
+        tracing::debug!("direct connection to {}", target_host);
+        // TODO: ??? for VPN mode!
+        // // todo get direct IF (get it once or probaly update once per reasonable time 10 sec?)
+        // let local_ip = Ipv4Addr::new(192, 168, 50, 117);
+        // let local_address = SocketAddr::new(local_ip.into(), 0);
+
+        // target_host: String,
+
+        // // bind socket to outbound IF
+        // let socket = TcpSocket::new_v4()?;
+        // socket.bind(local_address)?;
+
+        // let server = socket.connect(remote_addr).await?;
+        let target_address: SocketAddr = lookup_host(&target_host)
+            .await?
+            .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc })
+            .ok_or_else(|| anyhow!("host {target_host} notfound"))?;
+        let mut server = TcpStream::connect(target_address).await?;
+
+        tokio::io::copy_bidirectional(&mut client, &mut server).await?;
+        Ok(())
+    }
 }
 
 async fn start_tunnel(
@@ -591,9 +649,12 @@ async fn start_tunnel(
 
     let mut rng = ChaCha20Rng::from_entropy();
     let selected = proxy.select_server(&target_host, &mut rng, client_addr).await?;
-    proxy.ensure_config_initialized(&selected).await;
-
-    proxy.start_tunnel_with_server(client, target_host, selected, rng).await
+    if let Some(server) = selected {
+        proxy.ensure_config_initialized(&server).await;
+        proxy.start_tunnel_with_server(client, target_host, server, rng).await
+    } else {
+        proxy.direct_connection(client, target_host).await
+    }
 }
 
 pub async fn serve_proxy_connection(

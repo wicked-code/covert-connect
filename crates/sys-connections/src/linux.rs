@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::fs;
 
-pub fn get_name_by_pid(pid: u32) -> Result<String> {
+pub fn path_by_pid(pid: u32) -> Result<String> {
     let exe_path = format!("/proc/{}/exe", pid);
 
     match fs::read_link(&exe_path) {

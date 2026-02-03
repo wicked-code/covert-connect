@@ -25,7 +25,7 @@ pub enum Protocol {
     UDP,
 }
 
-pub fn get_process_name_by_local_addr(addr: SocketAddr, protocol: Protocol) -> Result<String> {
+pub fn process_path_by_local_addr(addr: SocketAddr, protocol: Protocol) -> Result<String> {
     let af_flags = if addr.is_ipv6() {
         AddressFamilyFlags::IPV6
     } else {
@@ -41,12 +41,12 @@ pub fn get_process_name_by_local_addr(addr: SocketAddr, protocol: Protocol) -> R
         match si.protocol_socket_info {
             ProtocolSocketInfo::Tcp(tcp_si) => {
                 if tcp_si.local_addr == addr.ip() && tcp_si.local_port == addr.port() {
-                    return get_name_by_pids(si.associated_pids, addr);
+                    return path_by_pids(si.associated_pids, addr);
                 }
             }
             ProtocolSocketInfo::Udp(udp_si) => {
                 if udp_si.local_addr == addr.ip() && udp_si.local_port == addr.port() {
-                    return get_name_by_pids(si.associated_pids, addr);
+                    return path_by_pids(si.associated_pids, addr);
                 }
             }
         }
@@ -55,12 +55,12 @@ pub fn get_process_name_by_local_addr(addr: SocketAddr, protocol: Protocol) -> R
     bail!("no sockets found");
 }
 
-fn get_name_by_pids(pids: Vec<u32>, addr: SocketAddr) -> Result<String> {
+fn path_by_pids(pids: Vec<u32>, addr: SocketAddr) -> Result<String> {
     if pids.len() > 1 {
         tracing::warn!("socket with multiple pids: {:?}, socket: {:?}", pids, addr);
     }
     if let Some(pid) = pids.first() {
-        get_name_by_pid(*pid).or_else(|err| {
+        path_by_pid(*pid).or_else(|err| {
             tracing::debug!("can't get name by pid {}: {}", pid, err);
             Ok(format!("pid {}", pid))
         })
