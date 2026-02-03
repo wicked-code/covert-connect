@@ -65,6 +65,7 @@ Map<String, dynamic> proxyCofigToJson(ProxyConfig value) => {
   kState: value.state.name,
   kPort: value.port,
   kDomains: value.domains,
+  kApps: value.apps,
   kServers: value.servers.map((s) => serverConfigToJson(s)).toList(),
 };
 
@@ -73,6 +74,7 @@ Map<String, dynamic> serverConfigToJson(ServerConfig value) => {
   kHost: value.host,
   if (value.weight case final weight?) kWeight: weight,
   if (value.domains case final domains?) kDomains: domains,
+  if (value.apps case final apps?) kApps: apps,
   kEnabled: value.enabled,
   kProtocol: protocolConfigToJson(value.protocol),
 };
