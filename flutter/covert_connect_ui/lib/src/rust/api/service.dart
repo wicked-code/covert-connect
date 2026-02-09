@@ -8,53 +8,55 @@ import 'log.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_proxy`, `get_writer_notifier`, `init_autostart`
+// These functions are ignored because they are not marked as `pub`: `get_router`, `get_writer_notifier`, `init_autostart`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>
-abstract class ProxyService implements RustOpaqueInterface {
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>
+abstract class RouterService implements RustOpaqueInterface {
   Future<void> addServer({required ServerConfig config});
 
   static Future<bool> checkDomain({required String domain}) => RustLib
       .instance
       .api
-      .crateApiServiceProxyServiceCheckDomain(domain: domain);
+      .crateApiServiceRouterServiceCheckDomain(domain: domain);
 
   Future<void> deleteServer({required String host});
 
   Future<List<String>> getApps();
 
   static Future<bool> getAutostart() =>
-      RustLib.instance.api.crateApiServiceProxyServiceGetAutostart();
+      RustLib.instance.api.crateApiServiceRouterServiceGetAutostart();
 
-  Future<ProxyConfig> getConfig();
+  Future<RouterConfig> getConfig();
 
   Future<List<String>> getDomains();
 
   static Future<List<LogLine>> getLog({BigInt? start, required BigInt limit}) =>
-      RustLib.instance.api.crateApiServiceProxyServiceGetLog(
+      RustLib.instance.api.crateApiServiceRouterServiceGetLog(
         start: start,
         limit: limit,
       );
 
-  Future<int> getProxyPort();
+  Future<RouterMode> getMode();
 
-  Future<ProxyState> getProxyState();
+  Future<int> getProxyPort();
 
   Future<ProtocolConfig> getServerProtocol({
     required String server,
     required String key,
   });
 
-  Future<ProxyStateFull> getState();
+  Future<RouterState> getState();
+
+  Future<RouterStatus> getStatus();
 
   Future<int> getTtfb({required String server, required String domain});
 
   static Future<void> log({required String message}) =>
-      RustLib.instance.api.crateApiServiceProxyServiceLog(message: message);
+      RustLib.instance.api.crateApiServiceRouterServiceLog(message: message);
 
-  factory ProxyService() =>
-      RustLib.instance.api.crateApiServiceProxyServiceNew();
+  factory RouterService() =>
+      RustLib.instance.api.crateApiServiceRouterServiceNew();
 
   Future<BigInt> registerLogger({
     required FutureOr<void> Function(String) callback,
@@ -69,17 +71,19 @@ abstract class ProxyService implements RustOpaqueInterface {
   static Future<void> setAutostart({required bool enabled}) => RustLib
       .instance
       .api
-      .crateApiServiceProxyServiceSetAutostart(enabled: enabled);
+      .crateApiServiceRouterServiceSetAutostart(enabled: enabled);
 
   Future<void> setDomain({required String domain, required String serverHost});
 
-  Future<void> setProxyPort({required int port});
+  Future<void> setMode({required RouterMode mode});
 
-  Future<void> setProxyState({required ProxyState proxyState});
+  Future<void> setProxyPort({required int port});
 
   Future<void> setServerEnabled({required String host, required bool value});
 
-  Future<void> start({required ProxyConfig cfg});
+  Future<void> setState({required RouterState state});
+
+  Future<void> start({required RouterConfig cfg});
 
   Future<void> stop();
 
@@ -91,16 +95,18 @@ abstract class ProxyService implements RustOpaqueInterface {
   });
 }
 
-class ProxyConfig {
-  final ProxyState state;
-  final int port;
+class RouterConfig {
+  final RouterState state;
+  final RouterMode mode;
+  final int proxyPort;
   final List<String> domains;
   final List<String> apps;
   final List<ServerConfig> servers;
 
-  const ProxyConfig({
+  const RouterConfig({
     required this.state,
-    required this.port,
+    required this.mode,
+    required this.proxyPort,
     required this.domains,
     required this.apps,
     required this.servers,
@@ -109,7 +115,8 @@ class ProxyConfig {
   @override
   int get hashCode =>
       state.hashCode ^
-      port.hashCode ^
+      mode.hashCode ^
+      proxyPort.hashCode ^
       domains.hashCode ^
       apps.hashCode ^
       servers.hashCode;
@@ -117,22 +124,25 @@ class ProxyConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ProxyConfig &&
+      other is RouterConfig &&
           runtimeType == other.runtimeType &&
           state == other.state &&
-          port == other.port &&
+          mode == other.mode &&
+          proxyPort == other.proxyPort &&
           domains == other.domains &&
           apps == other.apps &&
           servers == other.servers;
 }
 
-enum ProxyState { pac, all, off }
+enum RouterMode { proxy, tun }
 
-class ProxyStateFull {
+enum RouterState { smart, all, off }
+
+class RouterStatus {
   final bool initialized;
   final List<ServerInfo> servers;
 
-  const ProxyStateFull({required this.initialized, required this.servers});
+  const RouterStatus({required this.initialized, required this.servers});
 
   @override
   int get hashCode => initialized.hashCode ^ servers.hashCode;
@@ -140,7 +150,7 @@ class ProxyStateFull {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ProxyStateFull &&
+      other is RouterStatus &&
           runtimeType == other.runtimeType &&
           initialized == other.initialized &&
           servers == other.servers;

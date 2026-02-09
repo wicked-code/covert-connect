@@ -30,7 +30,6 @@ dependencies:
   collection: ^1.19.1
   toastification: ^3.0.3
   iconsax_flutter: ^1.0.1
-  flutter_switch: ^0.3.2
   vector_math: ^2.2.0
   shimmer: 3.0.0
   punycoder: 0.2.2

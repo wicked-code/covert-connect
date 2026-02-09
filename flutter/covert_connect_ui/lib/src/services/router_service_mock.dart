@@ -5,15 +5,15 @@ import 'package:collection/collection.dart';
 import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 
-class ProxyServiceMock implements ProxyServiceBase {
-  static Future<ProxyServiceBase> create() async {
-    return ProxyServiceMock();
+class RouterServiceMock implements RouterServiceBase {
+  static Future<RouterServiceBase> create() async {
+    return RouterServiceMock();
   }
 
   @override
-  Future<ProxyStateFull> getStateFull() async {
+  Future<RouterStatus> getStatus() async {
     if (_noValueCount <= 0) {
       servers = servers
           .map(
@@ -49,7 +49,7 @@ class ProxyServiceMock implements ProxyServiceBase {
       _noValueCount--;
     }
 
-    return ProxyStateFull(initialized: true, servers: servers);
+    return RouterStatus(initialized: true, servers: servers);
   }
 
   @override
@@ -80,11 +80,19 @@ class ProxyServiceMock implements ProxyServiceBase {
   }
 
   @override
-  Future<ProxyState> getProxyState() async => _proxyState;
+  Future<RouterState> getState() async => _proxyState;
 
   @override
-  Future<void> setProxyState(ProxyState state) async {
+  Future<void> setState(RouterState state) async {
     _proxyState = state;
+  }
+
+  @override
+  Future<RouterMode> getMode() async => _proxyMode;
+
+  @override
+  Future<void> setMode(RouterMode mode) async {
+    _proxyMode = mode;
   }
 
   @override
@@ -334,7 +342,8 @@ extension ServerConfigEx on ServerConfig {
 int _proxyPort = 25445;
 bool _autostart = true;
 int _noValueCount = 0;
-ProxyState _proxyState = ProxyState.all;
+RouterState _proxyState = RouterState.all;
+RouterMode _proxyMode = RouterMode.proxy;
 List<String> _log = [
   r'{"timestamp":"2026-01-30T23:41:38.682840Z","level":"INFO","fields":{"message":"proxy server started: 127.0.0.1:25445"},"target":"client::proxy"}',
   r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to jrpc.venom.foundation:443"},"target":"client::proxy"}',

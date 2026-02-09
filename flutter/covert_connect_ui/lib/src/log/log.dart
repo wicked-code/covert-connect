@@ -6,7 +6,7 @@ import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/widgets/log_message.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
 import 'package:covert_connect/src/rust/api/log.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:flutter/material.dart';
 
 const kReadChunkSize = 100;
@@ -38,7 +38,7 @@ class _LogPageState extends State<LogPage> {
     _loadMoreInProgress = true;
     try {
       final lastPosition = _oldMessages.last.position;
-      final newMessages = await di<ProxyServiceBase>().getLog(lastPosition, kReadChunkSize);
+      final newMessages = await di<RouterServiceBase>().getLog(lastPosition, kReadChunkSize);
       if (newMessages.length < kReadChunkSize) {
         _endReached = true;
         return;
@@ -69,15 +69,15 @@ class _LogPageState extends State<LogPage> {
 
   void _disposeLogger() {
     if (_loggerId != null) {
-      di<ProxyServiceBase>().unregisterLogger(_loggerId!);
+      di<RouterServiceBase>().unregisterLogger(_loggerId!);
       _loggerId = null;
     }
   }
 
   void _init() async {
-    _loggerId = await di<ProxyServiceBase>().registerLogger(_onLogMessage);
+    _loggerId = await di<RouterServiceBase>().registerLogger(_onLogMessage);
 
-    List<LogLine> messages = (await di<ProxyServiceBase>().getLog(null, kReadChunkSize)).toList();
+    List<LogLine> messages = (await di<RouterServiceBase>().getLog(null, kReadChunkSize)).toList();
     bool fullChunk = messages.length >= kReadChunkSize;
 
     // Remove trailing empty lines

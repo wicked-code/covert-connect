@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/exception_helper.dart';
 import 'package:covert_connect/src/utils/svg.dart';
 import 'package:covert_connect/src/utils/uri.dart';
@@ -58,10 +58,10 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
 
     _waitingProtocol = true;
     try {
-      _protocol = await di<ProxyServiceBase>().getServerProtocol(host, key);
+      _protocol = await di<RouterServiceBase>().getServerProtocol(host, key);
     } catch (e) {
       final errMsg = exceptionToString(e);
-      di<ProxyServiceBase>().log(errMsg);
+      di<RouterServiceBase>().log(errMsg);
 
       final errMsgLower = errMsg.toLowerCase();
       if (["connection", "host", "peer"].any((word) => errMsgLower.contains(word))) {
@@ -93,9 +93,9 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
 
     try {
       if (widget.server != null) {
-        await di<ProxyServiceBase>().updateServer(widget.server!.config.host, newConfig);
+        await di<RouterServiceBase>().updateServer(widget.server!.config.host, newConfig);
       } else {
-        await di<ProxyServiceBase>().addServer(newConfig);
+        await di<RouterServiceBase>().addServer(newConfig);
       }
       _back();
     } catch (e) {
@@ -107,13 +107,13 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
   void _delete() async {
     if (server == null) return;
     try {
-      await di<ProxyServiceBase>().deleteServer(server!.config.host);
+      await di<RouterServiceBase>().deleteServer(server!.config.host);
       if (mounted) {
         Toast.success(
           context,
           caption: server!.config.host,
           text: "was removed, ${isDesktop ? 'click to undo' : 'tap to undo'}",
-          onTap: () => di<ProxyServiceBase>().addServer(server!.config),
+          onTap: () => di<RouterServiceBase>().addServer(server!.config),
         );
       }
       _back();

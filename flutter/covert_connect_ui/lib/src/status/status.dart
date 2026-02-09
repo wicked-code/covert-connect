@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/app_state_service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/status/widgets/server_list.dart';
 import 'package:covert_connect/src/status/widgets/state_toggle.dart';
 import 'package:covert_connect/src/status/widgets/traffic_graph.dart';
@@ -26,7 +26,7 @@ class StatusPage extends StatefulWidget {
 
 class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMixin {
   late Timer _timer;
-  ProxyStateFull? _proxyStateFull;
+  RouterStatus? _status;
 
   TrafficSample? _prevSample;
   final _speedHistory = List.generate(
@@ -42,15 +42,15 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
   DateTime? _lastSyncCheck;
 
   Future<void> _updateServers() async {
-    _proxyStateFull = await di<ProxyServiceBase>().getStateFull();
+    _status = await di<RouterServiceBase>().getStatus();
   }
 
   void _update() async {
-    if (!di.isReadySync<ProxyServiceBase>()) return;
+    if (!di.isReadySync<RouterServiceBase>()) return;
     _checkSync();
 
     await _updateServers();
-    final newSample = _proxyStateFull!.servers.fold(
+    final newSample = _status!.servers.fold(
       TrafficSample(time: _time, rx: 0, tx: 0),
       (acc, server) => TrafficSample(
         time: _time,
@@ -120,17 +120,17 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
     super.build(context);
     final height = MediaQuery.of(context).size.height;
 
-    if (_proxyStateFull == null || !_proxyStateFull!.initialized) {
+    if (_status == null || !_status!.initialized) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final double graphHeight = min(200, max(100, height - 42 * _proxyStateFull!.servers.length - 200));
+    final double graphHeight = min(200, max(100, height - 42 * _status!.servers.length - 200));
     return Scaffold(
       body: Column(
         children: [
           StateToggle(),
           Flexible(
-            child: ServerList(servers: _proxyStateFull!.servers, updateServers: _updateServers),
+            child: ServerList(servers: _status!.servers, updateServers: _updateServers),
           ),
           SizedBox(height: 24),
           SizedBox(

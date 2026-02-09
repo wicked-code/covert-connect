@@ -1,15 +1,21 @@
-use std::{ net::{SocketAddr, IpAddr, Ipv4Addr}, sync::{atomic::{AtomicU16, Ordering}, Arc}};
 use anyhow::{Result, anyhow};
-use rand::Rng;
-use tokio::sync::RwLock;
 use axum::{
     Router,
-    routing::get,
     extract::State,
-    http::{StatusCode, HeaderValue, header},
-    response::{Response, IntoResponse},
+    http::{HeaderValue, StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::get,
 };
 use const_format::concatcp;
+use rand::Rng;
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::{
+        Arc,
+        atomic::{AtomicU16, Ordering},
+    },
+};
+use tokio::sync::RwLock;
 
 use sys_proxy::SystemProxy;
 
@@ -59,17 +65,20 @@ pub struct PacFileService {
 }
 
 impl PacFileService {
-    pub fn new(proxy_port: u16) -> Result<Arc<Self>> {
-        Ok(Arc::new(Self {
+    pub fn new(proxy_port: u16) -> Arc<Self> {
+        Arc::new(Self {
             pac_content: Default::default(),
             domains: Default::default(),
-            system_proxy: Arc::new(SystemProxy::new()?),
+            system_proxy: Arc::new(SystemProxy::new()),
             proxy_port: AtomicU16::new(proxy_port),
-        }))
+        })
     }
 
     pub fn get_proxy_address(&self) -> SocketAddr {
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), self.proxy_port.load(Ordering::Relaxed))
+        SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            self.proxy_port.load(Ordering::Relaxed),
+        )
     }
 
     pub fn set_new_port(&self, port: u16) {
@@ -98,11 +107,11 @@ impl PacFileService {
         let proxy_address_str = &self.get_proxy_address().to_string();
         let proxy = "'PROXY ".to_owned() + proxy_address_str + "'";
 
-        let mut hosts_by_dots : Vec<Vec<String>> = Vec::new();
+        let mut hosts_by_dots: Vec<Vec<String>> = Vec::new();
         let hosts = self.domains.read().await;
         for host in &*hosts {
             let dots_cnt = host.chars().fold(0, |acc, c| acc + (c == '.') as usize) + 1;
-           
+
             if hosts_by_dots.len() < dots_cnt {
                 for _ in hosts_by_dots.len()..dots_cnt {
                     hosts_by_dots.push(Vec::new());
@@ -113,7 +122,7 @@ impl PacFileService {
         }
 
         drop(hosts);
-        
+
         let mut hosts_by_dots_str = String::new();
         for hosts in &hosts_by_dots {
             hosts_by_dots_str.push('[');
@@ -131,14 +140,16 @@ impl PacFileService {
     }
 
     pub async fn set_proxy_all(&self) -> Result<()> {
-        self.system_proxy.set_proxy(&(HTTP.to_owned() + &self.get_proxy_address().to_string()))
+        self.system_proxy
+            .set_proxy(&(HTTP.to_owned() + &self.get_proxy_address().to_string()))
     }
 
     pub async fn set_proxy_pac(&self) -> Result<()> {
         let rand_part = format!("{:X}", rand::thread_rng().r#gen::<u128>());
 
         let addr_str = &self.get_proxy_address().to_string();
-        self.system_proxy.set_pac(&(HTTP.to_owned() + addr_str + PAC_ROUTE + &rand_part))?;
+        self.system_proxy
+            .set_pac(&(HTTP.to_owned() + addr_str + PAC_ROUTE + &rand_part))?;
         Ok(())
     }
 
@@ -146,24 +157,20 @@ impl PacFileService {
         self.system_proxy.restore()
     }
 
-    pub async fn new_router(self: Arc<Self>) -> Result<Router> {
+    pub async fn new_router(self: &Arc<Self>) -> Result<Router> {
         Ok(Router::new()
             .route(PAC_ROUTE_FULL, get(pac_hander))
-            .with_state(self.clone())
-        )
+            .with_state(self.clone()))
     }
-
 }
 
-async fn pac_hander(
-    State(state): State<Arc<PacFileService>>
-) -> Response {
+async fn pac_hander(State(state): State<Arc<PacFileService>>) -> Response {
     let content = state.pac_content.read().await.clone();
     if let Some(content) = content {
         let mut res = content.into_response();
         res.headers_mut().insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static("application/x-ns-proxy-autoconfig")
+            HeaderValue::from_static("application/x-ns-proxy-autoconfig"),
         );
         res
     } else {

@@ -8,22 +8,13 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
-use sys_connections::{Protocol, process_path_by_local_addr};
+use sys_process::{Protocol, process_path_by_local_addr};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
-    net::{TcpListener, TcpStream, lookup_host},
-    select,
-    sync::{Mutex, RwLock, oneshot},
+    net::{TcpStream, lookup_host},
+    sync::RwLock,
 };
 
-use axum::{
-    body::Body,
-    extract::Request,
-    http::{Method, StatusCode, uri},
-    response::{IntoResponse, Response},
-};
-use hyper::{body::Incoming, server::conn::http1, upgrade::Upgraded};
-use hyper_util::rt::TokioIo;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use tokio_rustls::{
@@ -31,33 +22,43 @@ use tokio_rustls::{
     client::TlsStream,
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
-use tower::util::ServiceExt;
 
-use crate::pac_file_service::PacFileService;
 use crate::protocol::{self, SelectedServer, Server};
 use crate::upgrade_stream::UgradeStream;
 use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
     ttfb_stream::TtfbStream,
 };
+use crate::{proxy_service::ProxyService, tun_service::TunService};
 use crypto::config::ProtocolConfig;
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
-pub enum ProxyState {
+pub enum RouterState {
     #[default]
-    Pac,
+    Smart,
     All,
     Off,
 }
 
-pub struct Proxy {
+#[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
+pub enum RouterMode {
+    #[default]
+    Proxy,
+    Tun,
+}
+
+pub struct Router {
+    initialized: AtomicBool,
+    state: RwLock<RouterState>,
+    mode: RwLock<RouterMode>,
+
     servers: RwLock<Vec<Server>>,
     apps: RwLock<Vec<String>>,
-    pac_service: Arc<PacFileService>,
-    proxy_state: RwLock<ProxyState>,
+
     tls_cfg: Arc<rustls::ClientConfig>,
-    initialized: AtomicBool,
-    restart: Mutex<Option<oneshot::Sender<()>>>,
+
+    tun_service: Arc<TunService>,
+    proxy_service: Arc<ProxyService>,
 }
 
 enum StreamType {
@@ -65,8 +66,8 @@ enum StreamType {
     UgradeStream(UgradeStream<TlsStream<TcpStream>>),
 }
 
-impl Proxy {
-    pub fn new(proxy_port: u16, proxy_state: ProxyState) -> Result<Arc<Self>> {
+impl Router {
+    pub fn new(proxy_port: u16, state: RouterState, mode: RouterMode) -> Result<Arc<Self>> {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
         };
@@ -79,32 +80,24 @@ impl Proxy {
         // moreover if outbound ip is different there is no practical usage of such replay
         tls_cfg.enable_early_data = true;
         tls_cfg.resumption = tls_cfg.resumption.tls12_resumption(Tls12Resumption::SessionIdOnly);
-
-        Ok(Arc::new(Proxy {
-            pac_service: PacFileService::new(proxy_port)?,
+        Ok(Arc::new_cyclic(|weak_self| Router {
+            proxy_service: ProxyService::new(proxy_port, weak_self.clone()),
+            tun_service: TunService::new(),
             servers: Default::default(),
             apps: Default::default(),
-            proxy_state: RwLock::new(proxy_state),
+            state: RwLock::new(state),
+            mode: RwLock::new(mode),
             tls_cfg: Arc::new(tls_cfg),
             initialized: AtomicBool::new(false),
-            restart: Default::default(),
         }))
     }
 
     pub fn get_proxy_address(&self) -> SocketAddr {
-        self.pac_service.get_proxy_address()
+        self.proxy_service.get_proxy_address()
     }
 
     pub async fn set_proxy_port(&self, port: u16) -> Result<()> {
-        self.pac_service.set_new_port(port);
-        self.restart
-            .lock()
-            .await
-            .take()
-            .ok_or_else(|| anyhow!("restart channel not initialized"))?
-            .send(())
-            .unwrap();
-        self.reset_proxy().await
+        self.proxy_service.set_proxy_port(port).await
     }
 
     pub async fn get_apps(&self) -> Vec<String> {
@@ -116,16 +109,16 @@ impl Proxy {
     }
 
     pub async fn add_domains(&self, hosts: &Vec<String>) {
-        self.pac_service.add_domains(hosts).await;
+        self.proxy_service.add_domains(hosts).await;
     }
 
     pub async fn get_domains(&self) -> Vec<String> {
-        self.pac_service.get_domains().await
+        self.proxy_service.get_domains().await
     }
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
         if !server_host.is_empty() {
-            self.pac_service.remove_domain(&domain).await.ok();
+            self.proxy_service.remove_domain(&domain).await.ok();
 
             let mut servers = self.servers.write().await;
             if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
@@ -138,18 +131,17 @@ impl Proxy {
                 } else {
                     config.domains = Some(vec![domain]);
                 }
-
-                Ok(())
             } else {
-                Err(anyhow!("host not found"))
+                bail!("host not found");
             }
         } else {
-            if !self.pac_service.get_domains().await.iter().any(|d| d == &domain) {
-                self.pac_service.add_domains(&vec![domain.clone()]).await;
+            if !self.proxy_service.get_domains().await.iter().any(|d| d == &domain) {
+                self.proxy_service.add_domains_and_reset(&vec![domain.clone()]).await?;
             }
 
-            self.remove_domain_from_servers(&domain).await
+            self.remove_domain_from_servers(&domain).await?;
         }
+        Ok(())
     }
 
     async fn remove_domain_from_servers(&self, domain: &str) -> Result<()> {
@@ -166,7 +158,7 @@ impl Proxy {
     }
 
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
-        self.pac_service.remove_domain(&domain).await?;
+        self.proxy_service.remove_domain(&domain).await?;
         self.remove_domain_from_servers(&domain).await
     }
 
@@ -227,35 +219,33 @@ impl Proxy {
         self.remove_app_from_servers(&app).await
     }
 
-    pub async fn update_pac_content(&self) {
-        self.pac_service.update_content().await;
+    pub async fn get_state(&self) -> RouterState {
+        *self.state.read().await
     }
 
-    pub async fn get_proxy_state(&self) -> ProxyState {
-        *self.proxy_state.read().await
-    }
+    pub async fn set_state(&self, proxy_state: RouterState) -> Result<()> {
+        *self.state.write().await = proxy_state;
 
-    pub async fn reset_proxy(&self) -> Result<()> {
-        let proxy_state = *self.proxy_state.read().await;
-        if proxy_state == ProxyState::Pac {
-            self.pac_service.update_content().await;
-            self.pac_service.set_proxy_pac().await
-        } else {
-            Ok(())
+        if *self.mode.read().await == RouterMode::Proxy {
+            self.proxy_service.set_proxy_state(proxy_state).await?;
         }
+
+        Ok(())
     }
 
-    pub async fn set_proxy_state(&self, proxy_state: ProxyState) -> Result<()> {
-        *self.proxy_state.write().await = proxy_state;
-
-        self.set_proxy_state_int(proxy_state).await
+    pub async fn get_mode(&self) -> RouterMode {
+        *self.mode.read().await
     }
 
-    pub async fn set_proxy_state_int(&self, proxy_state: ProxyState) -> Result<()> {
-        match proxy_state {
-            ProxyState::All => self.pac_service.set_proxy_all().await,
-            ProxyState::Pac => self.pac_service.set_proxy_pac().await,
-            ProxyState::Off => self.pac_service.restore_proxy().await,
+    pub async fn set_mode(&self, mode: RouterMode) -> Result<()> {
+        if *self.mode.read().await == mode {
+            return Ok(()); // no change
+        }
+
+        *self.mode.write().await = mode;
+        match mode {
+            RouterMode::Proxy => self.tun_service.stop().await,
+            RouterMode::Tun => self.proxy_service.stop().await,
         }
     }
 
@@ -273,7 +263,7 @@ impl Proxy {
             if wr_servers.len() == 0 {
                 drop(wr_servers);
                 // turn off proxy if we have no servers
-                self.set_proxy_state(ProxyState::Off).await
+                self.set_state(RouterState::Off).await
             } else {
                 Ok(())
             }
@@ -496,79 +486,44 @@ impl Proxy {
         self.initialized.load(Ordering::Relaxed)
     }
 
-    pub async fn serve(self: Arc<Self>) -> Result<()> {
+    pub async fn serve(&self) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
 
-        let pac_router = self.pac_service.clone().new_router().await?;
-
-        let proxy = self.clone();
-        let handle_request = move |request: Request<Incoming>, client_addr: SocketAddr| {
-            let pac_router = pac_router.clone();
-            let req = request.map(Body::new);
-            let proxy = proxy.clone();
-            async move {
-                if req.method() == Method::CONNECT {
-                    serve_proxy_connection(req, proxy, client_addr).await
-                } else if req.uri().scheme() == Some(&uri::Scheme::HTTP) {
-                    let loc = req.uri().to_string().replace("http", "https");
-                    Ok((StatusCode::TEMPORARY_REDIRECT, [("Location", loc.as_str())]).into_response())
-                } else {
-                    pac_router.oneshot(req).await.map_err(|err| match err {})
-                }
-            }
-        };
-
-        let proxy_state = *self.proxy_state.read().await;
-        if proxy_state != ProxyState::Off {
-            self.set_proxy_state_int(proxy_state).await?;
-        }
-
-        let (restart_tx, mut restart_rx) = oneshot::channel();
-        self.restart.lock().await.replace(restart_tx);
-
-        let proxy_address = self.pac_service.get_proxy_address();
-        let mut listener = TcpListener::bind(proxy_address).await?;
-
-        tracing::info!("proxy server started: {:?}", proxy_address);
-
         loop {
-            select! {
-                result = listener.accept() => {
-                    match result {
-                        Ok((stream, client_addr)) => {
-                            let io = TokioIo::new(stream);
-                            let handle_request = handle_request.clone();
-                            tokio::task::spawn(async move {
-                                let service =
-                                    hyper::service::service_fn(move |request: Request<Incoming>| handle_request(request, client_addr));
-
-                                if let Err(err) = http1::Builder::new()
-                                    .preserve_header_case(true)
-                                    .title_case_headers(true)
-                                    .serve_connection(io, service)
-                                    .with_upgrades()
-                                    .await
-                                {
-                                    tracing::info!("Failed to serve connection: {:?}", err);
-                                }
-                            });
-                        }
-                        Err(error) => {
-                            drop(listener);
-                            tracing::error!("accept failed: {:?}", error);
-                            listener = TcpListener::bind(proxy_address).await?;
-                        }
-                    }
-                },
-                _ = &mut restart_rx => {
-                    let (new_restart_tx, new_restart_rx) = oneshot::channel();
-                    restart_rx = new_restart_rx;
-                    self.restart.lock().await.replace(new_restart_tx);
-
-                    let proxy_address = self.pac_service.get_proxy_address();
-                    listener = TcpListener::bind(proxy_address).await?;
-                }
+            if let Err(e) = self.server_int().await {
+                tracing::error!("server error: {e}");
+                // try change mode and try one more time
+                let mode = match *self.mode.read().await {
+                    RouterMode::Proxy => RouterMode::Tun,
+                    RouterMode::Tun => RouterMode::Proxy,
+                };
+                *self.mode.write().await = mode;
+                self.server_int().await?;
             }
+        }
+    }
+
+    async fn server_int(&self) -> Result<()> {
+        let state = *self.state.read().await;
+        match *self.mode.read().await {
+            RouterMode::Proxy => self.proxy_service.clone().serve(state).await,
+            RouterMode::Tun => self.tun_service.clone().serve().await,
+        }
+    }
+
+    pub async fn start_tunnel(
+        &self,
+        client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target_host: String,
+        client_addr: SocketAddr,
+    ) -> Result<()> {
+        let mut rng = ChaCha20Rng::from_entropy();
+        let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
+        if let Some(server) = selected {
+            self.ensure_config_initialized(&server).await;
+            self.start_tunnel_with_server(client, target_host, server, rng).await
+        } else {
+            self.direct_connection(client, target_host).await
         }
     }
 
@@ -636,55 +591,5 @@ impl Proxy {
 
         tokio::io::copy_bidirectional(&mut client, &mut server).await?;
         Ok(())
-    }
-}
-
-async fn start_tunnel(
-    upgraded: Upgraded,
-    target_host: String,
-    proxy: Arc<Proxy>,
-    client_addr: SocketAddr,
-) -> Result<()> {
-    let client = TokioIo::new(upgraded);
-
-    let mut rng = ChaCha20Rng::from_entropy();
-    let selected = proxy.select_server(&target_host, &mut rng, client_addr).await?;
-    if let Some(server) = selected {
-        proxy.ensure_config_initialized(&server).await;
-        proxy.start_tunnel_with_server(client, target_host, server, rng).await
-    } else {
-        proxy.direct_connection(client, target_host).await
-    }
-}
-
-pub async fn serve_proxy_connection(
-    req: Request,
-    proxy: Arc<Proxy>,
-    client_addr: SocketAddr,
-) -> Result<Response, hyper::Error> {
-    if let Some(host_addr) = req.uri().authority().map(|auth| auth.to_string()) {
-        tokio::task::spawn(async move {
-            match hyper::upgrade::on(req).await {
-                Ok(upgraded) => {
-                    if let Err(e) = start_tunnel(upgraded, host_addr, proxy, client_addr).await {
-                        if let Some(io_err) = e.downcast_ref::<std::io::Error>()
-                            && io_err.kind() == std::io::ErrorKind::UnexpectedEof
-                        {
-                            // suppress logging of unexpected eof errors
-                            // https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
-                            return;
-                        }
-
-                        tracing::warn!("server io error: {}", e);
-                    };
-                }
-                Err(e) => tracing::warn!("upgrade error: {}", e),
-            }
-        });
-
-        Ok(Response::new(Body::empty()))
-    } else {
-        tracing::warn!("CONNECT host is not socket addr: {:?}", req.uri());
-        Ok(StatusCode::BAD_REQUEST.into_response())
     }
 }

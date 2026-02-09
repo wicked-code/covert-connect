@@ -1,5 +1,5 @@
 [package]
-name = "sys-connections"
+name = "sys-process"
 
 version.workspace = true
 edition.workspace = true

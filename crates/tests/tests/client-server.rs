@@ -3,7 +3,7 @@ use tokio::time::{sleep, Duration};
 
 use anyhow::Result;
 use crypto::{cipher::CipherType, config::ProtocolConfig, kdf::Kdf, DataPadding};
-use client::proxy::{ProxyState, Proxy};
+use client::router::{RouterState, RouterMode, Router};
 
 const KEY: &str = r#"ZrDj5S25tK0wVXFnlEC_yNBemc6yLsa4iYnf1vRB_7A"#;
 
@@ -53,8 +53,8 @@ async fn get_server_protocol() -> Result<()> {
         url_path: None,
     };
 
-    let client = Proxy::new(proxy_port, ProxyState::Off)?;
-    client.update_pac_content().await;
+    let client = Router::new(proxy_port, RouterState::Off, RouterMode::Proxy)?;
+    client.add_domains(&Vec::new()).await;
     client.add_server(srv_cfg.clone()).await;
 
     let srv_protocol = client.get_server_protocol(&srv_cfg.host, KEY).await?;
@@ -111,8 +111,8 @@ async fn simple_connect() -> Result<()> {
             url_path: None,
         };
 
-        let client = Proxy::new(proxy_port, ProxyState::Off)?;
-        client.update_pac_content().await;
+        let client = Router::new(proxy_port, RouterState::Off, RouterMode::Proxy)?;
+        client.add_domains(&Vec::new()).await;
         client.add_server(srv_cfg.clone()).await;
 
         client.serve().await

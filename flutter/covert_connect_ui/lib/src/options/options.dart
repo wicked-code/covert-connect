@@ -1,13 +1,15 @@
+import 'package:collection/collection.dart';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/log.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
-import 'package:covert_connect/src/utils/color_utils.dart';
+import 'package:covert_connect/src/options/widgets/option_switch.dart';
+import 'package:covert_connect/src/rust/api/service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/router.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/input.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_switch/flutter_switch.dart';
+import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class OptionsPage extends StatefulWidget {
@@ -21,18 +23,28 @@ class _OptionsPageState extends State<OptionsPage> {
   final TextEditingController _controller = TextEditingController();
   int _proxyPort = 0;
   bool _autostart = false;
+  RouterMode? _mode;
 
   String _version = "";
   String _build = "";
 
+  RouterMode _toRouterMode(String value) {
+    return RouterMode.values.firstWhereOrNull((x) => x.name == value) ?? RouterMode.proxy;
+  }
+
+  void _setRouterMode(RouterMode mode) async {
+    await di<RouterServiceBase>().setMode(mode);
+    await _initMode();
+  }
+
   void _initPort() async {
-    _proxyPort = await di<ProxyServiceBase>().getProxyPort();
+    _proxyPort = await di<RouterServiceBase>().getProxyPort();
     _controller.text = _proxyPort.toString();
     _updateIfMounted();
   }
 
-  void _initAutoStart() async {
-    _autostart = await di<ProxyServiceBase>().getAutostart();
+  Future<void> _initAutoStart() async {
+    _autostart = await di<RouterServiceBase>().getAutostart();
     _updateIfMounted();
   }
 
@@ -43,10 +55,14 @@ class _OptionsPageState extends State<OptionsPage> {
     _updateIfMounted();
   }
 
+  Future<void> _initMode() async {
+    _mode = await di<RouterServiceBase>().getMode();
+    _updateIfMounted();
+  }
+
   void setAutostart(bool value) async {
-    await di<ProxyServiceBase>().setAutostart(value);
-    _autostart = await di<ProxyServiceBase>().getAutostart();
-    if (mounted) setState(() {});
+    await di<RouterServiceBase>().setAutostart(value);
+    await _initAutoStart();
   }
 
   bool _isPortChangedAndValid() {
@@ -58,7 +74,7 @@ class _OptionsPageState extends State<OptionsPage> {
     final value = int.tryParse(_controller.text);
     if (value == null) return;
 
-    await di<ProxyServiceBase>().setProxyPort(value);
+    await di<RouterServiceBase>().setProxyPort(value);
     setState(() {
       _proxyPort = value;
     });
@@ -76,6 +92,7 @@ class _OptionsPageState extends State<OptionsPage> {
 
   @override
   void initState() {
+    _initMode();
     _initPort();
     _initAutoStart();
     _initVersion();
@@ -92,41 +109,72 @@ class _OptionsPageState extends State<OptionsPage> {
     final grayedTextStyle = textTheme.bodySmall?.copyWith(color: grayedColor);
     return Scaffold(
       body: Padding(
-        padding: EdgeInsetsGeometry.symmetric(horizontal: 12, vertical: 16),
+        padding: EdgeInsetsGeometry.symmetric(horizontal: 12, vertical: 12),
         child: Column(
           children: [
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        spacing: 4,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Start on boot", style: TextStyle(height: 1.0)),
-                          Text("The app will not be launched after reboot", style: grayedTextStyle),
-                        ],
-                      ),
-                    ),
-                    FlutterSwitch(
-                      height: 25.0,
-                      width: 48.0,
-                      padding: 4.0,
-                      toggleSize: 20.0,
-                      borderRadius: 15.0,
-                      activeColor: colorScheme.secondary,
-                      activeToggleColor: colorScheme.onSecondary,
-                      inactiveToggleColor: colorScheme.outline,
-                      inactiveColor: darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57),
-                      activeSwitchBorder: Border.all(color: colorScheme.secondary, width: 1),
-                      inactiveSwitchBorder: Border.all(color: colorScheme.outline, width: 1),
+                    Expanded(child: Text("Start on boot", style: TextStyle(height: 1.0))),
+                    OptionSwitch(
                       value: _autostart,
                       onToggle: setAutostart,
                     ),
                   ],
                 ),
-                Container(margin: EdgeInsets.symmetric(vertical: 8), color: theme.dividerColor, height: 2),
+                SizedBox(height: 6),
+                Text("The app will be launched after reboot", style: grayedTextStyle),
+                Container(margin: EdgeInsets.only(top: 8, bottom: 12), color: theme.dividerColor, height: 1),
+                Row(
+                  children: [
+                    Expanded(child: Text("Mode", style: TextStyle(height: 1.0))),
+                    AnimatedToggleSwitch<String>.size(
+                      current: _mode?.name ?? "",
+                      values: [RouterMode.proxy.name, RouterMode.tun.name],
+                      borderWidth: 0,
+                      spacing: 2,
+                      iconOpacity: 0.67,
+                      selectedIconScale: 1.0,
+                      height: 25,
+                      indicatorSize: const Size(56.0, 25.0),
+                      loading: false,
+                      iconAnimationType: AnimationType.onHover,
+                      styleAnimationType: AnimationType.onHover,
+                      style: ToggleStyle(borderColor: Colors.transparent, borderRadius: BorderRadius.circular(8)),
+                      allowUnlistedValues: true,
+                      customIconBuilder: (context, local, global) {
+                        final name = switch (_toRouterMode(local.value)) {
+                          RouterMode.proxy => 'Proxy',
+                          RouterMode.tun => 'Tun',
+                        };
+                        return Transform.scale(
+                          scale: 0.91 + local.animationValue * 0.17,
+                          filterQuality: FilterQuality.high,
+                          child: Center(
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color.lerp(
+                                  colorScheme.onSurface.withValues(alpha: 0.5),
+                                  colorScheme.onSurface,
+                                  local.animationValue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      onChanged: (mode) => _setRouterMode(_toRouterMode(mode)),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text("Proxy mode: http only (not support by some apps)", style: grayedTextStyle),
+                Text("Tun mode: tcp/udp traffic (all apps)", style: grayedTextStyle),
+                Container(margin: EdgeInsets.symmetric(vertical: 8), color: theme.dividerColor, height: 1),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [

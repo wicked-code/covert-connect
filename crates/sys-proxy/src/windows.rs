@@ -15,8 +15,8 @@ const PROXY_SERVER: &str = "ProxyServer";
 const INTERNET_SETTINGS_KEY: &str = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 
 impl SystemProxy {
-    pub fn new() -> Result<SystemProxy> {
-        Ok(SystemProxy {})
+    pub fn new() -> SystemProxy {
+        SystemProxy {}
     }
 
     pub fn set_pac(&self, auto_config_url: &str) -> Result<()> {

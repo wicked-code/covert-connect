@@ -2,7 +2,7 @@ import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/apps/add_app.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
@@ -25,12 +25,12 @@ class _AppsPageState extends State<AppsPage> {
   String get _inputValue => _inputController.text.encodePunycode();
 
   Future<void> _loadApps() async {
-    final [rootApps as List<String>, state as ProxyStateFull] = await Future.wait([
-      di<ProxyServiceBase>().getApps(),
-      di<ProxyServiceBase>().getStateFull(),
+    final [rootApps as List<String>, status as RouterStatus] = await Future.wait([
+      di<RouterServiceBase>().getApps(),
+      di<RouterServiceBase>().getStatus(),
     ]);
     _apps = rootApps.map((d) => RouteInfo(d, "")).toList();
-    for (final srv in state.servers) {
+    for (final srv in status.servers) {
       _apps.addAll(srv.config.apps?.map((d) => RouteInfo(d, srv.config.host)) ?? []);
     }
 
@@ -41,10 +41,10 @@ class _AppsPageState extends State<AppsPage> {
   void _addApp() async {
     if (_inputValue.isEmpty) return;
 
-    final state = await di<ProxyServiceBase>().getStateFull();
+    final status = await di<RouterServiceBase>().getStatus();
     if (!mounted) return;
 
-    final result = await AddAppDialog.show(context, app: _inputValue, servers: state.servers);
+    final result = await AddAppDialog.show(context, app: _inputValue, servers: status.servers);
 
     if (result == true) {
       _inputController.clear();
@@ -53,13 +53,13 @@ class _AppsPageState extends State<AppsPage> {
   }
 
   void _editApp(RouteInfo info) async {
-    final state = await di<ProxyServiceBase>().getStateFull();
+    final status = await di<RouterServiceBase>().getStatus();
     if (!mounted) return;
 
     final result = await AddAppDialog.show(
       context,
       app: info.value,
-      servers: state.servers,
+      servers: status.servers,
       selectedServer: info.server,
     );
     if (result == true) {
@@ -68,7 +68,7 @@ class _AppsPageState extends State<AppsPage> {
   }
 
   void _deleteApp(RouteInfo info) async {
-    await di<ProxyServiceBase>().removeApp(info.value);
+    await di<RouterServiceBase>().removeApp(info.value);
     await _loadApps();
     if (!mounted) return;
 
@@ -77,7 +77,7 @@ class _AppsPageState extends State<AppsPage> {
       caption: info.value,
       text: "was removed, ${isDesktop ? 'click to undo' : 'tap to undo'}",
       onTap: () async {
-        await di<ProxyServiceBase>().setApp(info.value, info.server);
+        await di<RouterServiceBase>().setApp(info.value, info.server);
         await _loadApps();
       },
     );

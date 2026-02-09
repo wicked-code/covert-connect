@@ -1,6 +1,6 @@
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
@@ -40,7 +40,7 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
 
   void _selectServer() {
     if (_selected != widget.selectedServer) {
-      di<ProxyServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
+      di<RouterServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -51,7 +51,7 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
     for (int i = 0; i < kSamplesCount; i++) {
       for (final server in servers) {
         final host = server.config.host;
-        di<ProxyServiceBase>().getTTFB(host, widget.domain).then((ping) {
+        di<RouterServiceBase>().getTTFB(host, widget.domain).then((ping) {
           if (pingMap.containsKey(host)) {
             final old = pingMap[host]!;
             final newCount = old.count + 1;

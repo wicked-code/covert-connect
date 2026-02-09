@@ -1,6 +1,6 @@
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +38,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
 
   void _selectServer() {
     if (_selected != widget.selectedServer) {
-      di<ProxyServiceBase>().setApp(widget.app, _selected == kDirectHost ? "" : _selected);
+      di<RouterServiceBase>().setApp(widget.app, _selected == kDirectHost ? "" : _selected);
       if (mounted) {
         Navigator.of(context).pop(true);
       }

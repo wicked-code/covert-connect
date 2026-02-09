@@ -6,7 +6,7 @@ use clap::Parser;
 mod config;
 
 use config::AppConfig;
-use client::proxy::{Proxy, ProxyState};
+use client::router::{Router, RouterState, RouterMode};
 
 /// Covert-Connect client
 #[derive(Parser)]
@@ -36,8 +36,8 @@ async fn main() -> Result<()> {
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
-    let client = Proxy::new(cfg.proxy_port, ProxyState::All)?;
-    client.update_pac_content().await;
+    let client = Router::new(cfg.proxy_port, RouterState::All, RouterMode::Proxy)?;
+    client.add_domains(&Vec::new()).await;
     for srv in cfg.servers {
         client.add_server(srv).await;
     }
@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
     let client_clone = client.clone();
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.unwrap();
-        if let Err(err) = client_clone.set_proxy_state(ProxyState::Off).await {
+        if let Err(err) = client_clone.set_state(RouterState::Off).await {
             tracing::error!("Unable to restore proxy settings: {:?}", err);
         } else {
             tracing::info!("proxy settings restored")

@@ -1,6 +1,6 @@
 import 'package:covert_connect/src/apps/apps.dart';
 import 'package:covert_connect/src/domains/domains.dart';
-import 'package:covert_connect/src/options.dart';
+import 'package:covert_connect/src/options/options.dart';
 import 'package:covert_connect/src/status/status.dart';
 import 'package:covert_connect/src/utils/child_router.dart';
 import 'package:covert_connect/src/utils/utils.dart';

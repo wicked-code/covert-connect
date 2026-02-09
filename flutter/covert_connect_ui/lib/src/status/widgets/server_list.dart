@@ -1,6 +1,6 @@
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/status/add_edit_server.dart';
 import 'package:covert_connect/src/status/widgets/server_select_mode.dart';
 import 'package:covert_connect/src/status/widgets/server_state_indicator.dart';
@@ -36,11 +36,11 @@ class _ServerListState extends State<ServerList> {
       await Future.wait([
         ...widget.servers.map((server) {
           bool useValue = server.config.host == host ? value : false;
-          return di<ProxyServiceBase>().setServerEnabled(server.config.host, useValue);
+          return di<RouterServiceBase>().setServerEnabled(server.config.host, useValue);
         }),
       ]);
     } else {
-      await di<ProxyServiceBase>().setServerEnabled(host, value);
+      await di<RouterServiceBase>().setServerEnabled(host, value);
     }
     widget.updateServers();
   }

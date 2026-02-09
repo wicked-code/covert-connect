@@ -2,7 +2,7 @@ import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import 'package:collection/collection.dart';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:flutter/material.dart';
 
 class StateToggle extends StatefulWidget {
@@ -13,20 +13,20 @@ class StateToggle extends StatefulWidget {
 }
 
 class _StateToggleState extends State<StateToggle> {
-  ProxyState? _state;
+  RouterState? _state;
 
-  void _setProxyState(ProxyState state) async {
-    await di<ProxyServiceBase>().setProxyState(state);
+  void _setProxyState(RouterState state) async {
+    await di<RouterServiceBase>().setState(state);
     _update();
   }
 
   void _update() async {
-    _state = await di<ProxyServiceBase>().getProxyState();
+    _state = await di<RouterServiceBase>().getState();
     if (mounted) setState(() {});
   }
 
-  ProxyState _toProxyState(String value) {
-    return ProxyState.values.firstWhereOrNull((x) => x.name == value) ?? ProxyState.off;
+  RouterState _toProxyState(String value) {
+    return RouterState.values.firstWhereOrNull((x) => x.name == value) ?? RouterState.off;
   }
 
   @override
@@ -52,13 +52,8 @@ class _StateToggleState extends State<StateToggle> {
       ),
       child: AnimatedToggleSwitch<String>.size(
         active: _state != null,
-        current: switch (_state) {
-          ProxyState.off => ProxyState.off.name,
-          ProxyState.pac => ProxyState.pac.name,
-          ProxyState.all => ProxyState.all.name,
-          _ => "",
-        },
-        values: [ProxyState.off.name, ProxyState.pac.name, ProxyState.all.name],
+        current: _state?.name ?? "",
+        values: [RouterState.off.name, RouterState.smart.name, RouterState.all.name],
         borderWidth: 0,
         spacing: 2,
         iconOpacity: 0.67,
@@ -80,9 +75,9 @@ class _StateToggleState extends State<StateToggle> {
         },
         customIconBuilder: (context, local, global) {
           final name = switch (_toProxyState(local.value)) {
-            ProxyState.off => 'OFF',
-            ProxyState.pac => 'SMART',
-            ProxyState.all => 'ALL',
+            RouterState.off => 'OFF',
+            RouterState.smart => 'SMART',
+            RouterState.all => 'ALL',
           };
           return Transform.scale(
             scale: 0.8333333333 + local.animationValue * 0.1666666667,

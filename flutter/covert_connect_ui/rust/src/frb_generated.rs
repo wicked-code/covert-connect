@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -401131559;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -106862282;
 
 // Section: executor
 
@@ -48,7 +48,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__service__ProxyService_add_server_impl(
+fn wire__crate__api__service__RouterService_add_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -56,7 +56,7 @@ fn wire__crate__api__service__ProxyService_add_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_add_server",
+            debug_name: "RouterService_add_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -66,7 +66,7 @@ fn wire__crate__api__service__ProxyService_add_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_config = <crate::api::wrappers::ServerConfig>::sse_decode(&mut deserializer);
@@ -86,7 +86,7 @@ fn wire__crate__api__service__ProxyService_add_server_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::add_server(&*api_that_guard, api_config).await?;
+                            crate::api::service::RouterService::add_server(&*api_that_guard, api_config).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -95,7 +95,7 @@ fn wire__crate__api__service__ProxyService_add_server_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_check_domain_impl(
+fn wire__crate__api__service__RouterService_check_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -103,7 +103,7 @@ fn wire__crate__api__service__ProxyService_check_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_check_domain",
+            debug_name: "RouterService_check_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -117,7 +117,7 @@ fn wire__crate__api__service__ProxyService_check_domain_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::ProxyService::check_domain(api_domain).await?;
+                        let output_ok = crate::api::service::RouterService::check_domain(api_domain).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -126,7 +126,7 @@ fn wire__crate__api__service__ProxyService_check_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_delete_server_impl(
+fn wire__crate__api__service__RouterService_delete_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -134,7 +134,7 @@ fn wire__crate__api__service__ProxyService_delete_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_delete_server",
+            debug_name: "RouterService_delete_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -144,7 +144,7 @@ fn wire__crate__api__service__ProxyService_delete_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_host = <String>::sse_decode(&mut deserializer);
@@ -164,7 +164,7 @@ fn wire__crate__api__service__ProxyService_delete_server_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::delete_server(&*api_that_guard, api_host).await?;
+                            crate::api::service::RouterService::delete_server(&*api_that_guard, api_host).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -173,7 +173,7 @@ fn wire__crate__api__service__ProxyService_delete_server_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_apps_impl(
+fn wire__crate__api__service__RouterService_get_apps_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -181,7 +181,7 @@ fn wire__crate__api__service__ProxyService_get_apps_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_apps",
+            debug_name: "RouterService_get_apps",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -191,7 +191,7 @@ fn wire__crate__api__service__ProxyService_get_apps_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -209,7 +209,7 @@ fn wire__crate__api__service__ProxyService_get_apps_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_apps(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_apps(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -218,7 +218,7 @@ fn wire__crate__api__service__ProxyService_get_apps_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_autostart_impl(
+fn wire__crate__api__service__RouterService_get_autostart_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -226,7 +226,7 @@ fn wire__crate__api__service__ProxyService_get_autostart_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_autostart",
+            debug_name: "RouterService_get_autostart",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -239,7 +239,7 @@ fn wire__crate__api__service__ProxyService_get_autostart_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::ProxyService::get_autostart().await?;
+                        let output_ok = crate::api::service::RouterService::get_autostart().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -248,7 +248,7 @@ fn wire__crate__api__service__ProxyService_get_autostart_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_config_impl(
+fn wire__crate__api__service__RouterService_get_config_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -256,7 +256,7 @@ fn wire__crate__api__service__ProxyService_get_config_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_config",
+            debug_name: "RouterService_get_config",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -266,7 +266,7 @@ fn wire__crate__api__service__ProxyService_get_config_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -284,7 +284,7 @@ fn wire__crate__api__service__ProxyService_get_config_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_config(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_config(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -293,7 +293,7 @@ fn wire__crate__api__service__ProxyService_get_config_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_domains_impl(
+fn wire__crate__api__service__RouterService_get_domains_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -301,7 +301,7 @@ fn wire__crate__api__service__ProxyService_get_domains_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_domains",
+            debug_name: "RouterService_get_domains",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -311,7 +311,7 @@ fn wire__crate__api__service__ProxyService_get_domains_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -329,7 +329,7 @@ fn wire__crate__api__service__ProxyService_get_domains_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_domains(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_domains(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -338,7 +338,7 @@ fn wire__crate__api__service__ProxyService_get_domains_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_log_impl(
+fn wire__crate__api__service__RouterService_get_log_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -346,7 +346,7 @@ fn wire__crate__api__service__ProxyService_get_log_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_log",
+            debug_name: "RouterService_get_log",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -361,7 +361,7 @@ fn wire__crate__api__service__ProxyService_get_log_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::ProxyService::get_log(api_start, api_limit).await?;
+                        let output_ok = crate::api::service::RouterService::get_log(api_start, api_limit).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -370,7 +370,7 @@ fn wire__crate__api__service__ProxyService_get_log_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_proxy_port_impl(
+fn wire__crate__api__service__RouterService_get_mode_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -378,7 +378,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_port_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_proxy_port",
+            debug_name: "RouterService_get_mode",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -388,7 +388,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_port_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -406,7 +406,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_port_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_proxy_port(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_mode(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -415,7 +415,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_port_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_proxy_state_impl(
+fn wire__crate__api__service__RouterService_get_proxy_port_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -423,7 +423,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_state_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_proxy_state",
+            debug_name: "RouterService_get_proxy_port",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -433,7 +433,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_state_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -451,7 +451,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_state_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_proxy_state(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_proxy_port(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -460,7 +460,7 @@ fn wire__crate__api__service__ProxyService_get_proxy_state_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_server_protocol_impl(
+fn wire__crate__api__service__RouterService_get_server_protocol_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -468,7 +468,7 @@ fn wire__crate__api__service__ProxyService_get_server_protocol_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_server_protocol",
+            debug_name: "RouterService_get_server_protocol",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -478,7 +478,7 @@ fn wire__crate__api__service__ProxyService_get_server_protocol_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_server = <String>::sse_decode(&mut deserializer);
@@ -498,7 +498,7 @@ fn wire__crate__api__service__ProxyService_get_server_protocol_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_server_protocol(
+                        let output_ok = crate::api::service::RouterService::get_server_protocol(
                             &*api_that_guard,
                             api_server,
                             api_key,
@@ -512,7 +512,7 @@ fn wire__crate__api__service__ProxyService_get_server_protocol_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_state_impl(
+fn wire__crate__api__service__RouterService_get_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -520,7 +520,7 @@ fn wire__crate__api__service__ProxyService_get_state_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_state",
+            debug_name: "RouterService_get_state",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -530,7 +530,7 @@ fn wire__crate__api__service__ProxyService_get_state_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -548,7 +548,7 @@ fn wire__crate__api__service__ProxyService_get_state_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::get_state(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::get_state(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -557,7 +557,7 @@ fn wire__crate__api__service__ProxyService_get_state_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_get_ttfb_impl(
+fn wire__crate__api__service__RouterService_get_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -565,7 +565,7 @@ fn wire__crate__api__service__ProxyService_get_ttfb_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_get_ttfb",
+            debug_name: "RouterService_get_status",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -575,7 +575,52 @@ fn wire__crate__api__service__ProxyService_get_ttfb_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::service::RouterService::get_status(&*api_that_guard).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__service__RouterService_get_ttfb_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "RouterService_get_ttfb",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_server = <String>::sse_decode(&mut deserializer);
@@ -596,7 +641,7 @@ fn wire__crate__api__service__ProxyService_get_ttfb_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::get_ttfb(&*api_that_guard, api_server, api_domain)
+                            crate::api::service::RouterService::get_ttfb(&*api_that_guard, api_server, api_domain)
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -606,7 +651,7 @@ fn wire__crate__api__service__ProxyService_get_ttfb_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_log_impl(
+fn wire__crate__api__service__RouterService_log_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -614,7 +659,7 @@ fn wire__crate__api__service__ProxyService_log_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_log",
+            debug_name: "RouterService_log",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -629,7 +674,7 @@ fn wire__crate__api__service__ProxyService_log_impl(
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok({
-                            crate::api::service::ProxyService::log(api_message).await;
+                            crate::api::service::RouterService::log(api_message).await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -639,14 +684,14 @@ fn wire__crate__api__service__ProxyService_log_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_new_impl(
+fn wire__crate__api__service__RouterService_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_new",
+            debug_name: "RouterService_new",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -657,13 +702,13 @@ fn wire__crate__api__service__ProxyService_new_impl(
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::service::ProxyService::new())?;
+                let output_ok = Result::<_, ()>::Ok(crate::api::service::RouterService::new())?;
                 Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__service__ProxyService_register_logger_impl(
+fn wire__crate__api__service__RouterService_register_logger_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -671,7 +716,7 @@ fn wire__crate__api__service__ProxyService_register_logger_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_register_logger",
+            debug_name: "RouterService_register_logger",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -681,7 +726,7 @@ fn wire__crate__api__service__ProxyService_register_logger_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_callback = decode_DartFn_Inputs_String_Output_unit_AnyhowException(
@@ -703,7 +748,7 @@ fn wire__crate__api__service__ProxyService_register_logger_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::register_logger(&*api_that_guard, api_callback).await?;
+                            crate::api::service::RouterService::register_logger(&*api_that_guard, api_callback).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -712,7 +757,7 @@ fn wire__crate__api__service__ProxyService_register_logger_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_remove_app_impl(
+fn wire__crate__api__service__RouterService_remove_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -720,7 +765,7 @@ fn wire__crate__api__service__ProxyService_remove_app_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_remove_app",
+            debug_name: "RouterService_remove_app",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -730,7 +775,7 @@ fn wire__crate__api__service__ProxyService_remove_app_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_app = <String>::sse_decode(&mut deserializer);
@@ -750,7 +795,7 @@ fn wire__crate__api__service__ProxyService_remove_app_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::remove_app(&*api_that_guard, api_app).await?;
+                            crate::api::service::RouterService::remove_app(&*api_that_guard, api_app).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -759,7 +804,7 @@ fn wire__crate__api__service__ProxyService_remove_app_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_remove_domain_impl(
+fn wire__crate__api__service__RouterService_remove_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -767,7 +812,7 @@ fn wire__crate__api__service__ProxyService_remove_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_remove_domain",
+            debug_name: "RouterService_remove_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -777,7 +822,7 @@ fn wire__crate__api__service__ProxyService_remove_domain_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_domain = <String>::sse_decode(&mut deserializer);
@@ -797,7 +842,7 @@ fn wire__crate__api__service__ProxyService_remove_domain_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::remove_domain(&*api_that_guard, api_domain).await?;
+                            crate::api::service::RouterService::remove_domain(&*api_that_guard, api_domain).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -806,7 +851,7 @@ fn wire__crate__api__service__ProxyService_remove_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_set_app_impl(
+fn wire__crate__api__service__RouterService_set_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -814,7 +859,7 @@ fn wire__crate__api__service__ProxyService_set_app_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_app",
+            debug_name: "RouterService_set_app",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -824,7 +869,7 @@ fn wire__crate__api__service__ProxyService_set_app_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_app = <String>::sse_decode(&mut deserializer);
@@ -845,7 +890,7 @@ fn wire__crate__api__service__ProxyService_set_app_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::set_app(&*api_that_guard, api_app, api_server_host)
+                            crate::api::service::RouterService::set_app(&*api_that_guard, api_app, api_server_host)
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -855,7 +900,7 @@ fn wire__crate__api__service__ProxyService_set_app_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_set_autostart_impl(
+fn wire__crate__api__service__RouterService_set_autostart_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -863,7 +908,7 @@ fn wire__crate__api__service__ProxyService_set_autostart_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_autostart",
+            debug_name: "RouterService_set_autostart",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -877,7 +922,7 @@ fn wire__crate__api__service__ProxyService_set_autostart_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::ProxyService::set_autostart(api_enabled).await?;
+                        let output_ok = crate::api::service::RouterService::set_autostart(api_enabled).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -886,7 +931,7 @@ fn wire__crate__api__service__ProxyService_set_autostart_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_set_domain_impl(
+fn wire__crate__api__service__RouterService_set_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -894,7 +939,7 @@ fn wire__crate__api__service__ProxyService_set_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_domain",
+            debug_name: "RouterService_set_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -904,7 +949,7 @@ fn wire__crate__api__service__ProxyService_set_domain_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_domain = <String>::sse_decode(&mut deserializer);
@@ -924,7 +969,7 @@ fn wire__crate__api__service__ProxyService_set_domain_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::set_domain(
+                        let output_ok = crate::api::service::RouterService::set_domain(
                             &*api_that_guard,
                             api_domain,
                             api_server_host,
@@ -938,7 +983,7 @@ fn wire__crate__api__service__ProxyService_set_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_set_proxy_port_impl(
+fn wire__crate__api__service__RouterService_set_mode_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -946,7 +991,7 @@ fn wire__crate__api__service__ProxyService_set_proxy_port_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_proxy_port",
+            debug_name: "RouterService_set_mode",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -956,7 +1001,54 @@ fn wire__crate__api__service__ProxyService_set_proxy_port_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_mode = <crate::api::service::RouterMode>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::service::RouterService::set_mode(&*api_that_guard, api_mode).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__service__RouterService_set_proxy_port_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "RouterService_set_proxy_port",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_port = <u16>::sse_decode(&mut deserializer);
@@ -976,7 +1068,7 @@ fn wire__crate__api__service__ProxyService_set_proxy_port_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::set_proxy_port(&*api_that_guard, api_port).await?;
+                            crate::api::service::RouterService::set_proxy_port(&*api_that_guard, api_port).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -985,7 +1077,7 @@ fn wire__crate__api__service__ProxyService_set_proxy_port_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_set_proxy_state_impl(
+fn wire__crate__api__service__RouterService_set_server_enabled_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -993,7 +1085,7 @@ fn wire__crate__api__service__ProxyService_set_proxy_state_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_proxy_state",
+            debug_name: "RouterService_set_server_enabled",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1003,55 +1095,7 @@ fn wire__crate__api__service__ProxyService_set_proxy_state_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
-                    &mut deserializer,
-                );
-            let api_proxy_state = <crate::api::service::ProxyState>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
-                    (move || async move {
-                        let mut api_that_guard = None;
-                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
-                        ]);
-                        for i in decode_indices_ {
-                            match i {
-                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
-                                _ => unreachable!(),
-                            }
-                        }
-                        let api_that_guard = api_that_guard.unwrap();
-                        let output_ok =
-                            crate::api::service::ProxyService::set_proxy_state(&*api_that_guard, api_proxy_state)
-                                .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__service__ProxyService_set_server_enabled_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_set_server_enabled",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
-            };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_host = <String>::sse_decode(&mut deserializer);
@@ -1071,7 +1115,7 @@ fn wire__crate__api__service__ProxyService_set_server_enabled_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::set_server_enabled(
+                        let output_ok = crate::api::service::RouterService::set_server_enabled(
                             &*api_that_guard,
                             api_host,
                             api_value,
@@ -1085,7 +1129,7 @@ fn wire__crate__api__service__ProxyService_set_server_enabled_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_start_impl(
+fn wire__crate__api__service__RouterService_set_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1093,7 +1137,7 @@ fn wire__crate__api__service__ProxyService_start_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_start",
+            debug_name: "RouterService_set_state",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1103,10 +1147,10 @@ fn wire__crate__api__service__ProxyService_start_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
-            let api_cfg = <crate::api::service::ProxyConfig>::sse_decode(&mut deserializer);
+            let api_state = <crate::api::service::RouterState>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -1122,7 +1166,8 @@ fn wire__crate__api__service__ProxyService_start_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::start(&*api_that_guard, api_cfg).await?;
+                        let output_ok =
+                            crate::api::service::RouterService::set_state(&*api_that_guard, api_state).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1131,7 +1176,7 @@ fn wire__crate__api__service__ProxyService_start_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_stop_impl(
+fn wire__crate__api__service__RouterService_start_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1139,7 +1184,7 @@ fn wire__crate__api__service__ProxyService_stop_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_stop",
+            debug_name: "RouterService_start",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1149,7 +1194,53 @@ fn wire__crate__api__service__ProxyService_stop_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_cfg = <crate::api::service::RouterConfig>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false),
+                        ]);
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::service::RouterService::start(&*api_that_guard, api_cfg).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__service__RouterService_stop_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "RouterService_stop",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that =
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -1167,7 +1258,7 @@ fn wire__crate__api__service__ProxyService_stop_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::stop(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::RouterService::stop(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1176,7 +1267,7 @@ fn wire__crate__api__service__ProxyService_stop_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_unregister_logger_impl(
+fn wire__crate__api__service__RouterService_unregister_logger_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1184,7 +1275,7 @@ fn wire__crate__api__service__ProxyService_unregister_logger_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_unregister_logger",
+            debug_name: "RouterService_unregister_logger",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1194,7 +1285,7 @@ fn wire__crate__api__service__ProxyService_unregister_logger_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_id = <u64>::sse_decode(&mut deserializer);
@@ -1214,7 +1305,7 @@ fn wire__crate__api__service__ProxyService_unregister_logger_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::ProxyService::unregister_logger(&*api_that_guard, api_id).await?;
+                            crate::api::service::RouterService::unregister_logger(&*api_that_guard, api_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1223,7 +1314,7 @@ fn wire__crate__api__service__ProxyService_unregister_logger_impl(
         },
     )
 }
-fn wire__crate__api__service__ProxyService_update_server_impl(
+fn wire__crate__api__service__RouterService_update_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1231,7 +1322,7 @@ fn wire__crate__api__service__ProxyService_update_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ProxyService_update_server",
+            debug_name: "RouterService_update_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1241,7 +1332,7 @@ fn wire__crate__api__service__ProxyService_update_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_orig_host = <String>::sse_decode(&mut deserializer);
@@ -1261,7 +1352,7 @@ fn wire__crate__api__service__ProxyService_update_server_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ProxyService::update_server(
+                        let output_ok = crate::api::service::RouterService::update_server(
                             &*api_that_guard,
                             api_orig_host,
                             api_new_config,
@@ -1498,7 +1589,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Arc<WriterNotifier>>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WriterNotifier>
@@ -1525,11 +1616,11 @@ impl SseDecode for Arc<WriterNotifier> {
     }
 }
 
-impl SseDecode for ProxyService {
+impl SseDecode for RouterService {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner =
-            <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_decode(
+            <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
                 deserializer,
             );
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
@@ -1563,7 +1654,7 @@ impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>> {
+impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <usize>::sse_decode(deserializer);
@@ -1794,17 +1885,19 @@ impl SseDecode for crate::api::wrappers::ProtocolConfig {
     }
 }
 
-impl SseDecode for crate::api::service::ProxyConfig {
+impl SseDecode for crate::api::service::RouterConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_state = <crate::api::service::ProxyState>::sse_decode(deserializer);
-        let mut var_port = <u16>::sse_decode(deserializer);
+        let mut var_state = <crate::api::service::RouterState>::sse_decode(deserializer);
+        let mut var_mode = <crate::api::service::RouterMode>::sse_decode(deserializer);
+        let mut var_proxyPort = <u16>::sse_decode(deserializer);
         let mut var_domains = <Vec<String>>::sse_decode(deserializer);
         let mut var_apps = <Vec<String>>::sse_decode(deserializer);
         let mut var_servers = <Vec<crate::api::wrappers::ServerConfig>>::sse_decode(deserializer);
-        return crate::api::service::ProxyConfig {
+        return crate::api::service::RouterConfig {
             state: var_state,
-            port: var_port,
+            mode: var_mode,
+            proxy_port: var_proxyPort,
             domains: var_domains,
             apps: var_apps,
             servers: var_servers,
@@ -1812,25 +1905,37 @@ impl SseDecode for crate::api::service::ProxyConfig {
     }
 }
 
-impl SseDecode for crate::api::service::ProxyState {
+impl SseDecode for crate::api::service::RouterMode {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::service::ProxyState::Pac,
-            1 => crate::api::service::ProxyState::All,
-            2 => crate::api::service::ProxyState::Off,
-            _ => unreachable!("Invalid variant for ProxyState: {}", inner),
+            0 => crate::api::service::RouterMode::Proxy,
+            1 => crate::api::service::RouterMode::Tun,
+            _ => unreachable!("Invalid variant for RouterMode: {}", inner),
         };
     }
 }
 
-impl SseDecode for crate::api::service::ProxyStateFull {
+impl SseDecode for crate::api::service::RouterState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::service::RouterState::Smart,
+            1 => crate::api::service::RouterState::All,
+            2 => crate::api::service::RouterState::Off,
+            _ => unreachable!("Invalid variant for RouterState: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::service::RouterStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_initialized = <bool>::sse_decode(deserializer);
         let mut var_servers = <Vec<crate::api::service::ServerInfo>>::sse_decode(deserializer);
-        return crate::api::service::ProxyStateFull {
+        return crate::api::service::RouterStatus {
             initialized: var_initialized,
             servers: var_servers,
         };
@@ -1940,38 +2045,40 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__service__ProxyService_add_server_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__service__ProxyService_check_domain_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__service__ProxyService_delete_server_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__service__ProxyService_get_apps_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__service__ProxyService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__service__ProxyService_get_config_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__service__ProxyService_get_domains_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__service__ProxyService_get_log_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__service__ProxyService_get_proxy_port_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__service__ProxyService_get_proxy_state_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__service__ProxyService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__service__ProxyService_get_state_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__service__ProxyService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__service__ProxyService_log_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__service__ProxyService_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__service__ProxyService_remove_app_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__service__ProxyService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__service__ProxyService_set_app_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__service__ProxyService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__service__ProxyService_set_domain_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__service__ProxyService_set_proxy_port_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__service__ProxyService_set_proxy_state_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__service__ProxyService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__service__ProxyService_start_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__service__ProxyService_stop_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__service__ProxyService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__service__ProxyService_update_server_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__service__RouterService_add_server_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__service__RouterService_check_domain_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__service__RouterService_delete_server_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__service__RouterService_get_apps_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__service__RouterService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__service__RouterService_get_config_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__service__RouterService_get_domains_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__service__RouterService_get_log_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__service__RouterService_get_mode_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__service__RouterService_get_proxy_port_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__service__RouterService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__service__RouterService_get_state_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__service__RouterService_get_status_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__service__RouterService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__service__RouterService_log_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__service__RouterService_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__service__RouterService_remove_app_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__service__RouterService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__service__RouterService_set_app_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__service__RouterService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__service__RouterService_set_domain_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__service__RouterService_set_mode_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__service__RouterService_set_proxy_port_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__service__RouterService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__service__RouterService_set_state_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__service__RouterService_start_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__service__RouterService_stop_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__service__RouterService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__service__RouterService_update_server_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1984,7 +2091,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        15 => wire__crate__api__service__ProxyService_new_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__service__RouterService_new_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2006,15 +2113,15 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Arc<WriterNotifier>>> for Arc<
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<ProxyService> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<RouterService> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0).into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<ProxyService> {}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<RouterService> {}
 
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ProxyService>> for ProxyService {
-    fn into_into_dart(self) -> FrbWrapper<ProxyService> {
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<RouterService>> for RouterService {
+    fn into_into_dart(self) -> FrbWrapper<RouterService> {
         self.into()
     }
 }
@@ -2139,11 +2246,12 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wrappers::ProtocolConfig> for
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::service::ProxyConfig {
+impl flutter_rust_bridge::IntoDart for crate::api::service::RouterConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.state.into_into_dart().into_dart(),
-            self.port.into_into_dart().into_dart(),
+            self.mode.into_into_dart().into_dart(),
+            self.proxy_port.into_into_dart().into_dart(),
             self.domains.into_into_dart().into_dart(),
             self.apps.into_into_dart().into_dart(),
             self.servers.into_into_dart().into_dart(),
@@ -2151,33 +2259,51 @@ impl flutter_rust_bridge::IntoDart for crate::api::service::ProxyConfig {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::ProxyConfig {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::service::ProxyConfig> for crate::api::service::ProxyConfig {
-    fn into_into_dart(self) -> crate::api::service::ProxyConfig {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::RouterConfig {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::service::RouterConfig> for crate::api::service::RouterConfig {
+    fn into_into_dart(self) -> crate::api::service::RouterConfig {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::ProxyState> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::RouterMode> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::api::service::ProxyState::Pac => 0.into_dart(),
-            crate::api::service::ProxyState::All => 1.into_dart(),
-            crate::api::service::ProxyState::Off => 2.into_dart(),
+            crate::api::service::RouterMode::Proxy => 0.into_dart(),
+            crate::api::service::RouterMode::Tun => 1.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::ProxyState> {}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::ProxyState>>
-    for crate::api::service::ProxyState
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::RouterMode> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::RouterMode>>
+    for crate::api::service::RouterMode
 {
-    fn into_into_dart(self) -> FrbWrapper<crate::api::service::ProxyState> {
+    fn into_into_dart(self) -> FrbWrapper<crate::api::service::RouterMode> {
         self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::service::ProxyStateFull {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::RouterState> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::service::RouterState::Smart => 0.into_dart(),
+            crate::api::service::RouterState::All => 1.into_dart(),
+            crate::api::service::RouterState::Off => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::RouterState> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::RouterState>>
+    for crate::api::service::RouterState
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::service::RouterState> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::service::RouterStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.initialized.into_into_dart().into_dart(),
@@ -2186,9 +2312,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::service::ProxyStateFull {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::ProxyStateFull {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::service::ProxyStateFull> for crate::api::service::ProxyStateFull {
-    fn into_into_dart(self) -> crate::api::service::ProxyStateFull {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::RouterStatus {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::service::RouterStatus> for crate::api::service::RouterStatus {
+    fn into_into_dart(self) -> crate::api::service::RouterStatus {
         self
     }
 }
@@ -2267,10 +2393,10 @@ impl SseEncode for Arc<WriterNotifier> {
     }
 }
 
-impl SseEncode for ProxyService {
+impl SseEncode for RouterService {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>>::sse_encode(
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_encode(
             flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
             serializer,
         );
@@ -2303,7 +2429,7 @@ impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>> {
+impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         let (ptr, size) = self.sse_encode_raw();
@@ -2508,25 +2634,25 @@ impl SseEncode for crate::api::wrappers::ProtocolConfig {
     }
 }
 
-impl SseEncode for crate::api::service::ProxyConfig {
+impl SseEncode for crate::api::service::RouterConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::service::ProxyState>::sse_encode(self.state, serializer);
-        <u16>::sse_encode(self.port, serializer);
+        <crate::api::service::RouterState>::sse_encode(self.state, serializer);
+        <crate::api::service::RouterMode>::sse_encode(self.mode, serializer);
+        <u16>::sse_encode(self.proxy_port, serializer);
         <Vec<String>>::sse_encode(self.domains, serializer);
         <Vec<String>>::sse_encode(self.apps, serializer);
         <Vec<crate::api::wrappers::ServerConfig>>::sse_encode(self.servers, serializer);
     }
 }
 
-impl SseEncode for crate::api::service::ProxyState {
+impl SseEncode for crate::api::service::RouterMode {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::service::ProxyState::Pac => 0,
-                crate::api::service::ProxyState::All => 1,
-                crate::api::service::ProxyState::Off => 2,
+                crate::api::service::RouterMode::Proxy => 0,
+                crate::api::service::RouterMode::Tun => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -2536,7 +2662,24 @@ impl SseEncode for crate::api::service::ProxyState {
     }
 }
 
-impl SseEncode for crate::api::service::ProxyStateFull {
+impl SseEncode for crate::api::service::RouterState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::service::RouterState::Smart => 0,
+                crate::api::service::RouterState::All => 1,
+                crate::api::service::RouterState::Off => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::service::RouterStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.initialized, serializer);
@@ -2655,19 +2798,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_covert_connect_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+    pub extern "C" fn frbgen_covert_connect_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>::increment_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::increment_strong_count(
             ptr as _,
         );
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_covert_connect_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+    pub extern "C" fn frbgen_covert_connect_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>::decrement_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::decrement_strong_count(
             ptr as _,
         );
     }
@@ -2734,19 +2877,19 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>::increment_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::increment_strong_count(
             ptr as _,
         );
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ProxyService>>::decrement_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::decrement_strong_count(
             ptr as _,
         );
     }

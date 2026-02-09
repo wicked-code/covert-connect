@@ -28,8 +28,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_ProxyServicePtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService;
+  get rust_arc_decrement_strong_count_RouterServicePtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_WriterNotifierPtr => wire
@@ -45,8 +45,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     dynamic raw,
   );
 
@@ -57,8 +57,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     dynamic raw,
   );
 
@@ -82,8 +82,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     dynamic raw,
   );
 
@@ -100,7 +100,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
-  ProxyConfig dco_decode_box_autoadd_proxy_config(dynamic raw);
+  RouterConfig dco_decode_box_autoadd_router_config(dynamic raw);
 
   @protected
   ServerConfig dco_decode_box_autoadd_server_config(dynamic raw);
@@ -163,13 +163,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ProtocolConfig dco_decode_protocol_config(dynamic raw);
 
   @protected
-  ProxyConfig dco_decode_proxy_config(dynamic raw);
+  RouterConfig dco_decode_router_config(dynamic raw);
 
   @protected
-  ProxyState dco_decode_proxy_state(dynamic raw);
+  RouterMode dco_decode_router_mode(dynamic raw);
 
   @protected
-  ProxyStateFull dco_decode_proxy_state_full(dynamic raw);
+  RouterState dco_decode_router_state(dynamic raw);
+
+  @protected
+  RouterStatus dco_decode_router_status(dynamic raw);
 
   @protected
   ServerConfig dco_decode_server_config(dynamic raw);
@@ -208,8 +211,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     SseDeserializer deserializer,
   );
 
@@ -220,8 +223,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     SseDeserializer deserializer,
   );
 
@@ -241,8 +244,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ProxyService
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  RouterService
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     SseDeserializer deserializer,
   );
 
@@ -259,7 +262,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  ProxyConfig sse_decode_box_autoadd_proxy_config(SseDeserializer deserializer);
+  RouterConfig sse_decode_box_autoadd_router_config(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ServerConfig sse_decode_box_autoadd_server_config(
@@ -326,13 +331,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ProtocolConfig sse_decode_protocol_config(SseDeserializer deserializer);
 
   @protected
-  ProxyConfig sse_decode_proxy_config(SseDeserializer deserializer);
+  RouterConfig sse_decode_router_config(SseDeserializer deserializer);
 
   @protected
-  ProxyState sse_decode_proxy_state(SseDeserializer deserializer);
+  RouterMode sse_decode_router_mode(SseDeserializer deserializer);
 
   @protected
-  ProxyStateFull sse_decode_proxy_state_full(SseDeserializer deserializer);
+  RouterState sse_decode_router_state(SseDeserializer deserializer);
+
+  @protected
+  RouterStatus sse_decode_router_status(SseDeserializer deserializer);
 
   @protected
   ServerConfig sse_decode_server_config(SseDeserializer deserializer);
@@ -376,8 +384,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
-    ProxyService self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    RouterService self,
     SseSerializer serializer,
   );
 
@@ -390,8 +398,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
-    ProxyService self,
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    RouterService self,
     SseSerializer serializer,
   );
 
@@ -420,8 +428,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
-    ProxyService self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    RouterService self,
     SseSerializer serializer,
   );
 
@@ -439,8 +447,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_proxy_config(
-    ProxyConfig self,
+  void sse_encode_box_autoadd_router_config(
+    RouterConfig self,
     SseSerializer serializer,
   );
 
@@ -520,16 +528,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_proxy_config(ProxyConfig self, SseSerializer serializer);
+  void sse_encode_router_config(RouterConfig self, SseSerializer serializer);
 
   @protected
-  void sse_encode_proxy_state(ProxyState self, SseSerializer serializer);
+  void sse_encode_router_mode(RouterMode self, SseSerializer serializer);
 
   @protected
-  void sse_encode_proxy_state_full(
-    ProxyStateFull self,
-    SseSerializer serializer,
-  );
+  void sse_encode_router_state(RouterState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_router_status(RouterStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_server_config(ServerConfig self, SseSerializer serializer);
@@ -581,18 +589,18 @@ class RustLibWire implements BaseWire {
       );
 
   void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     int ptr,
   ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr,
       );
 
   void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     int ptr,
   ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
         ptr,
       );
 
@@ -630,12 +638,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     int ptr,
   );
 
   external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProxyService(
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
     int ptr,
   );
 

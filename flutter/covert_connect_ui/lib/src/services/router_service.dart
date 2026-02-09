@@ -8,10 +8,12 @@ enum LogErrorType {
   error
 }
 
-abstract class ProxyServiceBase {
-  Future<ProxyStateFull> getStateFull();
-  Future<ProxyState> getProxyState();
-  Future<void> setProxyState(ProxyState state);
+abstract class RouterServiceBase {
+  Future<RouterStatus> getStatus();
+  Future<RouterState> getState();
+  Future<void> setState(RouterState state);
+  Future<RouterMode> getMode();
+  Future<void> setMode(RouterMode state);
   Future<void> setServerEnabled(String host, bool value);
   Future<ProtocolConfig> getServerProtocol(String host, String key);
   Future<List<String>> getDomains();

@@ -3,7 +3,7 @@ import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/domains/add_domain.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
+import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/debounce.dart';
 import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/utils/utils.dart';
@@ -34,12 +34,12 @@ class _DomainsPageState extends State<DomainsPage> {
   String get _inputValue => _inputController.text.encodePunycode();
 
   Future<void> _loadDomains() async {
-    final [rootDomains as List<String>, state as ProxyStateFull] = await Future.wait([
-      di<ProxyServiceBase>().getDomains(),
-      di<ProxyServiceBase>().getStateFull(),
+    final [rootDomains as List<String>, status as RouterStatus] = await Future.wait([
+      di<RouterServiceBase>().getDomains(),
+      di<RouterServiceBase>().getStatus(),
     ]);
     _domains = rootDomains.map((d) => RouteInfo(d, "")).toList();
-    for (final srv in state.servers) {
+    for (final srv in status.servers) {
       _domains.addAll(srv.config.domains?.map((d) => RouteInfo(d, srv.config.host)) ?? []);
     }
 
@@ -50,10 +50,10 @@ class _DomainsPageState extends State<DomainsPage> {
   void _addDomain() async {
     if (_urlError || _inputValue.isEmpty) return;
 
-    final state = await di<ProxyServiceBase>().getStateFull();
+    final status = await di<RouterServiceBase>().getStatus();
     if (!mounted) return;
 
-    final result = await AddDomainDialog.show(context, domain: _inputValue, servers: state.servers);
+    final result = await AddDomainDialog.show(context, domain: _inputValue, servers: status.servers);
 
     if (result == true) {
       _inputController.clear();
@@ -62,13 +62,13 @@ class _DomainsPageState extends State<DomainsPage> {
   }
 
   void _editDomain(RouteInfo info) async {
-    final state = await di<ProxyServiceBase>().getStateFull();
+    final status = await di<RouterServiceBase>().getStatus();
     if (!mounted) return;
 
     final result = await AddDomainDialog.show(
       context,
       domain: info.value,
-      servers: state.servers,
+      servers: status.servers,
       selectedServer: info.server,
     );
     if (result == true) {
@@ -77,7 +77,7 @@ class _DomainsPageState extends State<DomainsPage> {
   }
 
   void _deleteDomain(RouteInfo info) async {
-    await di<ProxyServiceBase>().removeDomain(info.value);
+    await di<RouterServiceBase>().removeDomain(info.value);
     await _loadDomains();
     if (!mounted) return;
 
@@ -86,7 +86,7 @@ class _DomainsPageState extends State<DomainsPage> {
       caption: info.value,
       text: "was removed, ${isDesktop ? 'click to undo' : 'tap to undo'}",
       onTap: () async {
-        await di<ProxyServiceBase>().setDomain(info.value, info.server);
+        await di<RouterServiceBase>().setDomain(info.value, info.server);
         await _loadDomains();
       },
     );
@@ -134,7 +134,7 @@ class _DomainsPageState extends State<DomainsPage> {
     _tryParseUrl(data!.text!, (host) async {
       final reducedHost = host.split(".").reversed.take(3).toList().reversed.join(".").removeIfStartWith("www.");
       if (reducedHost == _lastHostFromClipboard) return;
-      if (!(await di<ProxyServiceBase>().checkDomain(reducedHost))) return;
+      if (!(await di<RouterServiceBase>().checkDomain(reducedHost))) return;
 
       _lastHostFromClipboard = reducedHost;
       _inputController.text = reducedHost;

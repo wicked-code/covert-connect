@@ -1,16 +1,16 @@
 import 'package:covert_connect/src/services/app_state_service.dart';
-import 'package:covert_connect/src/services/proxy_service.dart';
-import 'package:covert_connect/src/services/proxy_service_impl.dart';
-import 'package:covert_connect/src/services/proxy_service_mock.dart';
+import 'package:covert_connect/src/services/router_service.dart';
+import 'package:covert_connect/src/services/router_service_impl.dart';
+import 'package:covert_connect/src/services/router_service_mock.dart';
 import 'package:get_it/get_it.dart';
 
 final di = GetIt.instance;
 
 void setupDI() {
   if (const bool.hasEnvironment("MOCK_SERVICE")) {
-    di.registerSingletonAsync<ProxyServiceBase>(() => ProxyServiceMock.create());
+    di.registerSingletonAsync<RouterServiceBase>(() => RouterServiceMock.create());
   } else {
-    di.registerSingletonAsync<ProxyServiceBase>(() => ProxyServiceImpl.create());
+    di.registerSingletonAsync<RouterServiceBase>(() => RouterServiceImpl.create());
   }
   di.registerSingleton<AppStateService>(AppStateService());
 }
