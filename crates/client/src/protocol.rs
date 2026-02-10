@@ -12,7 +12,7 @@ use crypto::{
     MIN_HOST_LEN, GET_PROTOCOL_MAX_CONNECT_DELAY
 };
 use crate::config::ServerConfig;
-use crate::monitor_stream::MonitorStream;
+use crate::streams::monitor_stream::MonitorStream;
 
 #[derive(Clone)]
 pub struct Server {

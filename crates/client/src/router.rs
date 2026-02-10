@@ -23,13 +23,13 @@ use tokio_rustls::{
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
-use crate::protocol::{self, SelectedServer, Server};
-use crate::upgrade_stream::UgradeStream;
 use crate::{
+    protocol::{self, SelectedServer, Server},
     config::{ServerConfig, ServerConnectConfig, default_server_address},
-    ttfb_stream::TtfbStream,
+    streams::{ttfb_stream::TtfbStream, upgrade_stream::UgradeStream},
+    proxy_service::ProxyService,
+    tun_service::TunService
 };
-use crate::{proxy_service::ProxyService, tun_service::TunService};
 use crypto::config::ProtocolConfig;
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
