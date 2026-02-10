@@ -505,7 +505,8 @@ impl Router {
 
     async fn server_int(&self) -> Result<()> {
         let state = *self.state.read().await;
-        match *self.mode.read().await {
+        let mode = *self.mode.read().await;
+        match mode {
             RouterMode::Proxy => self.proxy_service.clone().serve(state).await,
             RouterMode::Tun => self.tun_service.clone().serve().await,
         }
@@ -517,6 +518,8 @@ impl Router {
         target_host: String,
         client_addr: SocketAddr,
     ) -> Result<()> {
+        // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
+        // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
         let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
         if let Some(server) = selected {
