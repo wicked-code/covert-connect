@@ -31,6 +31,7 @@ crypto.workspace = true
 sys-proxy.workspace = true
 sys-process.workspace = true
 
+if-addrs = "0.15.0"
 
 [features]
 aws_lc_rs = ["tokio-rustls/aws_lc_rs"]
