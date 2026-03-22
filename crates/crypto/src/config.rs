@@ -1,10 +1,7 @@
-use serde::{de::Error, Deserialize, Serialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 use std::ops::Range;
 
-use super::{
-    kdf::Kdf,
-    cipher::CipherType
-};
+use super::{cipher::CipherType, kdf::Kdf};
 
 #[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Debug)]
 #[serde(remote = "Self")]
@@ -71,7 +68,7 @@ fn defaut_encryption_limit() -> usize {
 
 fn range_to_human_readable<S>(value: &Range<u16>, serializer: S) -> Result<S::Ok, S::Error>
 where
-    S: Serializer
+    S: Serializer,
 {
     serializer.serialize_str(&(value.start.to_string() + ".." + &value.end.to_string()))
 }
@@ -83,17 +80,21 @@ where
     let text: String = Deserialize::deserialize(deserializer)?;
     let mut parts = text.split("..");
 
-    let start_str = parts.next()
+    let start_str = parts
+        .next()
         .ok_or_else(|| Error::custom(format!("range not found in \"{text}\"")))?;
-    let end_str = parts.next()
+    let end_str = parts
+        .next()
         .ok_or_else(|| Error::custom(format!("range end not found in \"{text}\"")))?;
     if parts.next().is_some() {
         return Err(Error::custom(format!("only one range allowed: \"{text}\"")));
     }
 
-    let start = start_str.parse::<u16>()
+    let start = start_str
+        .parse::<u16>()
         .map_err(|err| Error::custom(format!("parse range \"{}\" err: {}", text, err)))?;
-    let end = end_str.parse::<u16>()
+    let end = end_str
+        .parse::<u16>()
         .map_err(|err| Error::custom(format!("parse range \"{}\" err: {}", text, err)))?;
 
     Ok(start..end)
@@ -107,10 +108,7 @@ impl DataPadding {
 
 impl Default for DataPadding {
     fn default() -> Self {
-        Self {
-            max: 255,
-            rate: 20
-        }
+        Self { max: 255, rate: 20 }
     }
 }
 

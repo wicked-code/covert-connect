@@ -1,13 +1,10 @@
-use std::{
-    net::SocketAddr,
-    path::Path,
-};
 use anyhow::Result;
-use is_terminal::IsTerminal;
-use tracing_subscriber::EnvFilter;
 use clap::Parser;
 use colored::*;
 use crypto::kdf::Kdf;
+use is_terminal::IsTerminal;
+use std::{net::SocketAddr, path::Path};
+use tracing_subscriber::EnvFilter;
 
 mod config;
 mod server;
@@ -22,10 +19,18 @@ struct Cli {
     #[arg(short, long, value_name = "PATH", value_hint = clap::ValueHint::DirPath)]
     config: std::path::PathBuf,
 
-    #[arg(short, long, help = "HTTPS server path that client use (GET host/<path>). Should be used in server (nginx) as location for proxy.")]
+    #[arg(
+        short,
+        long,
+        help = "HTTPS server path that client use (GET host/<path>). Should be used in server (nginx) as location for proxy."
+    )]
     url: bool,
 
-    #[arg(short, long, help = "Generate new key, update config and exit. New key should be used in client after that.")]
+    #[arg(
+        short,
+        long,
+        help = "Generate new key, update config and exit. New key should be used in client after that."
+    )]
     new_key: bool,
 }
 
@@ -71,7 +76,8 @@ fn generate_new_key(cfg_path: &Path, old_key: &str) -> Result<()> {
     let config = config.replace(old_key, &new_key);
     std::fs::write(cfg_path, config)?;
 
-    print!("Config file {} updated.\nUse new key in the client.\n",
+    print!(
+        "Config file {} updated.\nUse new key in the client.\n",
         cfg_path.display().to_string().italic()
     );
 
@@ -80,21 +86,24 @@ fn generate_new_key(cfg_path: &Path, old_key: &str) -> Result<()> {
 
 fn show_proxy_path(address: SocketAddr, url_path: &str) {
     if address.ip() != LOCAL_HOST {
-        tracing::warn!("\n{} {} {} {}", address.ip().to_string().yellow().bold(),
-                        "can be visible from outside.\naddress".yellow(), 
-                        LOCAL_HOST.to_string().yellow().bold(),
-                        "is recommended in https proxy mode.".yellow(),
+        tracing::warn!(
+            "\n{} {} {} {}",
+            address.ip().to_string().yellow().bold(),
+            "can be visible from outside.\naddress".yellow(),
+            LOCAL_HOST.to_string().yellow().bold(),
+            "is recommended in https proxy mode.".yellow(),
         );
     }
 
     print!("\n{}\n{}\n\n", "client path:".green(), url_path.bold());
-    print!("{}\n\
+    print!(
+        "{}\n\
             location /{url_path} {{\n\
             \tproxy_pass http://{};\n\
             \tproxy_set_header Upgrade $http_upgrade;\n\
             \tproxy_set_header Connection \"Upgrade\";\n\
             }}\n\n",
-            "nginx config example:".green(),
-            &address
+        "nginx config example:".green(),
+        &address
     );
 }

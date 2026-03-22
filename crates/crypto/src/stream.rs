@@ -1,20 +1,24 @@
-use std::{
-    io::{self, ErrorKind}, mem, pin::{Pin, pin}, task::{ Context, Poll }, cmp,
-};
-use pin_project_lite::pin_project;
-use futures::{ready, Future};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
+use super::{DataPadding, cipher::Cipher};
 use bytes::{BufMut, BytesMut};
-use rand_core::{CryptoRng, RngCore};
+use futures::{Future, ready};
+use pin_project_lite::pin_project;
 use rand::Rng;
-use super::{cipher::Cipher, DataPadding};
+use rand_core::{CryptoRng, RngCore};
+use std::{
+    cmp,
+    io::{self, ErrorKind},
+    mem,
+    pin::{Pin, pin},
+    task::{Context, Poll},
+};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 
 pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max TCP packet size
 pub const DEF_PACKET_SIZE: usize = 1534; // MTU default + 2xTagSize(16) + datalen(1)
 
 pin_project! {
     /// A stream wrapper that add rnd padding  and encrypt data
-    pub struct EncryptedStream<S, R> 
+    pub struct EncryptedStream<S, R>
     {
         #[pin]
         inner: S,
@@ -38,9 +42,9 @@ pin_project! {
 
 enum ReadState {
     Header,
-    Padding{size: usize, data_size: usize},
-    Data{size: usize},
-    Ready{pos: usize},
+    Padding { size: usize, data_size: usize },
+    Data { size: usize },
+    Ready { pos: usize },
 }
 
 impl<S, R> EncryptedStream<S, R>
@@ -56,7 +60,7 @@ where
         enc_limit: usize,
         rng: R,
     ) -> Self {
-        Self { 
+        Self {
             inner,
             read_cipher,
             read_buffer: BytesMut::with_capacity(DEF_PACKET_SIZE),
@@ -68,7 +72,7 @@ where
             written: 0,
             enc_limit,
             padding,
-            rng
+            rng,
         }
     }
 
@@ -87,11 +91,7 @@ where
         self.inner
     }
 
-    fn poll_read_exact(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        size: usize
-    ) -> Poll<io::Result<()>> {
+    fn poll_read_exact(mut self: Pin<&mut Self>, cx: &mut Context<'_>, size: usize) -> Poll<io::Result<()>> {
         let mut this = self.as_mut().project();
         if this.read_buffer.capacity() < size {
             this.read_buffer.reserve(size - this.read_buffer.len());
@@ -107,7 +107,7 @@ where
                 } else {
                     break;
                 }
-            }           
+            }
 
             this = self.as_mut().project();
         }
@@ -115,30 +115,28 @@ where
         Ok(()).into()
     }
 
-    fn poll_write_buffer(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        no_pending: bool,
-    ) -> Poll<io::Result<()>> {
+    fn poll_write_buffer(mut self: Pin<&mut Self>, cx: &mut Context<'_>, no_pending: bool) -> Poll<io::Result<()>> {
         let mut this = self.as_mut().project();
         // write data from buffers
         while *this.write_pos < this.write_buffer.len() {
-            match this.inner.as_mut().poll_write(cx, &this.write_buffer[*this.write_pos..]) {
+            match this
+                .inner
+                .as_mut()
+                .poll_write(cx, &this.write_buffer[*this.write_pos..])
+            {
                 Poll::Pending => {
                     if no_pending {
                         return Poll::Ready(Ok(()));
-                    } 
+                    }
                     return Poll::Pending;
-                },
+                }
                 Poll::Ready(Ok(n)) => {
                     if n == 0 {
-                        return Err(ErrorKind::UnexpectedEof.into()).into();                        
+                        return Err(ErrorKind::UnexpectedEof.into()).into();
                     }
                     *this.write_pos += n;
-                },
-                Poll::Ready(Err(err)) => {
-                    return Poll::Ready(Err(err))
-                },
+                }
+                Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
             }
         }
 
@@ -148,10 +146,7 @@ where
         Poll::Ready(Ok(()))
     }
 
-    fn assemble_data_to_buffer(
-        mut self: Pin<&mut Self>,
-        buf: &[u8]
-    ) {
+    fn assemble_data_to_buffer(mut self: Pin<&mut Self>, buf: &[u8]) {
         let this = self.as_mut().project();
         let tag_size = this.write_cipher.tag_size();
 
@@ -172,7 +167,7 @@ where
         if this.padding.needed() {
             let padding_max = cmp::min(
                 this.padding.max,
-                (((this.padding.rate as usize) * buf.len()) / 100) as u16
+                (((this.padding.rate as usize) * buf.len()) / 100) as u16,
             );
 
             if padding_max > 0 {
@@ -199,7 +194,8 @@ where
 
         // encryp data
         if *this.written <= *this.enc_limit {
-            this.write_cipher.encrypt(this.write_buffer, header_size + padding as usize);
+            this.write_cipher
+                .encrypt(this.write_buffer, header_size + padding as usize);
             this.write_cipher.inc_nonce(1);
         }
 
@@ -212,11 +208,7 @@ where
     R: CryptoRng + RngCore + Rng,
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let mut this = self.as_mut().project();
         let tag_size = this.read_cipher.tag_size();
 
@@ -249,7 +241,10 @@ where
             let mut padding = 0;
             if this.padding.needed() {
                 padding = u16::from_be_bytes(this.read_buffer[2..4].try_into().unwrap());
-                *this.read_state = ReadState::Padding { size: padding as usize, data_size: size };
+                *this.read_state = ReadState::Padding {
+                    size: padding as usize,
+                    data_size: size,
+                };
             } else {
                 *this.read_state = ReadState::Data { size };
             }
@@ -261,7 +256,7 @@ where
             this.read_buffer.clear();
         }
 
-        if let ReadState::Padding{size, data_size} = *this.read_state {
+        if let ReadState::Padding { size, data_size } = *this.read_state {
             ready!(self.as_mut().poll_read_exact(cx, size))?;
             this = self.as_mut().project();
 
@@ -269,12 +264,12 @@ where
             if this.read_buffer.len() < size {
                 return Ok(()).into();
             }
-                
+
             *this.read_state = ReadState::Data { size: data_size };
             this.read_buffer.clear();
         }
 
-        if let ReadState::Data{size} = *this.read_state {
+        if let ReadState::Data { size } = *this.read_state {
             let read_size = if *this.readed <= *this.enc_limit {
                 size + tag_size
             } else {
@@ -305,7 +300,7 @@ where
         }
 
         // return buffered data
-        if let ReadState::Ready{ref mut pos} = *this.read_state {
+        if let ReadState::Ready { ref mut pos } = *this.read_state {
             if *pos < this.read_buffer.len() {
                 let buffered = &this.read_buffer[*pos..];
 
@@ -330,12 +325,7 @@ where
     R: CryptoRng + RngCore + Rng,
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        mut buf: &[u8],
-    ) -> Poll<Result<usize, io::Error>> {
-
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, mut buf: &[u8]) -> Poll<Result<usize, io::Error>> {
         if buf.len() > MAX_PACKET_SIZE {
             buf = &buf[..MAX_PACKET_SIZE];
         }
@@ -370,72 +360,75 @@ where
 #[cfg(test)]
 mod tests {
 
-    use super::{Cipher, EncryptedStream, DataPadding, MAX_PACKET_SIZE};
+    use super::{Cipher, DataPadding, EncryptedStream, MAX_PACKET_SIZE};
     use crate::cipher::CipherType;
     use crate::kdf::Kdf;
-    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-    use rand_chacha::ChaCha20Rng;
-    use rand::prelude::*;
-    use bytes::{BufMut, BytesMut};
     use anyhow::Result;
-    use std::{io, pin::Pin, task::{ Context, Poll }, cmp::min};
-    
+    use bytes::{BufMut, BytesMut};
+    use rand::prelude::*;
+    use rand_chacha::ChaCha20Rng;
+    use std::{
+        cmp::min,
+        io,
+        pin::Pin,
+        task::{Context, Poll},
+    };
+    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+
     #[tokio::test]
     async fn encrypted_stream() {
         let enc_limit = usize::MAX;
-        let padding = DataPadding {max: 250, rate: 10};
+        let padding = DataPadding { max: 250, rate: 10 };
         check_stream_with_params(padding, enc_limit).await;
     }
 
     #[tokio::test]
     async fn encrypted_stream_enc_limit() {
         let enc_limit = 1024;
-        let padding = DataPadding {max: 250, rate: 10};
+        let padding = DataPadding { max: 250, rate: 10 };
         check_stream_with_params(padding, enc_limit).await;
 
         let enc_limit = 500;
-        let padding = DataPadding {max: 250, rate: 10};
+        let padding = DataPadding { max: 250, rate: 10 };
         check_stream_with_params(padding, enc_limit).await;
 
         let enc_limit = 100;
-        let padding = DataPadding {max: 250, rate: 10};
+        let padding = DataPadding { max: 250, rate: 10 };
         check_stream_with_params(padding, enc_limit).await;
     }
 
     #[tokio::test]
     async fn encrypted_stream_no_padding() {
         let enc_limit = usize::MAX;
-        let padding = DataPadding {max: 0, rate: 0};
+        let padding = DataPadding { max: 0, rate: 0 };
         check_stream_with_params(padding, enc_limit).await;
     }
 
     #[tokio::test]
     async fn encrypted_stream_enc_limit_no_padding() {
         let enc_limit = 1024;
-        let padding = DataPadding {max: 0, rate: 0};
+        let padding = DataPadding { max: 0, rate: 0 };
         check_stream_with_params(padding, enc_limit).await;
 
         let enc_limit = 500;
-        let padding = DataPadding {max: 0, rate: 0};
+        let padding = DataPadding { max: 0, rate: 0 };
         check_stream_with_params(padding, enc_limit).await;
 
         let enc_limit = 100;
-        let padding = DataPadding {max: 0, rate: 0};
+        let padding = DataPadding { max: 0, rate: 0 };
         check_stream_with_params(padding, enc_limit).await;
     }
-   
+
     async fn check_stream_with_params(padding: DataPadding, enc_limit: usize) {
         let fake_stream = FakeStream::new();
 
         let pass = "QrD15a25tK0wVXdnlECwyNBemc6yLsa4iYnf1vRBx7A";
         let salt = "QrD15a25tK0wVXdnlECwyNBemc6yLsa4iYnf1vRBx5A".as_bytes();
         let rng = ChaCha20Rng::from_entropy();
-        
-        let (read_cipher, write_cipher) =
-            new_client_server(CipherType::Aes256Gcm, Kdf::Blake3, pass, &salt).unwrap();
 
-        let mut stream =
-            EncryptedStream::from_stream(fake_stream, read_cipher, write_cipher, padding, enc_limit, rng);
+        let (read_cipher, write_cipher) = new_client_server(CipherType::Aes256Gcm, Kdf::Blake3, pass, &salt).unwrap();
+
+        let mut stream = EncryptedStream::from_stream(fake_stream, read_cipher, write_cipher, padding, enc_limit, rng);
 
         let u8val = 55;
         stream.write_u8(u8val).await.unwrap();
@@ -541,13 +534,19 @@ mod tests {
         rng.fill_bytes(data.as_mut());
 
         stream.write_all(&data[..MAX_PACKET_SIZE + 1]).await.unwrap();
-        stream.write_all(&data[MAX_PACKET_SIZE + 1..MAX_PACKET_SIZE * 2]).await.unwrap();
+        stream
+            .write_all(&data[MAX_PACKET_SIZE + 1..MAX_PACKET_SIZE * 2])
+            .await
+            .unwrap();
 
         let mut data_readed = BytesMut::zeroed(data_size);
         stream.read_exact(&mut data_readed.as_mut()[..50]).await.unwrap();
         stream.read_exact(&mut data_readed.as_mut()[50..125]).await.unwrap();
         stream.read_exact(&mut data_readed.as_mut()[125..16384]).await.unwrap();
-        stream.read_exact(&mut data_readed.as_mut()[16384..MAX_PACKET_SIZE * 2]).await.unwrap();
+        stream
+            .read_exact(&mut data_readed.as_mut()[16384..MAX_PACKET_SIZE * 2])
+            .await
+            .unwrap();
 
         assert_eq!(data, data_readed);
     }
@@ -568,28 +567,21 @@ mod tests {
         Ok((client_cipher, server_cipher))
     }
 
-    pub struct FakeStream
-    {
+    pub struct FakeStream {
         buffer: BytesMut,
     }
-    
-    impl FakeStream
-    {
-        /// 
+
+    impl FakeStream {
+        ///
         pub fn new() -> Self {
-            Self { 
+            Self {
                 buffer: BytesMut::new(),
             }
         }
     }
-    
-    impl AsyncRead for FakeStream
-    {
-        fn poll_read(
-            mut self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-            buf: &mut ReadBuf<'_>,
-        ) -> Poll<io::Result<()>> {
+
+    impl AsyncRead for FakeStream {
+        fn poll_read(mut self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
             let buffer_len = self.buffer.len();
 
             let read_len = min(buf.remaining(), buffer_len);
@@ -599,26 +591,21 @@ mod tests {
 
             let new_len = buffer_len - read_len;
             self.buffer.truncate(new_len);
-            
+
             Ok(()).into()
         }
     }
-    
-    impl AsyncWrite for FakeStream
-    {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<Result<usize, io::Error>> {
+
+    impl AsyncWrite for FakeStream {
+        fn poll_write(mut self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
             self.buffer.extend_from_slice(buf);
             Poll::Ready(Ok(buf.len()))
         }
-    
+
         fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
             Poll::Ready(Ok(()))
         }
-    
+
         fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
             Poll::Ready(Ok(()))
         }

@@ -14,4 +14,4 @@ client.workspace = true
 crypto.workspace = true
 cc-server.workspace = true
 
-reqwest = "0.12.4"
+reqwest = "0.13.2"

@@ -22,24 +22,20 @@ abstract class RouterService implements RustOpaqueInterface {
 
   Future<void> deleteServer({required String host});
 
-  Future<List<String>> getApps();
-
   static Future<bool> getAutostart() =>
       RustLib.instance.api.crateApiServiceRouterServiceGetAutostart();
 
   Future<RouterConfig> getConfig();
 
-  Future<List<String>> getDomains();
+  Future<List<String>> getDirectApps();
+
+  Future<List<String>> getDirectDomains();
 
   static Future<List<LogLine>> getLog({BigInt? start, required BigInt limit}) =>
       RustLib.instance.api.crateApiServiceRouterServiceGetLog(
         start: start,
         limit: limit,
       );
-
-  Future<RouterMode> getMode();
-
-  Future<int> getProxyPort();
 
   Future<ProtocolConfig> getServerProtocol({
     required String server,
@@ -75,10 +71,6 @@ abstract class RouterService implements RustOpaqueInterface {
 
   Future<void> setDomain({required String domain, required String serverHost});
 
-  Future<void> setMode({required RouterMode mode});
-
-  Future<void> setProxyPort({required int port});
-
   Future<void> setServerEnabled({required String host, required bool value});
 
   Future<void> setState({required RouterState state});
@@ -97,28 +89,22 @@ abstract class RouterService implements RustOpaqueInterface {
 
 class RouterConfig {
   final RouterState state;
-  final RouterMode mode;
-  final int proxyPort;
-  final List<String> domains;
-  final List<String> apps;
+  final List<String> directDomains;
+  final List<String> directApps;
   final List<ServerConfig> servers;
 
   const RouterConfig({
     required this.state,
-    required this.mode,
-    required this.proxyPort,
-    required this.domains,
-    required this.apps,
+    required this.directDomains,
+    required this.directApps,
     required this.servers,
   });
 
   @override
   int get hashCode =>
       state.hashCode ^
-      mode.hashCode ^
-      proxyPort.hashCode ^
-      domains.hashCode ^
-      apps.hashCode ^
+      directDomains.hashCode ^
+      directApps.hashCode ^
       servers.hashCode;
 
   @override
@@ -127,14 +113,10 @@ class RouterConfig {
       other is RouterConfig &&
           runtimeType == other.runtimeType &&
           state == other.state &&
-          mode == other.mode &&
-          proxyPort == other.proxyPort &&
-          domains == other.domains &&
-          apps == other.apps &&
+          directDomains == other.directDomains &&
+          directApps == other.directApps &&
           servers == other.servers;
 }
-
-enum RouterMode { proxy, tun }
 
 enum RouterState { smart, all, off }
 

@@ -1,16 +1,10 @@
 use anyhow::{Result, bail};
-use libc::{c_int, proc_pidpath, PROC_PIDPATHINFO_MAXSIZE};
+use libc::{PROC_PIDPATHINFO_MAXSIZE, c_int, proc_pidpath};
 use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
 pub fn path_by_pid(pid: u32) -> Result<String> {
     let mut buffer = vec![0u8; PROC_PIDPATHINFO_MAXSIZE as usize];
-    let len = unsafe {
-        proc_pidpath(
-            pid as c_int,
-            buffer.as_mut_ptr() as *mut _,
-            buffer.len() as u32,
-        )
-    };
+    let len = unsafe { proc_pidpath(pid as c_int, buffer.as_mut_ptr() as *mut _, buffer.len() as u32) };
 
     if len <= 0 {
         bail!("proc_pidpath failed pid: {}, err: {}", pid, get_errno());

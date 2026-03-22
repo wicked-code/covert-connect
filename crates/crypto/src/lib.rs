@@ -1,6 +1,6 @@
-pub mod stream;
-pub mod kdf;
 pub mod cipher;
+pub mod kdf;
+pub mod stream;
 
 pub mod config;
 pub use config::DataPadding;

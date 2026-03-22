@@ -1,12 +1,12 @@
-use std::{
-    ops::Range,
-    path::Path,
-    net::{SocketAddr, IpAddr},
-};
 use anyhow::{Result, anyhow};
-use serde::Deserialize;
 use colored::*;
 use crypto::config::{ProtocolConfig, range_from_human_readable};
+use serde::Deserialize;
+use std::{
+    net::{IpAddr, SocketAddr},
+    ops::Range,
+    path::Path,
+};
 
 /// Main application config
 #[derive(Clone, Deserialize)]
@@ -28,7 +28,7 @@ pub struct AppConfig {
     /// random timeout for the read is selected in specified range
     #[serde(default = "default_cooldown")]
     #[serde(deserialize_with = "range_from_human_readable")]
-    pub unauth_cooldown: Range<u16>
+    pub unauth_cooldown: Range<u16>,
 }
 
 fn default_cooldown() -> Range<u16> {
@@ -36,23 +36,19 @@ fn default_cooldown() -> Range<u16> {
 }
 
 impl AppConfig {
-    pub fn new<P>(path: P) -> Result<Self> 
+    pub fn new<P>(path: P) -> Result<Self>
     where
-        P: AsRef<Path>
+        P: AsRef<Path>,
     {
         let config = std::fs::read_to_string(&path)?;
         let expanded = shellexpand::full(&config)?;
 
-        Self::build(expanded.as_ref())
-            .map_err(|err| anyhow!("deserialize config: {}", err))
+        Self::build(expanded.as_ref()).map_err(|err| anyhow!("deserialize config: {}", err))
     }
 
     fn build(cfg_str: &str) -> Result<Self> {
         config::Config::builder()
-            .add_source(config::File::from_str(
-                cfg_str,
-                config::FileFormat::Yaml,
-            ))
+            .add_source(config::File::from_str(cfg_str, config::FileFormat::Yaml))
             .build()?
             .try_deserialize::<Self>()?
             .check()
@@ -61,23 +57,29 @@ impl AppConfig {
     fn check(self) -> Result<AppConfig> {
         if let Some(out_addr) = self.out_address {
             if self.address.ip().is_unspecified() {
-                anyhow::bail!("{} listen to any available ip. \
+                anyhow::bail!(
+                    "{} listen to any available ip. \
                     Please select specific ip in address option or 127.0.0.1 if https mode \
                     (make sure nginx is not listen to {}) or remove out_address option.",
                     self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold())
+                    out_addr.to_string().bold()
+                )
             }
 
             if self.address.is_ipv4() != out_addr.is_ipv4() {
-                anyhow::bail!("{} listen address version (v4 or v6) should be the same as version of out_address {}",
+                anyhow::bail!(
+                    "{} listen address version (v4 or v6) should be the same as version of out_address {}",
                     self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold())
+                    out_addr.to_string().bold()
+                )
             }
 
             if self.address.ip() == out_addr {
-                anyhow::bail!("out_address {} should not be equal to address {}",
+                anyhow::bail!(
+                    "out_address {} should not be equal to address {}",
                     self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold())
+                    out_addr.to_string().bold()
+                )
             }
         }
 

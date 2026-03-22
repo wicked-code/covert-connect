@@ -12,8 +12,6 @@ abstract class RouterServiceBase {
   Future<RouterStatus> getStatus();
   Future<RouterState> getState();
   Future<void> setState(RouterState state);
-  Future<RouterMode> getMode();
-  Future<void> setMode(RouterMode state);
   Future<void> setServerEnabled(String host, bool value);
   Future<ProtocolConfig> getServerProtocol(String host, String key);
   Future<List<String>> getDomains();
@@ -28,8 +26,6 @@ abstract class RouterServiceBase {
   Future<void> deleteServer(String host);
   Future<int> getTTFB(String server, String domain);
   Future<void> log(String message, {LogErrorType? type});
-  Future<int> getProxyPort();
-  Future<void> setProxyPort(int port);
   Future<bool> getAutostart();
   Future<void> setAutostart(bool enabled);
   Future<List<LogLine>> getLog(BigInt? start, int limit);

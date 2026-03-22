@@ -13,7 +13,7 @@ pub use macos::*;
 pub use windows::*;
 
 use anyhow::{Result, bail};
-use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo};
+use netstat2::{AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo, get_sockets_info};
 use std::net::SocketAddr;
 
 /// The network protocol used by a socket.

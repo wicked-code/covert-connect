@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     path::Path,
     sync::{
         Arc,
@@ -11,7 +11,7 @@ use std::{
 use sys_process::{Protocol, process_path_by_local_addr};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
-    net::{TcpStream, lookup_host},
+    net::{TcpStream, TcpSocket},
     sync::RwLock,
 };
 
@@ -24,11 +24,10 @@ use tokio_rustls::{
 };
 
 use crate::{
-    protocol::{self, SelectedServer, Server},
     config::{ServerConfig, ServerConnectConfig, default_server_address},
+    protocol::{self, SelectedServer, Server},
     streams::{ttfb_stream::TtfbStream, upgrade_stream::UgradeStream},
-    proxy_service::ProxyService,
-    tun_service::TunService
+    tun_service::TunService,
 };
 use crypto::config::ProtocolConfig;
 
@@ -40,25 +39,17 @@ pub enum RouterState {
     Off,
 }
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
-pub enum RouterMode {
-    #[default]
-    Proxy,
-    Tun,
-}
-
 pub struct Router {
     initialized: AtomicBool,
     state: RwLock<RouterState>,
-    mode: RwLock<RouterMode>,
 
     servers: RwLock<Vec<Server>>,
-    apps: RwLock<Vec<String>>,
+    direct_apps: RwLock<Vec<String>>,
+    direct_domains: RwLock<Vec<String>>,
 
     tls_cfg: Arc<rustls::ClientConfig>,
 
     tun_service: Arc<TunService>,
-    proxy_service: Arc<ProxyService>,
 }
 
 enum StreamType {
@@ -67,7 +58,7 @@ enum StreamType {
 }
 
 impl Router {
-    pub fn new(proxy_port: u16, state: RouterState, mode: RouterMode) -> Result<Arc<Self>> {
+    pub fn new(state: RouterState) -> Result<Arc<Self>> {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
         };
@@ -81,44 +72,35 @@ impl Router {
         tls_cfg.enable_early_data = true;
         tls_cfg.resumption = tls_cfg.resumption.tls12_resumption(Tls12Resumption::SessionIdOnly);
         Ok(Arc::new_cyclic(|weak_self| Router {
-            proxy_service: ProxyService::new(proxy_port, weak_self.clone()),
-            tun_service: TunService::new(),
+            tun_service: TunService::new(weak_self.clone()),
             servers: Default::default(),
-            apps: Default::default(),
+            direct_apps: Default::default(),
+            direct_domains: Default::default(),
             state: RwLock::new(state),
-            mode: RwLock::new(mode),
             tls_cfg: Arc::new(tls_cfg),
             initialized: AtomicBool::new(false),
         }))
     }
 
-    pub fn get_proxy_address(&self) -> SocketAddr {
-        self.proxy_service.get_proxy_address()
+    pub async fn get_direct_apps(&self) -> Vec<String> {
+        self.direct_apps.read().await.clone()
     }
 
-    pub async fn set_proxy_port(&self, port: u16) -> Result<()> {
-        self.proxy_service.set_proxy_port(port).await
+    pub async fn add_direct_apps(&self, apps: &Vec<String>) {
+        self.direct_apps.write().await.extend_from_slice(apps.as_slice());
     }
 
-    pub async fn get_apps(&self) -> Vec<String> {
-        self.apps.read().await.clone()
+    pub async fn add_direct_domains(&self, hosts: &Vec<String>) {
+        self.direct_domains.write().await.extend_from_slice(hosts.as_slice());
     }
 
-    pub async fn add_apps(&self, apps: &Vec<String>) {
-        self.apps.write().await.extend_from_slice(apps.as_slice());
-    }
-
-    pub async fn add_domains(&self, hosts: &Vec<String>) {
-        self.proxy_service.add_domains(hosts).await;
-    }
-
-    pub async fn get_domains(&self) -> Vec<String> {
-        self.proxy_service.get_domains().await
+    pub async fn get_direct_domains(&self) -> Vec<String> {
+        self.direct_domains.read().await.clone()
     }
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
         if !server_host.is_empty() {
-            self.proxy_service.remove_domain(&domain).await.ok();
+            self.remove_direct_domain(&domain).await.ok();
 
             let mut servers = self.servers.write().await;
             if let Some(pos) = servers.iter().position(|s| s.config.host == server_host) {
@@ -135,8 +117,8 @@ impl Router {
                 bail!("host not found");
             }
         } else {
-            if !self.proxy_service.get_domains().await.iter().any(|d| d == &domain) {
-                self.proxy_service.add_domains_and_reset(&vec![domain.clone()]).await?;
+            if !self.direct_domains.read().await.iter().any(|d| d == &domain) {
+                self.direct_domains.write().await.push(domain.clone());
             }
 
             self.remove_domain_from_servers(&domain).await?;
@@ -157,8 +139,18 @@ impl Router {
         Ok(())
     }
 
+    async fn remove_direct_domain(&self, domain: &str) -> Result<()> {
+        let mut wr_domains = self.direct_domains.write().await;
+        if let Some(idx) = wr_domains.iter().position(|d| d == domain) {
+            wr_domains.remove(idx);
+            Ok(())
+        } else {
+            Err(anyhow!("domain not found"))
+        }
+    }
+
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
-        self.proxy_service.remove_domain(&domain).await?;
+        self.remove_direct_domain(&domain).await?;
         self.remove_domain_from_servers(&domain).await
     }
 
@@ -183,8 +175,8 @@ impl Router {
                 Err(anyhow!("host not found"))
             }
         } else {
-            if !self.apps.read().await.iter().any(|d| d == &app) {
-                self.apps.write().await.push(app.clone());
+            if !self.direct_apps.read().await.iter().any(|d| d == &app) {
+                self.direct_apps.write().await.push(app.clone());
             }
 
             self.remove_app_from_servers(&app).await
@@ -205,7 +197,7 @@ impl Router {
     }
 
     pub async fn remove_app_internal(&self, app: &str) -> Result<()> {
-        let mut wr_apps = self.apps.write().await;
+        let mut wr_apps = self.direct_apps.write().await;
         if let Some(idx) = wr_apps.iter().position(|d| d == app) {
             wr_apps.remove(idx);
             Ok(())
@@ -225,28 +217,7 @@ impl Router {
 
     pub async fn set_state(&self, proxy_state: RouterState) -> Result<()> {
         *self.state.write().await = proxy_state;
-
-        if *self.mode.read().await == RouterMode::Proxy {
-            self.proxy_service.set_proxy_state(proxy_state).await?;
-        }
-
         Ok(())
-    }
-
-    pub async fn get_mode(&self) -> RouterMode {
-        *self.mode.read().await
-    }
-
-    pub async fn set_mode(&self, mode: RouterMode) -> Result<()> {
-        if *self.mode.read().await == mode {
-            return Ok(()); // no change
-        }
-
-        *self.mode.write().await = mode;
-        match mode {
-            RouterMode::Proxy => self.tun_service.stop().await,
-            RouterMode::Tun => self.proxy_service.stop().await,
-        }
     }
 
     pub async fn add_server(&self, config: ServerConfig) {
@@ -297,8 +268,9 @@ impl Router {
     pub async fn get_server_protocol(&self, host: &str, key: &str) -> Result<ProtocolConfig> {
         let conn_cfg = ServerConnectConfig::new(host, key).await?;
 
+        // TODO: ??? move outbound connect to tun_service
         match self
-            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
+            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path, IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
             .await?
         {
             StreamType::TcpStream(stream) => protocol::get_server_protocol(stream, key).await,
@@ -339,14 +311,21 @@ impl Router {
 
         let rng = ChaCha20Rng::from_entropy();
         let res = self
-            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng)
+            // TODO: ??? move outbound connect to tun_service
+            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng, IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
             .await;
 
         let ttfb = ttfb.load(Ordering::Relaxed) as usize;
-        // ignore errors if we have ttfb > 0
+
+        // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
         // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
-        if ttfb == 0 {
-            res?;
+        // ignore unexpected-eof it's not a problem in our case
+        if let Err(ref e) = res {
+            if let Some(io_err) = e.downcast_ref::<std::io::Error>()
+                && io_err.kind() != std::io::ErrorKind::UnexpectedEof
+            {
+                res?;
+            }
         }
 
         Ok(ttfb)
@@ -387,7 +366,7 @@ impl Router {
 
         // process filter, check for direct first
         if !process_name.is_empty() {
-            let apps = self.apps.read().await;
+            let apps = self.direct_apps.read().await;
             for app in apps.iter() {
                 if process_name.contains(app) {
                     return Ok(None);
@@ -395,6 +374,16 @@ impl Router {
             }
             drop(apps);
         }
+
+        // check direct domains
+        // TODO: ??? use binary search
+        let direct_domains = self.direct_domains.read().await;
+        for domain in direct_domains.iter() {
+            if target_host.contains(domain) {
+                return Ok(None);
+            }
+        }
+        drop(direct_domains);
 
         // prepare domain filter
         let mut domain = target_host.to_owned();
@@ -488,28 +477,7 @@ impl Router {
 
     pub async fn serve(&self) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
-
-        loop {
-            if let Err(e) = self.server_int().await {
-                tracing::error!("server error: {e}");
-                // try change mode and try one more time
-                let mode = match *self.mode.read().await {
-                    RouterMode::Proxy => RouterMode::Tun,
-                    RouterMode::Tun => RouterMode::Proxy,
-                };
-                *self.mode.write().await = mode;
-                self.server_int().await?;
-            }
-        }
-    }
-
-    async fn server_int(&self) -> Result<()> {
-        let state = *self.state.read().await;
-        let mode = *self.mode.read().await;
-        match mode {
-            RouterMode::Proxy => self.proxy_service.clone().serve(state).await,
-            RouterMode::Tun => self.tun_service.clone().serve().await,
-        }
+        self.tun_service.clone().serve().await
     }
 
     pub async fn start_tunnel(
@@ -517,16 +485,29 @@ impl Router {
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target_host: String,
         client_addr: SocketAddr,
-    ) -> Result<()> {
+        outbound_ip: IpAddr,
+    ) -> Result<Option<impl AsyncWriteExt + Unpin + AsyncRead>> {
         // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
         // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
         let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            self.start_tunnel_with_server(client, target_host, server, rng).await
+            let res = self.start_tunnel_with_server(client, target_host, server, rng, outbound_ip).await;
+            // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
+            // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
+            // ignore unexpected-eof it's not a problem in our case
+            if let Err(ref e) = res {
+                if let Some(io_err) = e.downcast_ref::<std::io::Error>()
+                    && io_err.kind() != std::io::ErrorKind::UnexpectedEof
+                {
+                    res?;
+                }
+            }
+            
+            Ok(None)
         } else {
-            self.direct_connection(client, target_host).await
+            Ok(Some(client))
         }
     }
 
@@ -536,9 +517,10 @@ impl Router {
         target_host: String,
         selected: SelectedServer,
         rng: impl CryptoRng + Rng,
+        outbound_ip: IpAddr,
     ) -> Result<()> {
         match self
-            .connect(selected.address, &selected.host, &selected.url_path)
+            .connect(selected.address, &selected.host, &selected.url_path, outbound_ip)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, target_host, rng, selected).await,
@@ -548,8 +530,14 @@ impl Router {
         }
     }
 
-    async fn connect(&self, address: SocketAddr, host: &str, url_path: &Option<String>) -> Result<StreamType> {
-        let server = TcpStream::connect(address).await?;
+    async fn connect(&self, address: SocketAddr, host: &str, url_path: &Option<String>, outbound_ip: IpAddr) -> Result<StreamType> {
+        let outbound_address = SocketAddr::new(outbound_ip, 0);
+
+        // bind socket to outbound IF
+        let socket = TcpSocket::new_v4()?;
+        socket.bind(outbound_address)?;
+
+        let server = socket.connect(address).await?;        
         Ok(if let Some(http_path) = url_path {
             // HTTPS connect
             let host = if let Some(pos) = host.rfind(':') {
@@ -566,33 +554,5 @@ impl Router {
         } else {
             StreamType::TcpStream(server)
         })
-    }
-
-    async fn direct_connection(
-        &self,
-        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
-        target_host: String,
-    ) -> Result<()> {
-        tracing::debug!("direct connection to {}", target_host);
-        // TODO: ??? for VPN mode!
-        // // todo get direct IF (get it once or probaly update once per reasonable time 10 sec?)
-        // let local_ip = Ipv4Addr::new(192, 168, 50, 117);
-        // let local_address = SocketAddr::new(local_ip.into(), 0);
-
-        // target_host: String,
-
-        // // bind socket to outbound IF
-        // let socket = TcpSocket::new_v4()?;
-        // socket.bind(local_address)?;
-
-        // let server = socket.connect(remote_addr).await?;
-        let target_address: SocketAddr = lookup_host(&target_host)
-            .await?
-            .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc })
-            .ok_or_else(|| anyhow!("host {target_host} notfound"))?;
-        let mut server = TcpStream::connect(target_address).await?;
-
-        tokio::io::copy_bidirectional(&mut client, &mut server).await?;
-        Ok(())
     }
 }

@@ -4,8 +4,6 @@ import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 
 const kState = "state";
-const kMode = "mode";
-const kPort = "port";
 const kApps = "apps";
 const kDomains = "domains";
 const kServers = "servers";
@@ -31,10 +29,8 @@ RouterConfig proxyConfigFromString(String configStr) {
 
   return RouterConfig(
     state: RouterState.values.byName(json[kState] as String),
-    mode: json[kMode] != null ? RouterMode.values.byName(json[kMode] as String) : RouterMode.proxy,
-    proxyPort: json[kPort] as int,
-    domains: (json[kDomains] as List<dynamic>).map((x) => x as String).toList(),
-    apps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList() ?? [],
+    directDomains: (json[kDomains] as List<dynamic>).map((x) => x as String).toList(),
+    directApps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList() ?? [],
     servers: (json[kServers] as List<dynamic>?)?.map((x) => serverConfigFromJson(x as Map<String, dynamic>)).toList() ?? [],
   );
 }
@@ -65,10 +61,8 @@ ProtocolConfig protocolConfigFromJson(Map<String, dynamic> json) {
 
 Map<String, dynamic> proxyCofigToJson(RouterConfig value) => {
   kState: value.state.name,
-  kMode: value.mode.name,
-  kPort: value.proxyPort,
-  kDomains: value.domains,
-  kApps: value.apps,
+  kDomains: value.directDomains,
+  kApps: value.directApps,
   kServers: value.servers.map((s) => serverConfigToJson(s)).toList(),
 };
 

@@ -166,9 +166,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RouterConfig dco_decode_router_config(dynamic raw);
 
   @protected
-  RouterMode dco_decode_router_mode(dynamic raw);
-
-  @protected
   RouterState dco_decode_router_state(dynamic raw);
 
   @protected
@@ -332,9 +329,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RouterConfig sse_decode_router_config(SseDeserializer deserializer);
-
-  @protected
-  RouterMode sse_decode_router_mode(SseDeserializer deserializer);
 
   @protected
   RouterState sse_decode_router_state(SseDeserializer deserializer);
@@ -529,9 +523,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_router_config(RouterConfig self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_router_mode(RouterMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_router_state(RouterState self, SseSerializer serializer);

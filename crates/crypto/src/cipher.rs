@@ -1,7 +1,7 @@
-use rand_core::{CryptoRng, RngCore};
-use bytes::BytesMut;
-use anyhow::Result;
 use super::kdf::Kdf;
+use anyhow::Result;
+use bytes::BytesMut;
+use rand_core::{CryptoRng, RngCore};
 
 #[cfg(any(feature = "aws_lc_rs", feature = "ring"))]
 mod ring_like_crypto;
@@ -13,12 +13,12 @@ mod rustls_crypto;
 #[cfg(feature = "rust_crypto")]
 use rustls_crypto as crypto;
 
-use crypto::{CipherAes256Gcm, CipherChaCha20Poly1305, CipherBase};
 pub use crypto::CipherType;
+use crypto::{CipherAes256Gcm, CipherBase, CipherChaCha20Poly1305};
 
 pub enum Cipher {
     Aes256Gcm(CipherAes256Gcm),
-    ChaCha20Poly1305(CipherChaCha20Poly1305)
+    ChaCha20Poly1305(CipherChaCha20Poly1305),
 }
 
 impl Cipher {
@@ -132,13 +132,13 @@ mod tests {
     }
 
     fn check_nonce(nonce: u128, inc: u16) {
-        let key = [0u8;32];
+        let key = [0u8; 32];
         let nonce_array = u128::to_le_bytes(nonce);
 
         let mut cipher = Cipher::new_with_nonce(CipherType::Aes256Gcm, &key, &nonce_array[..12]);
         cipher.inc_nonce(inc);
 
-        let mut res_array = [0u8;16];
+        let mut res_array = [0u8; 16];
         res_array.as_mut()[..12].copy_from_slice(cipher.nonce());
         let res = u128::from_le_bytes(res_array);
 

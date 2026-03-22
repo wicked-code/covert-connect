@@ -43,7 +43,7 @@ impl From<ClientServerConfig> for ServerConfig {
             apps: cfg.apps.clone(),
             enabled: cfg.enabled,
             protocol: cfg.protocol.into(),
-        }
+        };
     }
 }
 
@@ -88,7 +88,7 @@ impl From<CryptoProtocolConfig> for ProtocolConfig {
             },
             data_padding: cfg.data_padding,
             encryption_limit: cfg.encryption_limit,
-        }
+        };
     }
 }
 

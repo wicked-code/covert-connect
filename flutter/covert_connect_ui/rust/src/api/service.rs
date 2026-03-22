@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow, bail};
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use std::env;
-use std::sync::{atomic::Ordering, Arc, OnceLock};
+use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
 
 use client::config::ServerConfig as ClientServerConfig;
 use client::router::Router;
 
-pub use client::router::{RouterState, RouterMode};
+pub use client::router::RouterState;
 
 use flutter_rust_bridge::{DartFnFuture, frb};
 
@@ -17,10 +17,8 @@ use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 #[derive(Clone)]
 pub struct RouterConfig {
     pub state: RouterState,
-    pub mode: RouterMode,
-    pub proxy_port: u16,
-    pub domains: Vec<String>,
-    pub apps: Vec<String>,
+    pub direct_domains: Vec<String>,
+    pub direct_apps: Vec<String>,
     pub servers: Vec<ServerConfig>,
 }
 
@@ -56,42 +54,46 @@ pub struct RouterService {
 impl RouterService {
     #[frb(sync)]
     pub fn new() -> RouterService {
-        let writer_notifier = OnceLock::new();
-        match init_trace_log() {
-            Ok(notifier) => {
-                writer_notifier.set(notifier).ok();
-            }
-            Err(e) => {
-                println!("Failed to initialize trace log: {:?}", e);
-            },
-        }
         return {
             RouterService {
                 router: Default::default(),
-                writer_notifier: writer_notifier,
+                writer_notifier: OnceLock::new(),
             }
         };
     }
 
     pub async fn start(&self, cfg: RouterConfig) -> Result<()> {
+        match init_trace_log() {
+            Ok(notifier) => {
+                self.writer_notifier.set(notifier).ok();
+            }
+            Err(e) => {
+                println!("Failed to initialize trace log: {:?}", e);
+                bail!("Failed to initialize trace log: {:?}", e);
+            }
+        }
+
         let mut router_state = cfg.state;
         if cfg.servers.is_empty() {
             // turn off proxy if no servers
             router_state = RouterState::Off;
         }
 
-        let router_instance = Router::new(cfg.proxy_port, router_state, cfg.mode)?;
+        let router_instance = Router::new(router_state)?;
         self.router
             .set(router_instance.clone())
             .map_err(|_| anyhow!("router already initialized"))?;
 
         flutter_rust_bridge::spawn(async move {
-            router_instance.add_apps(&cfg.apps).await;
-            router_instance.add_domains(&cfg.domains).await;
+            router_instance.add_direct_apps(&cfg.direct_apps).await;
+            router_instance.add_direct_domains(&cfg.direct_domains).await;
 
             for srv in cfg.servers {
                 let mut cfg: ClientServerConfig = srv.into();
-                cfg.init().await.inspect_err(|e| tracing::error!("config: {:?}", e)).ok();
+                cfg.init()
+                    .await
+                    .inspect_err(|e| tracing::error!("config: {:?}", e))
+                    .ok();
                 router_instance.add_server(cfg).await;
             }
 
@@ -108,16 +110,14 @@ impl RouterService {
 
         return Ok(RouterConfig {
             state: router.get_state().await,
-            mode: router.get_mode().await,
-            proxy_port: router.get_proxy_address().port(),
+            direct_domains: router.get_direct_domains().await,
+            direct_apps: router.get_direct_apps().await,
             servers: router
                 .get_servers()
                 .await
                 .into_iter()
                 .map(|srv| srv.config.into())
                 .collect(),
-            domains: router.get_domains().await,
-            apps: router.get_apps().await,
         });
     }
 
@@ -155,14 +155,6 @@ impl RouterService {
         self.get_router()?.set_state(state).await
     }
 
-    pub async fn get_mode(&self) -> Result<RouterMode> {
-        Ok(self.get_router()?.get_mode().await)
-    }
-
-    pub async fn set_mode(&self, mode: RouterMode) -> Result<()> {
-        self.get_router()?.set_mode(mode).await
-    }
-
     pub async fn set_server_enabled(&self, host: String, value: bool) -> Result<()> {
         self.get_router()?.set_enabled(&host, value).await
     }
@@ -176,24 +168,30 @@ impl RouterService {
         self.get_router()?.set_state(RouterState::Off).await
     }
 
-    pub async fn get_apps(&self) -> Result<Vec<String>> {
-        Ok(self.get_router()?.get_apps().await)
+    pub async fn get_direct_apps(&self) -> Result<Vec<String>> {
+        Ok(self.get_router()?.get_direct_apps().await)
     }
 
-    pub async fn get_domains(&self) -> Result<Vec<String>> {
-        Ok(self.get_router()?.get_domains().await)
+    pub async fn get_direct_domains(&self) -> Result<Vec<String>> {
+        Ok(self.get_router()?.get_direct_domains().await)
     }
 
     pub async fn add_server(&self, config: ServerConfig) -> Result<()> {
         let mut cfg: ClientServerConfig = config.into();
-        cfg.init().await.inspect_err(|e| tracing::error!("config init: {:?}", e)).ok();        
+        cfg.init()
+            .await
+            .inspect_err(|e| tracing::error!("config init: {:?}", e))
+            .ok();
         self.get_router()?.add_server(cfg).await;
         Ok(())
     }
 
     pub async fn update_server(&self, orig_host: String, new_config: ServerConfig) -> Result<()> {
         let mut cfg: ClientServerConfig = new_config.into();
-        cfg.init().await.inspect_err(|e| tracing::error!("config init: {:?}", e)).ok();           
+        cfg.init()
+            .await
+            .inspect_err(|e| tracing::error!("config init: {:?}", e))
+            .ok();
         self.get_router()?.update_server(&orig_host, cfg).await
     }
 
@@ -242,16 +240,6 @@ impl RouterService {
         Ok(proxy.get_ttfb(&server, &domain).await? as u32)
     }
 
-    pub async fn get_proxy_port(&self) -> Result<u16> {
-        let proxy = self.get_router()?;
-        Ok(proxy.get_proxy_address().port())
-    }
-
-    pub async fn set_proxy_port(&self, port: u16) -> Result<()> {
-        let proxy = self.get_router()?;
-        proxy.set_proxy_port(port).await
-    }
-
     pub async fn get_autostart() -> Result<bool> {
         let auto = RouterService::init_autostart()?;
         Ok(auto.is_enabled()?)
@@ -284,7 +272,10 @@ impl RouterService {
         Ok(auto)
     }
 
-    pub async fn register_logger(&self, callback: impl Fn(String) -> DartFnFuture<()> + Send + Sync + 'static) -> Result<u64> {
+    pub async fn register_logger(
+        &self,
+        callback: impl Fn(String) -> DartFnFuture<()> + Send + Sync + 'static,
+    ) -> Result<u64> {
         self.get_writer_notifier()?.register_logger(callback).await
     }
 
@@ -293,7 +284,9 @@ impl RouterService {
     }
 
     fn get_writer_notifier(&self) -> Result<&Arc<WriterNotifier>> {
-        self.writer_notifier.get().ok_or_else(|| anyhow!("writer notifier not initialized"))
+        self.writer_notifier
+            .get()
+            .ok_or_else(|| anyhow!("writer notifier not initialized"))
     }
 
     fn get_router(&self) -> Result<&Arc<Router>> {
@@ -306,10 +299,4 @@ pub enum _RouterState {
     Smart,
     All,
     Off,
-}
-
-#[frb(mirror(RouterMode))]
-pub enum _RouterMode {
-    Proxy,
-    Tun,
 }

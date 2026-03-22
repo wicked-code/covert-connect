@@ -2,7 +2,7 @@ use anyhow::Result;
 use windows::Win32::{
     Foundation::MAX_PATH,
     System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+        OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
     },
 };
 

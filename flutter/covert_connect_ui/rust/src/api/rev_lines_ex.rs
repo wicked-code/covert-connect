@@ -1,4 +1,4 @@
-use futures_util::{stream, Stream};
+use futures_util::{Stream, stream};
 use std::cmp::min;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, SeekFrom};
@@ -54,7 +54,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                 None => SeekFrom::End(0),
             })
             .await?;
-        
+
         let rev_lines = RevLines {
             reader: reader,
             reader_pos: reader_size,
@@ -136,7 +136,10 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
 
         // Convert to a String
         match String::from_utf8(result) {
-            Ok(s) => Some(Ok(RevLine{line: s, position: self.reader_pos})),
+            Ok(s) => Some(Ok(RevLine {
+                line: s,
+                position: self.reader_pos,
+            })),
             Err(e) => Some(Err(Error::NotUtf8(e))),
         }
     }

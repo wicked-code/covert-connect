@@ -1,17 +1,19 @@
+use chrono::Utc;
+use parking_lot::Mutex;
 use std::{
     io,
     pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     task::{Context, Poll, Waker},
-    sync::{Arc, atomic::{AtomicU64, Ordering}},
 };
-use chrono::Utc;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use parking_lot::Mutex;
 
 const REQ: &str = "GET / HTTP/1.1\r\n\r\n";
 
-pub struct TtfbStream
-{
+pub struct TtfbStream {
     start: i64,
     state: TtfbState,
     ttfb: Arc<AtomicU64>,
@@ -20,13 +22,12 @@ pub struct TtfbStream
 
 #[derive(PartialEq)]
 enum TtfbState {
-    Read{pos: usize},
+    Read { pos: usize },
     WaitResponse,
-    Done
+    Done,
 }
 
-impl TtfbStream
-{
+impl TtfbStream {
     pub fn new(ttfb: Arc<AtomicU64>) -> Self {
         Self {
             start: Utc::now().timestamp_millis(),
@@ -37,13 +38,8 @@ impl TtfbStream
     }
 }
 
-impl AsyncRead for TtfbStream
-{
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+impl AsyncRead for TtfbStream {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
         match &mut this.state {
             TtfbState::Read { pos } => {
@@ -54,9 +50,9 @@ impl AsyncRead for TtfbStream
                 } else {
                     this.state = TtfbState::WaitResponse;
                 }
-        
+
                 Poll::Ready(Ok(()))
-            },
+            }
             TtfbState::WaitResponse => {
                 if let Some(waker) = &this.waker {
                     let mut waker = waker.lock();
@@ -69,21 +65,18 @@ impl AsyncRead for TtfbStream
                 }
 
                 Poll::Pending
-            },
+            }
             TtfbState::Done => Poll::Ready(Ok(())),
         }
     }
 }
 
-impl AsyncWrite for TtfbStream
-{
-    fn poll_write(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<Result<usize, io::Error>> {
+impl AsyncWrite for TtfbStream {
+    fn poll_write(self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
         if self.state == TtfbState::WaitResponse {
-            let ttfb = (Utc::now().timestamp_millis() - self.start).try_into().unwrap_or_default();
+            let ttfb = (Utc::now().timestamp_millis() - self.start)
+                .try_into()
+                .unwrap_or_default();
             let this = self.get_mut();
             this.ttfb.store(ttfb, Ordering::Relaxed);
             this.state = TtfbState::Done;

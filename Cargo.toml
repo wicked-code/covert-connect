@@ -48,11 +48,11 @@ parking_lot = { version = "0.12.3", features = ["hardware-lock-elision"] }
 const_format = "0.2.32"
 num_enum = "0.7.2"
 
-sys-proxy = { path = "crates/sys-proxy" }
 sys-process = { path = "crates/sys-process" }
 crypto = { path = "crates/crypto" }
 client = { path = "crates/client" }
 cc-server = { path = "crates/cc-server" }
+net-packet = { path = "crates/net-packet" }
 
 [profile.release-prod]
 inherits = "release"

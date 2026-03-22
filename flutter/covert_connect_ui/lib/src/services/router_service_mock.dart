@@ -88,14 +88,6 @@ class RouterServiceMock implements RouterServiceBase {
   }
 
   @override
-  Future<RouterMode> getMode() async => _proxyMode;
-
-  @override
-  Future<void> setMode(RouterMode mode) async {
-    _proxyMode = mode;
-  }
-
-  @override
   Future<List<String>> getDomains() async {
     return domains;
   }
@@ -294,16 +286,6 @@ class RouterServiceMock implements RouterServiceBase {
   }
 
   @override
-  Future<int> getProxyPort() async {
-    return _proxyPort;
-  }
-
-  @override
-  Future<void> setProxyPort(int port) async {
-    _proxyPort = port;
-  }
-
-  @override
   Future<bool> getAutostart() async {
     return _autostart;
   }
@@ -339,11 +321,9 @@ extension ServerConfigEx on ServerConfig {
   );
 }
 
-int _proxyPort = 25445;
 bool _autostart = true;
 int _noValueCount = 0;
 RouterState _proxyState = RouterState.all;
-RouterMode _proxyMode = RouterMode.proxy;
 List<String> _log = [
   r'{"timestamp":"2026-01-30T23:41:38.682840Z","level":"INFO","fields":{"message":"proxy server started: 127.0.0.1:25445"},"target":"client::proxy"}',
   r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to jrpc.venom.foundation:443"},"target":"client::proxy"}',

@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use flutter_rust_bridge::DartFnFuture;
-use futures_util::{pin_mut, StreamExt};
+use futures_util::{StreamExt, pin_mut};
 use std::env::temp_dir;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
-    fs::{create_dir_all, rename, File},
+    fs::{File, create_dir_all, rename},
     io::{self, Write},
     sync::Arc,
 };
@@ -98,6 +98,7 @@ pub struct Callback {
 pub struct WriterNotifier {
     next_id: AtomicU64,
     callbacks: RwLock<Vec<Callback>>,
+    tokio_handle: tokio::runtime::Handle,
 }
 
 impl WriterNotifier {
@@ -105,6 +106,7 @@ impl WriterNotifier {
         Self {
             next_id: AtomicU64::new(0),
             callbacks: Default::default(),
+            tokio_handle: tokio::runtime::Handle::current(),
         }
     }
 }
@@ -140,11 +142,11 @@ impl Write for WriterNotifierWrapper {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let self_clone = self.0.clone();
         let buf_clone = buf.to_vec();
-        tokio::task::spawn(async move {
+        self.0.tokio_handle.spawn(async move {
             self_clone.callbacks.read().await.iter().for_each(|callback| {
                 let line = String::from_utf8_lossy(&buf_clone).to_string();
                 let fut = (callback.callback)(line);
-                tokio::spawn(async move {
+                self_clone.tokio_handle.spawn(async move {
                     let _ = fut.await;
                 });
             });

@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -106862282;
+  int get rustContentHash => -1648889514;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -92,31 +92,23 @@ abstract class RustLibApi extends BaseApi {
     required String host,
   });
 
-  Future<List<String>> crateApiServiceRouterServiceGetApps({
-    required RouterService that,
-  });
-
   Future<bool> crateApiServiceRouterServiceGetAutostart();
 
   Future<RouterConfig> crateApiServiceRouterServiceGetConfig({
     required RouterService that,
   });
 
-  Future<List<String>> crateApiServiceRouterServiceGetDomains({
+  Future<List<String>> crateApiServiceRouterServiceGetDirectApps({
+    required RouterService that,
+  });
+
+  Future<List<String>> crateApiServiceRouterServiceGetDirectDomains({
     required RouterService that,
   });
 
   Future<List<LogLine>> crateApiServiceRouterServiceGetLog({
     BigInt? start,
     required BigInt limit,
-  });
-
-  Future<RouterMode> crateApiServiceRouterServiceGetMode({
-    required RouterService that,
-  });
-
-  Future<int> crateApiServiceRouterServiceGetProxyPort({
-    required RouterService that,
   });
 
   Future<ProtocolConfig> crateApiServiceRouterServiceGetServerProtocol({
@@ -172,16 +164,6 @@ abstract class RustLibApi extends BaseApi {
     required RouterService that,
     required String domain,
     required String serverHost,
-  });
-
-  Future<void> crateApiServiceRouterServiceSetMode({
-    required RouterService that,
-    required RouterMode mode,
-  });
-
-  Future<void> crateApiServiceRouterServiceSetProxyPort({
-    required RouterService that,
-    required int port,
   });
 
   Future<void> crateApiServiceRouterServiceSetServerEnabled({
@@ -378,42 +360,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<String>> crateApiServiceRouterServiceGetApps({
-    required RouterService that,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
-            that,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 4,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_String,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceRouterServiceGetAppsConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceRouterServiceGetAppsConstMeta =>
-      const TaskConstMeta(
-        debugName: "RouterService_get_apps",
-        argNames: ["that"],
-      );
-
-  @override
   Future<bool> crateApiServiceRouterServiceGetAutostart() {
     return handler.executeNormal(
       NormalTask(
@@ -422,7 +368,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 4,
             port: port_,
           );
         },
@@ -458,7 +404,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 5,
             port: port_,
           );
         },
@@ -480,7 +426,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<String>> crateApiServiceRouterServiceGetDomains({
+  Future<List<String>> crateApiServiceRouterServiceGetDirectApps({
+    required RouterService that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiServiceRouterServiceGetDirectAppsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiServiceRouterServiceGetDirectAppsConstMeta =>
+      const TaskConstMeta(
+        debugName: "RouterService_get_direct_apps",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<String>> crateApiServiceRouterServiceGetDirectDomains({
     required RouterService that,
   }) {
     return handler.executeNormal(
@@ -502,16 +484,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_String,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiServiceRouterServiceGetDomainsConstMeta,
+        constMeta: kCrateApiServiceRouterServiceGetDirectDomainsConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiServiceRouterServiceGetDomainsConstMeta =>
+  TaskConstMeta get kCrateApiServiceRouterServiceGetDirectDomainsConstMeta =>
       const TaskConstMeta(
-        debugName: "RouterService_get_domains",
+        debugName: "RouterService_get_direct_domains",
         argNames: ["that"],
       );
 
@@ -551,78 +533,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<RouterMode> crateApiServiceRouterServiceGetMode({
-    required RouterService that,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
-            that,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 9,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_router_mode,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceRouterServiceGetModeConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceRouterServiceGetModeConstMeta =>
-      const TaskConstMeta(
-        debugName: "RouterService_get_mode",
-        argNames: ["that"],
-      );
-
-  @override
-  Future<int> crateApiServiceRouterServiceGetProxyPort({
-    required RouterService that,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
-            that,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_16,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceRouterServiceGetProxyPortConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceRouterServiceGetProxyPortConstMeta =>
-      const TaskConstMeta(
-        debugName: "RouterService_get_proxy_port",
-        argNames: ["that"],
-      );
-
-  @override
   Future<ProtocolConfig> crateApiServiceRouterServiceGetServerProtocol({
     required RouterService that,
     required String server,
@@ -641,7 +551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 9,
             port: port_,
           );
         },
@@ -677,7 +587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 10,
             port: port_,
           );
         },
@@ -713,7 +623,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 11,
             port: port_,
           );
         },
@@ -753,7 +663,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 12,
             port: port_,
           );
         },
@@ -784,7 +694,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 13,
             port: port_,
           );
         },
@@ -811,7 +721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData:
@@ -848,7 +758,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 15,
             port: port_,
           );
         },
@@ -886,7 +796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 16,
             port: port_,
           );
         },
@@ -924,7 +834,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 17,
             port: port_,
           );
         },
@@ -964,7 +874,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 18,
             port: port_,
           );
         },
@@ -997,7 +907,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 19,
             port: port_,
           );
         },
@@ -1037,7 +947,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 20,
             port: port_,
           );
         },
@@ -1059,82 +969,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiServiceRouterServiceSetMode({
-    required RouterService that,
-    required RouterMode mode,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
-            that,
-            serializer,
-          );
-          sse_encode_router_mode(mode, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 23,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceRouterServiceSetModeConstMeta,
-        argValues: [that, mode],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceRouterServiceSetModeConstMeta =>
-      const TaskConstMeta(
-        debugName: "RouterService_set_mode",
-        argNames: ["that", "mode"],
-      );
-
-  @override
-  Future<void> crateApiServiceRouterServiceSetProxyPort({
-    required RouterService that,
-    required int port,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
-            that,
-            serializer,
-          );
-          sse_encode_u_16(port, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 24,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceRouterServiceSetProxyPortConstMeta,
-        argValues: [that, port],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceRouterServiceSetProxyPortConstMeta =>
-      const TaskConstMeta(
-        debugName: "RouterService_set_proxy_port",
-        argNames: ["that", "port"],
-      );
-
-  @override
   Future<void> crateApiServiceRouterServiceSetServerEnabled({
     required RouterService that,
     required String host,
@@ -1153,7 +987,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1191,7 +1025,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1229,7 +1063,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1263,7 +1097,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1298,7 +1132,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1338,7 +1172,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1368,7 +1202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1407,7 +1241,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1445,7 +1279,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1480,7 +1314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1509,7 +1343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1849,22 +1683,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RouterConfig dco_decode_router_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return RouterConfig(
       state: dco_decode_router_state(arr[0]),
-      mode: dco_decode_router_mode(arr[1]),
-      proxyPort: dco_decode_u_16(arr[2]),
-      domains: dco_decode_list_String(arr[3]),
-      apps: dco_decode_list_String(arr[4]),
-      servers: dco_decode_list_server_config(arr[5]),
+      directDomains: dco_decode_list_String(arr[1]),
+      directApps: dco_decode_list_String(arr[2]),
+      servers: dco_decode_list_server_config(arr[3]),
     );
-  }
-
-  @protected
-  RouterMode dco_decode_router_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RouterMode.values[raw as int];
   }
 
   @protected
@@ -2293,26 +2119,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RouterConfig sse_decode_router_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_state = sse_decode_router_state(deserializer);
-    var var_mode = sse_decode_router_mode(deserializer);
-    var var_proxyPort = sse_decode_u_16(deserializer);
-    var var_domains = sse_decode_list_String(deserializer);
-    var var_apps = sse_decode_list_String(deserializer);
+    var var_directDomains = sse_decode_list_String(deserializer);
+    var var_directApps = sse_decode_list_String(deserializer);
     var var_servers = sse_decode_list_server_config(deserializer);
     return RouterConfig(
       state: var_state,
-      mode: var_mode,
-      proxyPort: var_proxyPort,
-      domains: var_domains,
-      apps: var_apps,
+      directDomains: var_directDomains,
+      directApps: var_directApps,
       servers: var_servers,
     );
-  }
-
-  @protected
-  RouterMode sse_decode_router_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return RouterMode.values[inner];
   }
 
   @protected
@@ -2757,17 +2572,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_router_config(RouterConfig self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_router_state(self.state, serializer);
-    sse_encode_router_mode(self.mode, serializer);
-    sse_encode_u_16(self.proxyPort, serializer);
-    sse_encode_list_String(self.domains, serializer);
-    sse_encode_list_String(self.apps, serializer);
+    sse_encode_list_String(self.directDomains, serializer);
+    sse_encode_list_String(self.directApps, serializer);
     sse_encode_list_server_config(self.servers, serializer);
-  }
-
-  @protected
-  void sse_encode_router_mode(RouterMode self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -2898,20 +2705,14 @@ class RouterServiceImpl extends RustOpaque implements RouterService {
   Future<void> deleteServer({required String host}) => RustLib.instance.api
       .crateApiServiceRouterServiceDeleteServer(that: this, host: host);
 
-  Future<List<String>> getApps() =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetApps(that: this);
-
   Future<RouterConfig> getConfig() =>
       RustLib.instance.api.crateApiServiceRouterServiceGetConfig(that: this);
 
-  Future<List<String>> getDomains() =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetDomains(that: this);
+  Future<List<String>> getDirectApps() => RustLib.instance.api
+      .crateApiServiceRouterServiceGetDirectApps(that: this);
 
-  Future<RouterMode> getMode() =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetMode(that: this);
-
-  Future<int> getProxyPort() =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetProxyPort(that: this);
+  Future<List<String>> getDirectDomains() => RustLib.instance.api
+      .crateApiServiceRouterServiceGetDirectDomains(that: this);
 
   Future<ProtocolConfig> getServerProtocol({
     required String server,
@@ -2963,12 +2764,6 @@ class RouterServiceImpl extends RustOpaque implements RouterService {
     domain: domain,
     serverHost: serverHost,
   );
-
-  Future<void> setMode({required RouterMode mode}) => RustLib.instance.api
-      .crateApiServiceRouterServiceSetMode(that: this, mode: mode);
-
-  Future<void> setProxyPort({required int port}) => RustLib.instance.api
-      .crateApiServiceRouterServiceSetProxyPort(that: this, port: port);
 
   Future<void> setServerEnabled({required String host, required bool value}) =>
       RustLib.instance.api.crateApiServiceRouterServiceSetServerEnabled(

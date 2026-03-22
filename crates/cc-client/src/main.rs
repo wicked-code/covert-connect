@@ -1,12 +1,12 @@
 use anyhow::Result;
+use clap::Parser;
 use is_terminal::IsTerminal;
 use tracing_subscriber::EnvFilter;
-use clap::Parser;
 
 mod config;
 
+use client::router::{Router, RouterState};
 use config::AppConfig;
-use client::router::{Router, RouterState, RouterMode};
 
 /// Covert-Connect client
 #[derive(Parser)]
@@ -31,13 +31,12 @@ async fn main() -> Result<()> {
     }
 
     let args: Cli = Cli::parse();
-    let cfg = AppConfig::new(args.config)?
-        .init().await?;
+    let cfg = AppConfig::new(args.config)?.init().await?;
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
-    let client = Router::new(cfg.proxy_port, RouterState::All, RouterMode::Proxy)?;
-    client.add_domains(&Vec::new()).await;
+    let client = Router::new(RouterState::All)?;
+    client.add_direct_domains(&Vec::new()).await;
     for srv in cfg.servers {
         client.add_server(srv).await;
     }
@@ -50,7 +49,7 @@ async fn main() -> Result<()> {
         } else {
             tracing::info!("proxy settings restored")
         }
-    });    
+    });
 
     client.serve().await
 }

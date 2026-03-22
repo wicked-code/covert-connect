@@ -28,10 +28,16 @@ tokio-rustls.workspace = true
 webpki-roots.workspace = true
 
 crypto.workspace = true
-sys-proxy.workspace = true
 sys-process.workspace = true
 
 if-addrs = "0.15.0"
+net-route = "0.4.6"
+net-packet.workspace = true
+tun = {version = "0.8.6", features = ["async"]}
+futures-util = "0.3.32"
+tokio-util = "0.7.18"
+network-interface = "2.0.5"
+rustc-hash = "2.1.1"
 
 [features]
 aws_lc_rs = ["tokio-rustls/aws_lc_rs"]

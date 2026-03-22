@@ -27,7 +27,7 @@ class RouterServiceImpl implements RouterServiceBase {
     if (configStr.isNotEmpty) {
       cfg = proxyConfigFromString(configStr);
     } else {
-      cfg = RouterConfig(state: RouterState.off, mode: RouterMode.proxy, proxyPort: kDefaultPort, domains: [], apps: [], servers: []);
+      cfg = RouterConfig(state: RouterState.off, directDomains: [], directApps: [], servers: []);
     }
 
     await router.start(cfg: cfg);
@@ -43,21 +43,6 @@ class RouterServiceImpl implements RouterServiceBase {
   Future<void> setState(RouterState state) async {
     try {
       await router.setState(state: state);
-    } catch (e) {
-      log(e.toString());
-      rethrow;
-    }
-
-    saveConfig();
-  }
-
-  @override
-  Future<RouterMode> getMode() => router.getMode();
-
-  @override
-  Future<void> setMode(RouterMode mode) async {
-    try {
-      await router.setMode(mode: mode);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -85,12 +70,12 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<List<String>> getDomains() {
-    return router.getDomains();
+    return router.getDirectDomains();
   }
 
   @override
   Future<List<String>> getApps() {
-    return router.getApps();
+    return router.getDirectApps();
   }
 
   @override
@@ -143,17 +128,6 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<int> getTTFB(String server, String domain) async {
     return router.getTtfb(server: server, domain: domain);
-  }
-
-  @override
-  Future<int> getProxyPort() async {
-    return await router.getProxyPort();
-  }
-
-  @override
-  Future<void> setProxyPort(int port) async {
-    await router.setProxyPort(port: port);
-    saveConfig();
   }
 
   @override

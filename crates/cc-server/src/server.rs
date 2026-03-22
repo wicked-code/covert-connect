@@ -1,24 +1,27 @@
+use crate::config::AppConfig;
+use anyhow::{Result, anyhow};
+use bytes::{BufMut, BytesMut};
+use chrono::Utc;
+use crypto::{
+    GET_PROTOCOL_MAX_CONNECT_DELAY, MIN_HOST_LEN,
+    cipher::{Cipher, CipherType},
+    config::ProtocolConfig,
+    kdf::Kdf,
+    stream::EncryptedStream,
+};
+use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
 use std::{
     mem,
-    str,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     ops::Range,
-    net::{SocketAddr, IpAddr, Ipv4Addr},
+    str,
     time::Duration,
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::{lookup_host, TcpListener, TcpStream, TcpSocket},
-    time::timeout
-};
-use chrono::Utc;
-use anyhow::{anyhow, Result};
-use bytes::{BufMut, BytesMut};
-use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
-use crate::config::AppConfig;
-use crypto::{
-    cipher::{Cipher, CipherType}, config::ProtocolConfig, kdf::Kdf, stream::EncryptedStream,
-    GET_PROTOCOL_MAX_CONNECT_DELAY, MIN_HOST_LEN
+    net::{TcpListener, TcpSocket, TcpStream, lookup_host},
+    time::timeout,
 };
 
 pub const LOCAL_HOST: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
@@ -41,7 +44,10 @@ async fn start_tunnel(
     }
 
     let ProtocolConfig {
-        key, kdf, cipher: cipher_type, ..
+        key,
+        kdf,
+        cipher: cipher_type,
+        ..
     } = &cfg.protocol;
 
     let key_size = cipher_type.key_size();
@@ -59,10 +65,7 @@ async fn start_tunnel(
         + tag_size
         + cfg.protocol.header_padding.end as usize;
 
-    let min_header_len = main_header_len
-        + MIN_HOST_LEN
-        + tag_size
-        + cfg.protocol.header_padding.start as usize;
+    let min_header_len = main_header_len + MIN_HOST_LEN + tag_size + cfg.protocol.header_padding.start as usize;
 
     // read header
     let mut data = BytesMut::with_capacity(max_header_len);
@@ -70,7 +73,10 @@ async fn start_tunnel(
 
     let readed = stream.read(data.as_mut()).await?;
     if readed < min_header_len {
-        if try_special_request(data, readed, connect_time, stream, cfg).await.is_ok() {
+        if try_special_request(data, readed, connect_time, stream, cfg)
+            .await
+            .is_ok()
+        {
             return Ok(());
         }
 
@@ -80,7 +86,7 @@ async fn start_tunnel(
     }
 
     let mut header = data.split_to(main_header_len);
-    
+
     let nonce = header.split_to(nonce_size);
     let mut header_key = BytesMut::zeroed(cipher_type.key_size());
     let timestamp_for_key = connect_time / (cfg.protocol.max_connect_delay as i64);
@@ -102,7 +108,10 @@ async fn start_tunnel(
             let mut restored_data = nonce;
             restored_data.extend_from_slice(header_copy.as_ref());
             restored_data.extend_from_slice(data.as_ref());
-            if try_special_request(restored_data, readed, connect_time, stream, cfg).await.is_ok() {
+            if try_special_request(restored_data, readed, connect_time, stream, cfg)
+                .await
+                .is_ok()
+            {
                 return Ok(());
             }
 
@@ -115,14 +124,12 @@ async fn start_tunnel(
 
     let padding_bytes = header.split_to(mem::size_of::<u16>());
     let padding = u16::from_be_bytes(padding_bytes.as_ref().try_into().unwrap());
-    
+
     let host_len_bytes = header.split_to(mem::size_of::<u8>());
     let host_len = u8::from_be_bytes(host_len_bytes.as_ref().try_into().unwrap()) as usize + MIN_HOST_LEN;
 
     // read the rest
-    let rest_header_size = host_len
-        + cipher_type.tag_size()
-        + padding as usize;
+    let rest_header_size = host_len + cipher_type.tag_size() + padding as usize;
 
     let readed = data.len();
     data.resize(rest_header_size, 0);
@@ -158,8 +165,7 @@ async fn start_tunnel(
         .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc })
         .ok_or_else(|| anyhow!("host {host} notfound"))?;
 
-    let (client_cipher, server_cipher) =
-        Cipher::new_client_server(*cipher_type, *kdf, key, &salt)?;
+    let (client_cipher, server_cipher) = Cipher::new_client_server(*cipher_type, *kdf, key, &salt)?;
 
     let mut client = EncryptedStream::from_stream(
         stream,
@@ -167,7 +173,7 @@ async fn start_tunnel(
         server_cipher,
         cfg.protocol.data_padding,
         cfg.protocol.encryption_limit,
-        ChaCha20Rng::from_entropy()
+        ChaCha20Rng::from_entropy(),
     );
 
     let mut out_stream = match cfg.out_address {
@@ -179,8 +185,8 @@ async fn start_tunnel(
 
             socket.bind(SocketAddr::new(out_addr, 0))?;
             socket.connect(addr).await?
-        },
-        _ => TcpStream::connect(addr).await?
+        }
+        _ => TcpStream::connect(addr).await?,
     };
 
     tracing::info!("CONNECT from {socket_addr} to {addr}");
@@ -195,7 +201,7 @@ pub async fn try_special_request(
     readed: usize,
     connect_time: i64,
     stream: &mut TcpStream,
-    cfg: &AppConfig
+    cfg: &AppConfig,
 ) -> Result<()> {
     // protocol description in /doc/protocol.md
 
@@ -207,7 +213,7 @@ pub async fn try_special_request(
 
     let key_size = cipher_type.key_size();
     let tag_size = cipher_type.tag_size();
-    let nonce_size = cipher_type.nonce_size();    
+    let nonce_size = cipher_type.nonce_size();
 
     let header_len = nonce_size
         + key_size              // salt
@@ -268,7 +274,11 @@ pub async fn try_special_request(
     kdf.derive_protocol_response_key(cfg.protocol.key.as_bytes(), &salt, &mut response_key)?;
 
     let mut cipher_aes = Cipher::new_with_nonce(CipherType::Aes256Gcm, &response_key, &salt[0..nonce_size]);
-    let mut cipher_cha = Cipher::new_with_nonce(CipherType::ChaCha20Poly1305, &response_key, &salt[key_size - nonce_size..key_size]);
+    let mut cipher_cha = Cipher::new_with_nonce(
+        CipherType::ChaCha20Poly1305,
+        &response_key,
+        &salt[key_size - nonce_size..key_size],
+    );
 
     // prepare data
     let mut response = BytesMut::with_capacity(MAX_PACKET_SIZE);
@@ -332,7 +342,8 @@ pub async fn serve(cfg: AppConfig, url_path: String, upgrade_support: bool) -> R
         let cfg = cfg.clone();
         let url_path = url_path.clone();
         tokio::spawn(async move {
-            if let Err(err) = start_tunnel(&mut stream, socket_addr, timestamp, &cfg, &url_path, upgrade_support).await {
+            if let Err(err) = start_tunnel(&mut stream, socket_addr, timestamp, &cfg, &url_path, upgrade_support).await
+            {
                 tracing::error!("{:?}", err);
             }
         });
@@ -343,16 +354,18 @@ async fn terminate_slowly(stream: &mut TcpStream, cooldown: Range<u16>) {
     // avoid testing for required header size
     let mut rng = ChaCha20Rng::from_entropy();
 
-    let max_read : u16 = rng.r#gen();
+    let max_read: u16 = rng.r#gen();
     let max_time_ms = rng.gen_range(cooldown) as u64;
 
     let mut data = BytesMut::with_capacity(max_read as usize);
-    timeout(Duration::from_millis(max_time_ms), stream.read_exact(&mut data)).await.ok();
+    timeout(Duration::from_millis(max_time_ms), stream.read_exact(&mut data))
+        .await
+        .ok();
 }
 
 async fn process_http_upgrade(stream: &mut TcpStream, url_path: &str) -> Result<()> {
     // should be from proxy check for Uprage header and skip it
-    let mut req_bytes = [0u8;u8::MAX as usize];
+    let mut req_bytes = [0u8; u8::MAX as usize];
     let mut readed = 0;
     let mut lf_in_row = 0;
     while lf_in_row < 2 {
@@ -367,7 +380,7 @@ async fn process_http_upgrade(stream: &mut TcpStream, url_path: &str) -> Result<
         readed += 1;
 
         if readed >= u8::MAX as usize {
-            anyhow::bail!("response header with upgrade is too big");    
+            anyhow::bail!("response header with upgrade is too big");
         }
     }
 
@@ -378,15 +391,17 @@ async fn process_http_upgrade(stream: &mut TcpStream, url_path: &str) -> Result<
     }
 
     // reply with upgrade
-    stream.write_all(
-        "\
+    stream
+        .write_all(
+            "\
             HTTP/1.1 101 Switching Protocols\r\n\
             Upgrade: cconnect\r\n\
             Connection: Upgrade\r\n\
             \r\n\
         "
-        .as_bytes(),
-    ).await?;
+            .as_bytes(),
+        )
+        .await?;
     stream.flush().await?;
 
     Ok(())

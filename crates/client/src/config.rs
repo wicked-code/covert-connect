@@ -1,6 +1,9 @@
-use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str::FromStr};
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    str::FromStr,
+};
 use tokio::net::lookup_host;
 
 use crypto::config::ProtocolConfig;
@@ -37,11 +40,11 @@ pub struct ServerConfig {
     /// protocol configuration
     pub protocol: ProtocolConfig,
 
-    #[serde(skip_deserializing, skip_serializing)] 
+    #[serde(skip_deserializing, skip_serializing)]
     #[serde(default = "default_server_address")]
     pub address: SocketAddr,
 
-    #[serde(skip_deserializing, skip_serializing)] 
+    #[serde(skip_deserializing, skip_serializing)]
     pub url_path: Option<String>,
 }
 
@@ -70,18 +73,18 @@ impl ServerConnectConfig {
                     } else {
                         false
                     }
-                }, 
+                }
                 None => {
                     server_host += HTTPS_PORT;
                     true
                 }
             };
-    
+
             let address = lookup_host(&server_host)
                 .await?
                 .next()
                 .ok_or_else(|| anyhow!("ip:port or host:port required, found : {}", &server_host))?;
-    
+
             let url_path = if add_path {
                 Some(Kdf::derive_url_path(key)?)
             } else {

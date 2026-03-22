@@ -1,18 +1,26 @@
-use std::{
-    mem, net::SocketAddr, sync::{atomic::{AtomicU64, Ordering}, Arc}
-};
-use anyhow::{bail, Result};
-use tokio::io::{AsyncRead, AsyncWriteExt, AsyncReadExt};
-use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
-use chrono::Utc;
-use bytes::{Buf, BufMut, BytesMut};
-use crypto::{
-    cipher::{Cipher, CipherType}, config::{ProtocolConfig, DataPadding}, stream::EncryptedStream, kdf::Kdf,
-    MIN_HOST_LEN, GET_PROTOCOL_MAX_CONNECT_DELAY
-};
 use crate::config::ServerConfig;
 use crate::streams::monitor_stream::MonitorStream;
+use anyhow::{Result, bail};
+use bytes::{Buf, BufMut, BytesMut};
+use chrono::Utc;
+use crypto::{
+    GET_PROTOCOL_MAX_CONNECT_DELAY, MIN_HOST_LEN,
+    cipher::{Cipher, CipherType},
+    config::{DataPadding, ProtocolConfig},
+    kdf::Kdf,
+    stream::EncryptedStream,
+};
+use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
+use std::{
+    mem,
+    net::SocketAddr,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 #[derive(Clone)]
 pub struct Server {
@@ -24,10 +32,9 @@ pub struct Server {
 pub struct ServerState {
     pub rx_total: AtomicU64,
     pub tx_total: AtomicU64,
-    pub err_count: AtomicU64,  // tunnels with errors i.e. zero data returned from server, used for check healthy connection
-    pub succes_count: AtomicU64,  // tunnels with no zero data returned from server, used for check healthy connection
+    pub err_count: AtomicU64, // tunnels with errors i.e. zero data returned from server, used for check healthy connection
+    pub succes_count: AtomicU64, // tunnels with no zero data returned from server, used for check healthy connection
 }
-
 
 pub struct SelectedServer {
     pub host: String,
@@ -42,7 +49,7 @@ const MIN_GET_PROTOCOL_HEADER_PADDING: u16 = 177;
 
 pub async fn get_server_protocol(
     mut stream: impl AsyncWriteExt + Unpin + AsyncRead,
-    key: &str
+    key: &str,
 ) -> Result<ProtocolConfig> {
     // protocol description in /doc/protocol.md
 
@@ -50,7 +57,7 @@ pub async fn get_server_protocol(
     let cipher_type = CipherType::Aes256Gcm;
     let mut rng = ChaCha20Rng::from_entropy();
 
-    // prepare header        
+    // prepare header
     let tag_size = cipher_type.tag_size();
     let key_size = cipher_type.key_size();
     let nonce_size = cipher_type.nonce_size();
@@ -58,15 +65,15 @@ pub async fn get_server_protocol(
     // generate salt
     let mut salt = BytesMut::zeroed(key_size);
     rng.fill_bytes(&mut salt);
-    
+
     // create first packet
     let mut packet = BytesMut::with_capacity(
         nonce_size
-        + salt.len()
-        + mem::size_of::<u16>()
-        + tag_size
-        + tag_size
-        + MAX_GET_PROTOCOL_HEADER_PADDING as usize
+            + salt.len()
+            + mem::size_of::<u16>()
+            + tag_size
+            + tag_size
+            + MAX_GET_PROTOCOL_HEADER_PADDING as usize,
     );
 
     // header cipher
@@ -75,8 +82,9 @@ pub async fn get_server_protocol(
     kdf.derive_key_from_timestamp(key.as_bytes(), timestamp, &mut header_key)?;
 
     let mut header_cipher_aes = Cipher::new(CipherType::Aes256Gcm, &header_key, &mut rng);
-    let mut header_cipher_cha = Cipher::new_with_nonce(CipherType::ChaCha20Poly1305, &header_key, header_cipher_aes.nonce());
-    
+    let mut header_cipher_cha =
+        Cipher::new_with_nonce(CipherType::ChaCha20Poly1305, &header_key, header_cipher_aes.nonce());
+
     // create first packet
     packet.put(header_cipher_aes.nonce());
 
@@ -99,11 +107,7 @@ pub async fn get_server_protocol(
     stream.flush().await?;
 
     // read response
-    let header_len = 
-        mem::size_of::<u16>()
-        + mem::size_of::<u16>()
-        + tag_size
-        + tag_size;
+    let header_len = mem::size_of::<u16>() + mem::size_of::<u16>() + tag_size + tag_size;
 
     let mut header = BytesMut::zeroed(header_len);
     if stream.read(header.as_mut()).await? != header_len {
@@ -114,8 +118,12 @@ pub async fn get_server_protocol(
     kdf.derive_protocol_response_key(key.as_bytes(), &salt, &mut response_key)?;
 
     let mut cipher_aes = Cipher::new_with_nonce(CipherType::Aes256Gcm, &response_key, &salt[0..nonce_size]);
-    let mut cipher_cha = Cipher::new_with_nonce(CipherType::ChaCha20Poly1305, &response_key, &salt[key_size - nonce_size..key_size]);
-    
+    let mut cipher_cha = Cipher::new_with_nonce(
+        CipherType::ChaCha20Poly1305,
+        &response_key,
+        &salt[key_size - nonce_size..key_size],
+    );
+
     if !cipher_cha.decrypt(&mut header) {
         bail!("can't decrypt header");
     }
@@ -149,7 +157,7 @@ pub async fn get_server_protocol(
 
     let mut data = BytesMut::zeroed(data_len);
     stream.read_exact(data.as_mut()).await?;
-        
+
     if !cipher_cha.decrypt(&mut data) {
         bail!("can't decrypt data");
     }
@@ -160,16 +168,19 @@ pub async fn get_server_protocol(
     }
 
     let mut payload = data.split_off(padding_start);
-    
+
     let kdf: Kdf = Kdf::try_from(payload.get_u8())?;
     let cipher: CipherType = CipherType::try_from(payload.get_u8())?;
     let max_connect_delay = payload.get_u16();
     let header_padding = payload.get_u16()..payload.get_u16();
-    let data_padding = DataPadding {max: payload.get_u16(), rate: payload.get_u8()};
+    let data_padding = DataPadding {
+        max: payload.get_u16(),
+        rate: payload.get_u8(),
+    };
     let encryption_limit = payload.get_u64() as usize;
-    
+
     let key = key.to_owned();
-    Ok(ProtocolConfig{
+    Ok(ProtocolConfig {
         key,
         kdf,
         cipher,
@@ -186,13 +197,16 @@ pub async fn process_tunnel(
     host: String,
     mut rng: impl CryptoRng + Rng,
     selected_server: SelectedServer,
-) -> Result<()> 
-{
+) -> Result<()> {
     let ProtocolConfig {
-        key, kdf, cipher: cipher_type, header_padding, ..
+        key,
+        kdf,
+        cipher: cipher_type,
+        header_padding,
+        ..
     } = &selected_server.protocol;
 
-    // prepare header        
+    // prepare header
     let key_size = cipher_type.key_size();
     let nonce_size = cipher_type.nonce_size();
 
@@ -209,7 +223,7 @@ pub async fn process_tunnel(
         + cipher_type.tag_size()
         + u8::MAX as usize // max host len (saved as u8)
         + cipher_type.tag_size()
-        + header_padding.end as usize
+        + header_padding.end as usize,
     );
 
     // header cipher
@@ -218,7 +232,7 @@ pub async fn process_tunnel(
     kdf.derive_key_from_timestamp(key.as_bytes(), timestamp, &mut header_key)?;
 
     let mut header_cipher = Cipher::new(*cipher_type, &header_key, &mut rng);
-    
+
     // create first packet
     packet.put(header_cipher.nonce());
 
@@ -246,8 +260,7 @@ pub async fn process_tunnel(
     server.write_all(packet.as_ref()).await?;
     server.flush().await?;
 
-    let (client_cipher, server_cipher) =
-        Cipher::new_client_server(*cipher_type, *kdf, key, &salt)?;
+    let (client_cipher, server_cipher) = Cipher::new_client_server(*cipher_type, *kdf, key, &salt)?;
 
     let server = EncryptedStream::from_stream(
         server,
@@ -255,11 +268,11 @@ pub async fn process_tunnel(
         client_cipher,
         selected_server.protocol.data_padding,
         selected_server.protocol.encryption_limit,
-        rng
+        rng,
     );
-    
+
     let mut server = MonitorStream::from_stream(server, selected_server.state.clone());
-    
+
     let result = tokio::io::copy_bidirectional(&mut client, &mut server).await;
 
     if !server.is_success() {

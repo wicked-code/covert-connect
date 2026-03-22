@@ -5,22 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "lldb",
+            "type": "cppvsdbg",
             "request": "launch",
-            "name": "Debug client",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=cc-client",
-                    "--package=covert-connect"
-                ],
-                "filter": {
-                    "name": "cc-client",
-                    "kind": "bin"
-                }
-            },
-            "args": ["--config", "./conf/client.yaml"],
-            "cwd": "${workspaceFolder}"
+            "name": "Debug flutter client (Win)",
+            "program": "${workspaceRoot}/flutter/covert_connect_ui/build/windows/x64/runner/Debug/covert_connect.exe",
+            "stopAtEntry": false,
+            "console": "integratedTerminal",
+            "environment": [],
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "prerun-windows"
         },
         {
             "type": "cppvsdbg",

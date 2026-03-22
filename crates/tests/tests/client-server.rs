@@ -1,15 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use anyhow::Result;
-use crypto::{cipher::CipherType, config::ProtocolConfig, kdf::Kdf, DataPadding};
-use client::router::{RouterState, RouterMode, Router};
+use client::router::{Router, RouterState};
+use crypto::{DataPadding, cipher::CipherType, config::ProtocolConfig, kdf::Kdf};
 
 const KEY: &str = r#"ZrDj5S25tK0wVXFnlEC_yNBemc6yLsa4iYnf1vRB_7A"#;
 
 #[tokio::test]
 async fn get_server_protocol() -> Result<()> {
-
     let protocol = ProtocolConfig {
         key: KEY.to_owned(),
         kdf: Kdf::Blake3,
@@ -17,13 +16,10 @@ async fn get_server_protocol() -> Result<()> {
         max_connect_delay: 10000,
         header_padding: 50..777,
         encryption_limit: 1024,
-        data_padding: DataPadding { 
-            max: 250,
-            rate: 10
-        }
+        data_padding: DataPadding { max: 250, rate: 10 },
     };
 
-    let srv_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8383); 
+    let srv_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8383);
     let proxy_port: u16 = 1085;
 
     // start server
@@ -37,7 +33,7 @@ async fn get_server_protocol() -> Result<()> {
         };
 
         let url_path = Kdf::derive_url_path(&cfg.protocol.key)?;
-    
+
         cc_server::server::serve(cfg, url_path, false).await
     });
 
@@ -53,8 +49,8 @@ async fn get_server_protocol() -> Result<()> {
         url_path: None,
     };
 
-    let client = Router::new(proxy_port, RouterState::Off, RouterMode::Proxy)?;
-    client.add_domains(&Vec::new()).await;
+    let client = Router::new(RouterState::Off)?;
+    client.add_direct_domains(&Vec::new()).await;
     client.add_server(srv_cfg.clone()).await;
 
     let srv_protocol = client.get_server_protocol(&srv_cfg.host, KEY).await?;
@@ -72,13 +68,10 @@ async fn simple_connect() -> Result<()> {
         max_connect_delay: 10000,
         header_padding: 50..777,
         encryption_limit: 1024,
-        data_padding: DataPadding { 
-            max: 250,
-            rate: 10
-        }
+        data_padding: DataPadding { max: 250, rate: 10 },
     };
 
-    let srv_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8385); 
+    let srv_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8385);
     let proxy_port: u16 = 1087;
 
     // start server
@@ -92,13 +85,12 @@ async fn simple_connect() -> Result<()> {
         };
 
         let url_path = Kdf::derive_url_path(&cfg.protocol.key)?;
-    
+
         cc_server::server::serve(cfg, url_path, false).await
     });
 
     let srv_protocol = protocol.clone();
     tokio::task::spawn(async move {
-
         let srv_cfg = client::config::ServerConfig {
             caption: None,
             host: srv_address.to_string(),
@@ -111,8 +103,8 @@ async fn simple_connect() -> Result<()> {
             url_path: None,
         };
 
-        let client = Router::new(proxy_port, RouterState::Off, RouterMode::Proxy)?;
-        client.add_domains(&Vec::new()).await;
+        let client = Router::new(RouterState::Off)?;
+        client.add_direct_domains(&Vec::new()).await;
         client.add_server(srv_cfg.clone()).await;
 
         client.serve().await

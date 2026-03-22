@@ -1,11 +1,9 @@
-use rand_core::{CryptoRng, RngCore};
-use aead::{
-    generic_array::typenum::Unsigned, AeadCore, AeadInPlace, Key, KeyInit, KeySizeUser, Nonce, Tag
-};
-use serde::{Deserialize, Serialize};
-use bytes::{BufMut, BytesMut};
+use aead::{AeadCore, AeadInPlace, Key, KeyInit, KeySizeUser, Nonce, Tag, generic_array::typenum::Unsigned};
 use aes_gcm::Aes256Gcm;
+use bytes::{BufMut, BytesMut};
 use chacha20poly1305::ChaCha20Poly1305;
+use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
 pub type CipherAes256Gcm = Box<CipherBase<Aes256Gcm>>;
 pub type CipherChaCha20Poly1305 = CipherBase<ChaCha20Poly1305>;
@@ -13,11 +11,10 @@ pub type CipherChaCha20Poly1305 = CipherBase<ChaCha20Poly1305>;
 #[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum CipherType {
     Aes256Gcm,
-    ChaCha20Poly1305
+    ChaCha20Poly1305,
 }
 
-impl CipherType
-{
+impl CipherType {
     pub fn nonce_size(&self) -> usize {
         match self {
             Self::Aes256Gcm => <Aes256Gcm as AeadCore>::NonceSize::to_usize(),
@@ -88,10 +85,8 @@ where
 
     pub fn encrypt(&mut self, data_buffer: &mut BytesMut, start_pos: usize) {
         let (_, data) = data_buffer.split_at_mut(start_pos);
-        
-        let tag = self.cipher
-            .encrypt_in_place_detached(&self.nonce, &[], data)
-            .unwrap();
+
+        let tag = self.cipher.encrypt_in_place_detached(&self.nonce, &[], data).unwrap();
         data_buffer.put(tag.as_slice());
     }
 
@@ -102,5 +97,5 @@ where
         self.cipher
             .decrypt_in_place_detached(&self.nonce, &[], data, Tag::<C>::from_slice(tag))
             .is_ok()
-    }    
+    }
 }

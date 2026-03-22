@@ -1,0 +1,13 @@
+[package]
+name = "net-packet"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Zero-copy network packet parsing, modification, and creation for TCP/IP protocols"
+
+[features]
+default = ["std"]
+std = []
+
+[dev-dependencies]
