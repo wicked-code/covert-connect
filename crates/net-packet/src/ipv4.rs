@@ -21,6 +21,7 @@
 use crate::checksum;
 use core::fmt;
 use core::net::Ipv4Addr;
+use anyhow::{Result, bail};
 
 /// Minimum IPv4 header length in bytes (no options).
 pub const IPV4_MIN_HEADER_LEN: usize = 20;
@@ -39,9 +40,9 @@ impl<'a> Ipv4Header<'a> {
     /// Validates the buffer is long enough for the header indicated by IHL.
     /// Use [`new_unchecked`](Self::new_unchecked) to build packets from scratch.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV4_MIN_HEADER_LEN {
-            return Err("Slice too short for IPv4 header.");
+            return bail!("Slice too short for IPv4 header.");
         }
         Ok(Self { buf })
     }

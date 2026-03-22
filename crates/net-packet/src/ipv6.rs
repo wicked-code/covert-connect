@@ -28,6 +28,7 @@
 
 use core::fmt;
 use core::net::Ipv6Addr;
+use anyhow::{Result, bail};
 
 /// Fixed IPv6 header length in bytes.
 pub const IPV6_HEADER_LEN: usize = 40;
@@ -40,9 +41,9 @@ pub struct Ipv6Header<'a> {
 impl<'a> Ipv6Header<'a> {
     /// Creates a new `Ipv6Header`. Requires at least 40 bytes.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV6_HEADER_LEN {
-            return Err("Slice too short for IPv6 header.");
+            bail!("Slice too short for IPv6 header.");
         }
         Ok(Self { buf })
     }

@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 description = "Zero-copy network packet parsing, modification, and creation for TCP/IP protocols"
 
+[dependencies]
+anyhow.workspace = true
+
 [features]
 default = ["std"]
 std = []

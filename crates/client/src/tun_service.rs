@@ -11,13 +11,12 @@ use anyhow::{Context, Result, anyhow};
 use if_addrs::get_if_addrs;
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
-    net::{TcpListener, TcpSocket, TcpStream, UdpSocket, lookup_host},
-    sync::{Mutex, RwLock, oneshot},
+    net::{TcpListener, TcpSocket, UdpSocket},
     time::{sleep, timeout},
 };
 
 use crate::{
-    router::{Router, RouterState},
+    router::Router,
     tun_tcp_proxy_nat::TcpProxyNat,
 };
 use futures_util::StreamExt;
@@ -349,13 +348,13 @@ impl TunService {
                     return Ok(listener);
                 }
                 Ok(Err(err)) => {
-                    if (attempt > 4) {
+                    if attempt > 4 {
                         tracing::warn!("bind attempt {}/{} failed: {}", attempt, MAX_BIND_ATTEMPTS, err);
                     }
                     last_err = Some(err.into());
                 }
                 Err(_) => {
-                    if (attempt > 4) {
+                    if attempt > 4 {
                         tracing::warn!("bind attempt {}/{} timed out", attempt, MAX_BIND_ATTEMPTS);
                     }
                     last_err = Some(anyhow!("bind to {} timed out", default_address));

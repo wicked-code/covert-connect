@@ -1941,6 +1941,9 @@ dependencies = [
 [[package]]
 name = "net-packet"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
 
 [[package]]
 name = "net-route"

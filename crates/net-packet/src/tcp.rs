@@ -25,6 +25,7 @@
 use crate::checksum;
 use core::fmt;
 use core::net::{Ipv4Addr, Ipv6Addr};
+use anyhow::{Result, bail};
 
 /// Minimum TCP header length in bytes (no options).
 pub const TCP_MIN_HEADER_LEN: usize = 20;
@@ -50,9 +51,9 @@ impl<'a> TcpHeader<'a> {
     /// Validates the buffer is long enough for the header indicated by data offset.
     /// Use [`new_unchecked`](Self::new_unchecked) to build packets from scratch.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < TCP_MIN_HEADER_LEN {
-            return Err("Slice too short for TCP header.");
+            bail!("Slice too short for TCP header.");
         }
         Ok(Self { buf })
     }

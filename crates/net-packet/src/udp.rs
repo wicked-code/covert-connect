@@ -15,6 +15,7 @@
 use crate::checksum;
 use core::fmt;
 use core::net::{Ipv4Addr, Ipv6Addr};
+use anyhow::{Result, bail};
 
 /// Fixed UDP header length in bytes.
 pub const UDP_HEADER_LEN: usize = 8;
@@ -27,9 +28,9 @@ pub struct UdpHeader<'a> {
 impl<'a> UdpHeader<'a> {
     /// Creates a new `UdpHeader`. Requires at least 8 bytes.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < UDP_HEADER_LEN {
-            return Err("Slice too short for UDP header.");
+            bail!("Slice too short for UDP header.");
         }
         Ok(Self { buf })
     }

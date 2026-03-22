@@ -21,6 +21,7 @@
 
 use crate::checksum;
 use core::fmt;
+use anyhow::{Result, bail};
 
 /// Minimum ICMPv4 header length in bytes.
 pub const ICMPV4_HEADER_LEN: usize = 8;
@@ -40,9 +41,9 @@ pub struct Icmpv4Header<'a> {
 impl<'a> Icmpv4Header<'a> {
     /// Creates a new `Icmpv4Header`. Requires at least 8 bytes.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < ICMPV4_HEADER_LEN {
-            return Err("Slice too short for ICMPv4 header.");
+            return bail!("Slice too short for ICMPv4 header.");
         }
         Ok(Self { buf })
     }

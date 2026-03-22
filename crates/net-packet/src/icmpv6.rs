@@ -32,6 +32,7 @@
 use crate::checksum;
 use core::fmt;
 use core::net::Ipv6Addr;
+use anyhow::{Result, bail};
 
 /// Minimum ICMPv6 header length in bytes.
 pub const ICMPV6_HEADER_LEN: usize = 8;
@@ -61,9 +62,9 @@ pub struct Icmpv6Header<'a> {
 impl<'a> Icmpv6Header<'a> {
     /// Creates a new `Icmpv6Header`. Requires at least 8 bytes.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < ICMPV6_HEADER_LEN {
-            return Err("Slice too short for ICMPv6 header.");
+            return bail!("Slice too short for ICMPv6 header.");
         }
         Ok(Self { buf })
     }

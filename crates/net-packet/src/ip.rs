@@ -1,3 +1,4 @@
+use anyhow::{Result, bail};
 use crate::{
     icmpv4::Icmpv4Header,
     icmpv6::Icmpv6Header,
@@ -26,22 +27,22 @@ pub struct IpPacket<'a> {
 }
 
 /// Parses transport-layer header from payload given the IP protocol number.
-fn parse_transport<'a>(protocol: u8, payload: &'a mut [u8]) -> Result<NextHeader<'a>, &'static str> {
+fn parse_transport<'a>(protocol: u8, payload: &'a mut [u8]) -> Result<NextHeader<'a>> {
     Ok(match protocol {
         ip_protocols::TCP => NextHeader::Tcp(TcpHeader::new(payload)?),
         ip_protocols::UDP => NextHeader::Udp(UdpHeader::new(payload)?),
         ip_protocols::ICMP => NextHeader::Icmpv4(Icmpv4Header::new(payload)?),
         ip_protocols::ICMPV6 => NextHeader::Icmpv6(Icmpv6Header::new(payload)?),
-        _ => return Err("Unsupported IP protocol."),
+        _ => bail!("Unsupported IP protocol {}", protocol),
     })
 }
 
 impl<'a> IpPacket<'a> {
     /// Creates a new `IpPacket` by parsing an existing buffer.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self, &'static str> {
+    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV4_MIN_HEADER_LEN {
-            return Err("Slice too short for IP header.");
+            bail!("Slice too short for IP header.");
         }
         let version = buf[0] >> 4;
         let (protocol, header, payload) = match version {
@@ -53,7 +54,7 @@ impl<'a> IpPacket<'a> {
                 let (header, payload) = Ipv6Header::new(buf)?.split();
                 (header.next_header(), IpHeader::V6(header), payload)
             }
-            _ => return Err("Unsupported IP version."),
+            _ => bail!("Unsupported IP version."),
         };
         Ok(Self {
             header,
