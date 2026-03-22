@@ -272,11 +272,15 @@ impl TunService {
                     }
                     NextHeader::Udp(mut udp) => {
                         // TODO: ???
-                        tracing::debug!("UDP packet: {:?}", udp);
+                        tracing::debug!("UDPv4 packet: {:?}", udp);
                     }
                     NextHeader::Icmpv4(mut icmp) => {
                         // TODO: ???
                         tracing::debug!("ICMPv4 packet: {:?}", icmp);
+                    }
+                    NextHeader::Igmp(mut igmp) => {
+                        // TODO: ???
+                        tracing::debug!("IGMPv4 packet: {:?}", igmp);
                     }
                     _ => {}
                 }
@@ -285,15 +289,19 @@ impl TunService {
                 match ip.next_header {
                     NextHeader::Tcp(mut tcp) => {
                         // TODO: ???
-                        tracing::debug!("TCP packet: {:?}", tcp);
+                        tracing::debug!("TCPv6 packet: {:?}", tcp);
                     }
                     NextHeader::Udp(mut udp) => {
                         // TODO: ???
-                        tracing::debug!("UDP packet: {:?}", udp);
+                        tracing::debug!("UDPv6 packet: {:?}", udp);
                     }
                     NextHeader::Icmpv6(mut icmp) => {
                         // TODO: ???
                         tracing::debug!("ICMPv6 packet: {:?}", icmp);
+                    }
+                    NextHeader::Igmp(mut igmp) => {
+                        // TODO: ???
+                        tracing::debug!("IGMPv6 packet: {:?}", igmp);
                     }
                     _ => {}
                 }

@@ -1,13 +1,15 @@
-use anyhow::{Result, bail};
 use crate::{
+    hopbyhop::HopByHopHeader,
     icmpv4::Icmpv4Header,
     icmpv6::Icmpv6Header,
+    igmp::IgmpHeader,
     ip_protocols,
     ipv4::{IPV4_MIN_HEADER_LEN, Ipv4Header},
     ipv6::Ipv6Header,
     tcp::TcpHeader,
     udp::UdpHeader,
 };
+use anyhow::{Result, bail};
 
 pub enum IpHeader<'a> {
     V4(Ipv4Header<'a>),
@@ -19,6 +21,7 @@ pub enum NextHeader<'a> {
     Udp(UdpHeader<'a>),
     Icmpv4(Icmpv4Header<'a>),
     Icmpv6(Icmpv6Header<'a>),
+    Igmp(IgmpHeader<'a>),
 }
 
 pub struct IpPacket<'a> {
@@ -33,6 +36,12 @@ fn parse_transport<'a>(protocol: u8, payload: &'a mut [u8]) -> Result<NextHeader
         ip_protocols::UDP => NextHeader::Udp(UdpHeader::new(payload)?),
         ip_protocols::ICMP => NextHeader::Icmpv4(Icmpv4Header::new(payload)?),
         ip_protocols::ICMPV6 => NextHeader::Icmpv6(Icmpv6Header::new(payload)?),
+        ip_protocols::IGMP => NextHeader::Igmp(IgmpHeader::new(payload)?),
+        ip_protocols::HOPBYHOP => {
+            // TODO: just skip it for now
+            let (header, payload) = HopByHopHeader::new(payload)?.split();
+            return parse_transport(header.next_header(), payload);
+        }
         _ => bail!("Unsupported IP protocol {}", protocol),
     })
 }
