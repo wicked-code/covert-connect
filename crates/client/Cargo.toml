@@ -29,10 +29,9 @@ webpki-roots.workspace = true
 
 crypto.workspace = true
 sys-process.workspace = true
+net-packet.workspace = true
 
 if-addrs = "0.15.0"
-net-route = "0.4.6"
-net-packet.workspace = true
 tun = {version = "0.8.6", features = ["async"]}
 futures-util = "0.3.32"
 tokio-util = "0.7.18"

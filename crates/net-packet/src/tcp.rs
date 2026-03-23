@@ -343,7 +343,6 @@ mod tests {
     fn tcp_checksum_v4() {
         let src_ip = Ipv4Addr::new(10, 0, 0, 1);
         let dst_ip = Ipv4Addr::new(10, 0, 0, 2);
-        let segment_len: u16 = 20;
 
         let mut buf = [0u8; 20];
         let mut pkt = TcpHeader::new(&mut buf[..]).unwrap();

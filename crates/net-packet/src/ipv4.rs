@@ -42,7 +42,7 @@ impl<'a> Ipv4Header<'a> {
     #[inline]
     pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV4_MIN_HEADER_LEN {
-            return bail!("Slice too short for IPv4 header.");
+            bail!("Slice too short for IPv4 header.");
         }
         Ok(Self { buf })
     }

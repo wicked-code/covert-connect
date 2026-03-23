@@ -64,7 +64,7 @@ impl<'a> Icmpv6Header<'a> {
     #[inline]
     pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < ICMPV6_HEADER_LEN {
-            return bail!("Slice too short for ICMPv6 header.");
+            bail!("Slice too short for ICMPv6 header.");
         }
         Ok(Self { buf })
     }

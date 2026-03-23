@@ -20,7 +20,6 @@ async fn get_server_protocol() -> Result<()> {
     };
 
     let srv_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8383);
-    let proxy_port: u16 = 1085;
 
     // start server
     let srv_protocol = protocol.clone();

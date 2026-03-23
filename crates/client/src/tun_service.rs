@@ -112,8 +112,6 @@ impl TunService {
         let gateaway_v4 = Ipv4Addr::from(u32::from(address_v4) + 1);
 
         // TODO: ??? modify library
-        // - set additional IPv6 address
-        // - setup routing table
         // - clone writer to be able to write from other tasks without lock
         // - use sudo networksetup -ordernetworkservices to set priority for IF on macos
         // TODO: ??? setup dns
@@ -202,15 +200,6 @@ impl TunService {
             .unwrap_or(Ipv6Addr::UNSPECIFIED);
 
         tracing::info!("tun interface: {:?}", net_if);
-
-        // TODO: ??? update router to all
-        // looks like all routes goes to new IF already ???
-
-        // let handle = net_route::Handle::new()?;
-        // let route = net_route::Route::new("172.67.202.84".parse().unwrap(), 32).with_ifindex(net_if.index);
-        // handle.add(&route).await?;
-        // let route = net_route::Route::new("104.21.69.7".parse().unwrap(), 32).with_ifindex(net_if.index);
-        // handle.add(&route).await?;
 
         Ok((address_v4, address_v6))
     }

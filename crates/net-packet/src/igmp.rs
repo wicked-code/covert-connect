@@ -11,9 +11,9 @@
 //! ```
 
 use crate::checksum;
+use anyhow::{Result, bail};
 use core::fmt;
 use core::net::Ipv4Addr;
-use anyhow::{Result, bail};
 
 /// Minimum IGMP header length in bytes.
 pub const IGMP_HEADER_LEN: usize = 8;
@@ -35,7 +35,7 @@ impl<'a> IgmpHeader<'a> {
     #[inline]
     pub fn new(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IGMP_HEADER_LEN {
-            return bail!("Slice too short for IGMP header.");
+            bail!("Slice too short for IGMP header.");
         }
         Ok(Self { buf })
     }
