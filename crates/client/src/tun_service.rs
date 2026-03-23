@@ -15,10 +15,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::{
-    router::Router,
-    tun_tcp_proxy_nat::TcpProxyNat,
-};
+use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat};
 use futures_util::StreamExt;
 use net_packet::ip::{IpHeader, IpPacket, NextHeader};
 
@@ -54,17 +51,19 @@ impl TunService {
         let (if_addr_v4, if_addr_v6) = self.init_tun().await?;
 
         self.tcp_proxy_nat.init().await?;
-        self.serve_tcp_proxy(outbound_ip, if_addr_v4, if_addr_v6).await
+
+        let self_clone = self.clone();
+        tokio::spawn(async move {
+            if let Err(e) = self_clone.serve_tcp_proxy(outbound_ip, IpAddr::V6(if_addr_v6)).await {
+                tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
+            }
+        });
+
+        self.serve_tcp_proxy(outbound_ip, IpAddr::V4(if_addr_v4)).await
     }
 
-    async fn serve_tcp_proxy(
-        self: &Arc<Self>,
-        outbound_ip: IpAddr,
-        if_addr_v4: Ipv4Addr,
-        if_addr_v6: Ipv6Addr,
-    ) -> Result<()> {
-        // TODO: ??? add v6 listener
-        let mut listener = self.bind_tcp_proxy(if_addr_v4).await?;
+    async fn serve_tcp_proxy(self: &Arc<Self>, outbound_ip: IpAddr, if_addr: IpAddr) -> Result<()> {
+        let mut listener = self.bind_tcp_proxy(if_addr).await?;
         loop {
             let result = listener.accept().await;
             match result {
@@ -101,7 +100,7 @@ impl TunService {
                 Err(error) => {
                     drop(listener);
                     tracing::error!("accept failed: {:?}", error);
-                    listener = self.bind_tcp_proxy(if_addr_v4).await?;
+                    listener = self.bind_tcp_proxy(if_addr).await?;
                 }
             }
         }
@@ -134,54 +133,7 @@ impl TunService {
 
         let dev = tun::create_as_async(&config)?;
 
-        // TODO: ??? probaly stop is needed to shutdown all gracefully...
-        let self_clone = self.clone();
-        tokio::task::spawn(async move {
-            let mut framed = dev.into_framed();
-
-            while let Some(packet) = framed.next().await {
-                // TODO: spawn a task here
-                // embed tun code into project and add clone for device or maybe for DeviceWriter only
-                if let Ok(mut packet) = packet {
-                    if self_clone.process_packet(&mut packet, address_v4, gateaway_v4).await == ProcessResult::WriteBack
-                    {
-                        // let mut tmp = packet.clone();
-                        // match IpPacket::new(&mut tmp) {
-                        //     Ok(ip) => {
-                        //         match ip.header {
-                        //             IpHeader::V4(ipv4) => match ip.next_header {
-                        //                 NextHeader::Tcp(tcp) => tracing::info!(
-                        //                     "Write back TCP packet: {}:{} -> {}:{}, protocol: {}",
-                        //                     ipv4.src_addr(),
-                        //                     tcp.src_port(),
-                        //                     ipv4.dst_addr(),
-                        //                     tcp.dst_port(),
-                        //                     ipv4.protocol()
-                        //                 ),
-                        //                 _ => {}
-                        //             },
-                        //             IpHeader::V6(ipv6) => {
-                        //                 // tracing::info!("Write back IPv6 packet: {}:{} -> {}:{}, next header: {}, payload len: {}",
-                        //                 //     ipv6.src_addr(), ipv6.src_port(), ipv6.dst_addr(), ipv6.dst_port(), ipv6.next_header(), ip.payload.len());
-                        //             }
-                        //         }
-                        //     }
-                        //     Err(err) => {
-                        //         tracing::error!("Invalid packet: {:?}", err);
-                        //         tracing::error!("data: {:?}", tmp);
-                        //         continue;
-                        //     }
-                        // };
-
-                        framed.get_ref().send(&packet).await.ok();
-                    }
-                } else {
-                    tracing::error!("tun read error: {:?}", packet.err());
-                }
-            }
-        });
-
-        // TODO: get IPv6 here
+        // TODO: ??? may be we need to wait for IF to be ready after creation...
         let net_if = NetworkInterface::show()?
             .into_iter()
             .find(|x| {
@@ -200,13 +152,43 @@ impl TunService {
                 IpAddr::V4(_) => None,
             })
             .unwrap_or(Ipv6Addr::UNSPECIFIED);
+        let gateaway_v6 = Ipv6Addr::from(u128::from(address_v6) + 1);
 
         tracing::info!("tun interface: {:?}", net_if);
+
+        // TODO: ??? probaly stop is needed to shutdown all gracefully...
+        let self_clone = self.clone();
+        tokio::task::spawn(async move {
+            let mut framed = dev.into_framed();
+
+            while let Some(packet) = framed.next().await {
+                // TODO: spawn a task here
+                // embed tun code into project and add clone for device or maybe for DeviceWriter only
+                if let Ok(mut packet) = packet {
+                    if self_clone
+                        .process_packet(&mut packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
+                        .await
+                        == ProcessResult::WriteBack
+                    {
+                        framed.get_ref().send(&packet).await.ok();
+                    }
+                } else {
+                    tracing::error!("tun read error: {:?}", packet.err());
+                }
+            }
+        });
 
         Ok((address_v4, address_v6))
     }
 
-    async fn process_packet(&self, packet: &mut Vec<u8>, address_v4: Ipv4Addr, gateway_v4: Ipv4Addr) -> ProcessResult {
+    async fn process_packet(
+        &self,
+        packet: &mut Vec<u8>,
+        address_v4: Ipv4Addr,
+        gateway_v4: Ipv4Addr,
+        address_v6: Ipv6Addr,
+        gateway_v6: Ipv6Addr,
+    ) -> ProcessResult {
         let ip = match IpPacket::new(packet) {
             Ok(ip) => ip,
             Err(err) => {
@@ -217,88 +199,182 @@ impl TunService {
         };
 
         match ip.header {
-            IpHeader::V4(mut ipv4) => {
-                match ip.next_header {
-                    NextHeader::Tcp(mut tcp) => {
-                        let tcp_proxy_port = self.tcp_proxy_port();
-                        if tcp.src_port() == tcp_proxy_port && ipv4.src_addr() == address_v4 {
-                            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
-                                tracing::error!("session not found for port {}", tcp.dst_port());
-                                return ProcessResult::Consume;
-                            };
+            IpHeader::V4(mut ipv4) => match ip.next_header {
+                NextHeader::Tcp(mut tcp) => self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4),
+                NextHeader::Udp(mut udp) => self.process_udp_v4_packet(&mut ipv4, &mut udp, address_v4, gateway_v4),
+                NextHeader::Icmpv4(mut icmp) => self.process_icmp_v4_packet(&mut ipv4, &mut icmp, address_v4, gateway_v4),
+                NextHeader::Igmp(mut igmp) => self.process_igmp_v4_packet(&mut ipv4, &mut igmp, address_v4, gateway_v4),
+                _ => ProcessResult::Consume,
+            },
+            IpHeader::V6(mut ipv6) => match ip.next_header {
+                NextHeader::Tcp(mut tcp) => self.process_tcp_v6_packet(&mut ipv6, &mut tcp, address_v6, gateway_v6),
+                NextHeader::Udp(mut udp) => self.process_udp_v6_packet(&mut ipv6, &mut udp, address_v6, gateway_v6),
+                NextHeader::Icmpv6(mut icmp) => self.process_icmp_v6_packet(&mut ipv6, &mut icmp, address_v6, gateway_v6),
+                NextHeader::Igmp(mut igmp) => self.process_igmp_v6_packet(&mut ipv6, &mut igmp, address_v6, gateway_v6),
+                _ => ProcessResult::Consume,
+            },
+        }
+    }
 
-                            let IpAddr::V4(src_ip_v4) = session.src_addr.ip() else {
-                                tracing::error!("invalid session for port {}", tcp.dst_port());
-                                return ProcessResult::Consume;
-                            };
-                            let IpAddr::V4(dst_ip_v4) = session.dst_addr.ip() else {
-                                tracing::error!("invalid session for port {}", tcp.dst_port());
-                                return ProcessResult::Consume;
-                            };
+    fn process_tcp_v4_packet(
+        &self,
+        ipv4: &mut net_packet::ipv4::Ipv4Header,
+        tcp: &mut net_packet::tcp::TcpHeader,
+        address_v4: Ipv4Addr,
+        gateway_v4: Ipv4Addr,
+    ) -> ProcessResult {
+        let tcp_proxy_port = self.tcp_proxy_port();
+        if tcp.src_port() == tcp_proxy_port && ipv4.src_addr() == address_v4 {
+            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
+                tracing::error!("session not found for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
 
-                            ipv4.set_src_addr(dst_ip_v4);
-                            tcp.set_src_port(session.dst_addr.port());
-                            ipv4.set_dst_addr(src_ip_v4);
-                            tcp.set_dst_port(session.src_addr.port());
+            let IpAddr::V4(src_ip_v4) = session.src_addr.ip() else {
+                tracing::error!("invalid session for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
+            let IpAddr::V4(dst_ip_v4) = session.dst_addr.ip() else {
+                tracing::error!("invalid session for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
 
-                            ipv4.compute_checksum();
-                            tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
-                            return ProcessResult::WriteBack;
-                        } else {
-                            let nat_port = self.tcp_proxy_nat.get_port(
-                                SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
-                                SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
-                                tcp_proxy_port,
-                            );
+            ipv4.set_src_addr(dst_ip_v4);
+            tcp.set_src_port(session.dst_addr.port());
+            ipv4.set_dst_addr(src_ip_v4);
+            tcp.set_dst_port(session.src_addr.port());
 
-                            ipv4.set_src_addr(gateway_v4);
-                            tcp.set_src_port(nat_port);
-                            ipv4.set_dst_addr(address_v4);
-                            tcp.set_dst_port(tcp_proxy_port);
+            ipv4.compute_checksum();
+            tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
+        } else {
+            let nat_port = self.tcp_proxy_nat.get_port(
+                SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
+                SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
+                tcp_proxy_port,
+            );
 
-                            ipv4.compute_checksum();
-                            tcp.compute_checksum_v4(gateway_v4, address_v4);
-                            return ProcessResult::WriteBack;
-                        }
-                    }
-                    NextHeader::Udp(mut udp) => {
-                        // TODO: ???
-                        tracing::debug!("UDPv4 packet: {:?}", udp);
-                    }
-                    NextHeader::Icmpv4(mut icmp) => {
-                        // TODO: ???
-                        tracing::debug!("ICMPv4 packet: {:?}", icmp);
-                    }
-                    NextHeader::Igmp(mut igmp) => {
-                        // TODO: ???
-                        tracing::debug!("IGMPv4 packet: {:?}", igmp);
-                    }
-                    _ => {}
-                }
-            }
-            IpHeader::V6(mut ipv6) => {
-                match ip.next_header {
-                    NextHeader::Tcp(mut tcp) => {
-                        // TODO: ???
-                        tracing::debug!("TCPv6 packet: {:?}", tcp);
-                    }
-                    NextHeader::Udp(mut udp) => {
-                        // TODO: ???
-                        tracing::debug!("UDPv6 packet: {:?}", udp);
-                    }
-                    NextHeader::Icmpv6(mut icmp) => {
-                        // TODO: ???
-                        tracing::debug!("ICMPv6 packet: {:?}", icmp);
-                    }
-                    NextHeader::Igmp(mut igmp) => {
-                        // TODO: ???
-                        tracing::debug!("IGMPv6 packet: {:?}", igmp);
-                    }
-                    _ => {}
-                }
-            }
+            ipv4.set_src_addr(gateway_v4);
+            tcp.set_src_port(nat_port);
+            ipv4.set_dst_addr(address_v4);
+            tcp.set_dst_port(tcp_proxy_port);
+
+            ipv4.compute_checksum();
+            tcp.compute_checksum_v4(gateway_v4, address_v4);
         }
 
+        ProcessResult::WriteBack
+    }
+
+    fn process_tcp_v6_packet(
+        &self,
+        ipv6: &mut net_packet::ipv6::Ipv6Header,
+        tcp: &mut net_packet::tcp::TcpHeader,
+        address_v6: Ipv6Addr,
+        gateway_v6: Ipv6Addr,
+    ) -> ProcessResult {
+        let tcp_proxy_port = self.tcp_proxy_port();
+        if tcp.src_port() == tcp_proxy_port && ipv6.src_addr() == address_v6 {
+            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
+                tracing::error!("session not found for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
+
+            let IpAddr::V6(src_ip_v6) = session.src_addr.ip() else {
+                tracing::error!("invalid session for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
+            let IpAddr::V6(dst_ip_v6) = session.dst_addr.ip() else {
+                tracing::error!("invalid session for port {}", tcp.dst_port());
+                return ProcessResult::Consume;
+            };
+
+            ipv6.set_src_addr(dst_ip_v6);
+            tcp.set_src_port(session.dst_addr.port());
+            ipv6.set_dst_addr(src_ip_v6);
+            tcp.set_dst_port(session.src_addr.port());
+
+            tcp.compute_checksum_v6(src_ip_v6, dst_ip_v6);
+        } else {
+            let nat_port = self.tcp_proxy_nat.get_port(
+                SocketAddr::new(IpAddr::V6(ipv6.src_addr()), tcp.src_port()),
+                SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), tcp.dst_port()),
+                tcp_proxy_port,
+            );
+
+            ipv6.set_src_addr(gateway_v6);
+            tcp.set_src_port(nat_port);
+            ipv6.set_dst_addr(address_v6);
+            tcp.set_dst_port(tcp_proxy_port);
+
+            tcp.compute_checksum_v6(gateway_v6, address_v6);
+        }
+
+        ProcessResult::WriteBack
+    }
+
+    fn process_udp_v4_packet(
+        &self,
+        ipv4: &mut net_packet::ipv4::Ipv4Header,
+        udp: &mut net_packet::udp::UdpHeader,
+        address_v4: Ipv4Addr,
+        gateway_v4: Ipv4Addr,
+    ) -> ProcessResult {
+        tracing::debug!("UDPv4 packet: {:?}", udp);
+        ProcessResult::Consume
+    }
+
+    fn process_udp_v6_packet(
+        &self,
+        ipv6: &mut net_packet::ipv6::Ipv6Header,
+        udp: &mut net_packet::udp::UdpHeader,
+        address_v6: Ipv6Addr,
+        gateway_v6: Ipv6Addr,
+    ) -> ProcessResult {
+        tracing::debug!("UDPv6 packet: {:?}", udp);
+        ProcessResult::Consume
+    }
+
+    fn process_icmp_v4_packet(
+        &self,
+        ipv4: &mut net_packet::ipv4::Ipv4Header,
+        icmp: &mut net_packet::icmpv4::Icmpv4Header,
+        address_v4: Ipv4Addr,
+        gateway_v4: Ipv4Addr,
+    ) -> ProcessResult {
+        tracing::debug!("ICMPv4 packet: {:?}", icmp);
+        ProcessResult::Consume
+    }
+
+    fn process_icmp_v6_packet(
+        &self,
+        ipv6: &mut net_packet::ipv6::Ipv6Header,
+        icmp: &mut net_packet::icmpv6::Icmpv6Header,
+        address_v6: Ipv6Addr,
+        gateway_v6: Ipv6Addr,
+    ) -> ProcessResult {
+        tracing::debug!("ICMPv6 packet: {:?}", icmp);
+        ProcessResult::Consume
+    }
+
+    fn process_igmp_v4_packet(
+        &self,
+        ipv4: &mut net_packet::ipv4::Ipv4Header,
+        igmp: &mut net_packet::igmp::IgmpHeader,
+        address_v4: Ipv4Addr,
+        gateway_v4: Ipv4Addr,
+    ) -> ProcessResult {
+        tracing::debug!("IGMPv4 packet: {:?}", igmp);
+        ProcessResult::Consume
+    }
+
+    fn process_igmp_v6_packet(
+        &self,
+        ipv6: &mut net_packet::ipv6::Ipv6Header,
+        igmp: &mut net_packet::igmp::IgmpHeader,
+        address_v6: Ipv6Addr,
+        gateway_v6: Ipv6Addr,
+    ) -> ProcessResult {
+        tracing::debug!("IGMPv6 packet: {:?}", igmp);
         ProcessResult::Consume
     }
 
@@ -326,9 +402,8 @@ impl TunService {
         self.tcp_proxy_port.load(Ordering::Relaxed)
     }
 
-    async fn bind_tcp_proxy(self: &Arc<Self>, if_addr_v4: Ipv4Addr) -> Result<TcpListener> {
-        let default_address = SocketAddr::new(IpAddr::V4(if_addr_v4), 0);
-        tracing::info!("default_address: {:?}", default_address);
+    async fn bind_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<TcpListener> {
+        let default_address = SocketAddr::new(if_addr, 0);
 
         // bind may hang forever on a newly created interface (Windows bug, need check on linux),
         // so retry with a timeout on each attempt.
