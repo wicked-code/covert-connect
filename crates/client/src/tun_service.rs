@@ -35,7 +35,7 @@ enum ProcessResult {
 
 pub struct TunService {
     router: Weak<Router>,
-    tpc_proxy_nat: Arc<TcpProxyNat>,
+    tcp_proxy_nat: Arc<TcpProxyNat>,
     tcp_proxy_port: AtomicU16,
 }
 
@@ -43,7 +43,7 @@ impl TunService {
     pub fn new(router: Weak<Router>) -> Arc<Self> {
         Arc::new(Self {
             router,
-            tpc_proxy_nat: Arc::new(TcpProxyNat::new()),
+            tcp_proxy_nat: TcpProxyNat::new(),
             tcp_proxy_port: AtomicU16::new(0),
         })
     }
@@ -52,6 +52,8 @@ impl TunService {
         let outbound_ip = find_outbound_ip().await?;
 
         let (if_addr_v4, if_addr_v6) = self.init_tun().await?;
+
+        self.tcp_proxy_nat.init().await?;
         self.serve_tcp_proxy(outbound_ip, if_addr_v4, if_addr_v6).await
     }
 
@@ -71,7 +73,7 @@ impl TunService {
                     let router = self.router.upgrade().unwrap().clone();
                     tokio::task::spawn(async move {
                         let port = client_addr.port();
-                        let Ok(session) = self_clone.tpc_proxy_nat.get_session(port) else {
+                        let Ok(session) = self_clone.tcp_proxy_nat.get_session(port) else {
                             tracing::error!("session not found for port {}", port);
                             return;
                         };
@@ -93,7 +95,7 @@ impl TunService {
                             }
                         }
 
-                        self_clone.tpc_proxy_nat.delete_session(port, session.src_addr);
+                        self_clone.tcp_proxy_nat.on_session_closed(port, session.src_addr);
                     });
                 }
                 Err(error) => {
@@ -220,7 +222,7 @@ impl TunService {
                     NextHeader::Tcp(mut tcp) => {
                         let tcp_proxy_port = self.tcp_proxy_port();
                         if tcp.src_port() == tcp_proxy_port && ipv4.src_addr() == address_v4 {
-                            let Ok(session) = self.tpc_proxy_nat.get_session(tcp.dst_port()) else {
+                            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
                                 tracing::error!("session not found for port {}", tcp.dst_port());
                                 return ProcessResult::Consume;
                             };
@@ -243,7 +245,7 @@ impl TunService {
                             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
                             return ProcessResult::WriteBack;
                         } else {
-                            let nat_port = self.tpc_proxy_nat.get_port(
+                            let nat_port = self.tcp_proxy_nat.get_port(
                                 SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
                                 SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
                                 tcp_proxy_port,
