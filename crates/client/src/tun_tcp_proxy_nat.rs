@@ -7,6 +7,9 @@ use std::{
     sync::{Arc, atomic::AtomicU16},
 };
 
+const MIN_NAT_PORT: u16 = 10000;
+const MAX_NAT_PORT: u16 = 65535;
+
 pub struct TcpProxySession {
     pub src_addr: SocketAddr,
     pub dst_addr: SocketAddr,
@@ -23,7 +26,7 @@ impl TcpProxyNat {
         Self {
             sessions: RwLock::new(FxHashMap::default()),
             ports: RwLock::new(FxHashMap::default()),
-            port_index: AtomicU16::new(10000),
+            port_index: AtomicU16::new(MIN_NAT_PORT),
         }
     }
 
@@ -40,10 +43,14 @@ impl TcpProxyNat {
             None => {
                 drop(ports);
 
-                // TODO: ??? handle port overflow (store empty port)
-                let port = self.port_index.fetch_add(1, Ordering::Relaxed);
-                if port + 1 == proxy_port {
-                    self.port_index.fetch_add(1, Ordering::Relaxed);
+                let mut port = self.port_index.fetch_add(1, Ordering::Relaxed);
+                while port >= MAX_NAT_PORT || port == proxy_port || self.sessions.read().contains_key(&port) {
+                    if port >= MAX_NAT_PORT {
+                        self.port_index.store(MIN_NAT_PORT, Ordering::Relaxed);
+                        port = MIN_NAT_PORT;
+                    } else {
+                        port = self.port_index.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
 
                 let session = Arc::new(TcpProxySession { src_addr, dst_addr });
