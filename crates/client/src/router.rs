@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::SocketAddr,
     path::Path,
     sync::{
         Arc,
@@ -11,22 +11,17 @@ use std::{
 use sys_process::{Protocol, process_path_by_local_addr};
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
-    net::{TcpStream, TcpSocket},
     sync::RwLock,
 };
 
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use tokio_rustls::{
-    TlsConnector,
-    client::TlsStream,
-    rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
-};
 
 use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
     protocol::{self, SelectedServer, Server},
-    streams::{ttfb_stream::TtfbStream, upgrade_stream::UgradeStream},
+    streams::ttfb_stream::TtfbStream,
+    transport::{StreamType, Transport},
     tun_service::TunService,
 };
 use crypto::config::ProtocolConfig;
@@ -47,38 +42,20 @@ pub struct Router {
     direct_apps: RwLock<Vec<String>>,
     direct_domains: RwLock<Vec<String>>,
 
-    tls_cfg: Arc<rustls::ClientConfig>,
-
     tun_service: Arc<TunService>,
-}
-
-enum StreamType {
-    TcpStream(TcpStream),
-    UgradeStream(UgradeStream<TlsStream<TcpStream>>),
+    transport: Arc<Transport>,
 }
 
 impl Router {
     pub fn new(state: RouterState) -> Result<Arc<Self>> {
-        let root_store = RootCertStore {
-            roots: webpki_roots::TLS_SERVER_ROOTS.into(),
-        };
-        let mut tls_cfg = rustls::ClientConfig::builder()
-            .with_root_certificates(root_store)
-            .with_no_client_auth();
-
-        // it's ok to set it true, because we have internal replay protection
-        // it's default to 10 sec thus replay may result in outbound connection only if sent in less than 10 sec
-        // moreover if outbound ip is different there is no practical usage of such replay
-        tls_cfg.enable_early_data = true;
-        tls_cfg.resumption = tls_cfg.resumption.tls12_resumption(Tls12Resumption::SessionIdOnly);
         Ok(Arc::new_cyclic(|weak_self| Router {
             tun_service: TunService::new(weak_self.clone()),
             servers: Default::default(),
             direct_apps: Default::default(),
             direct_domains: Default::default(),
             state: RwLock::new(state),
-            tls_cfg: Arc::new(tls_cfg),
             initialized: AtomicBool::new(false),
+            transport: Transport::new(),
         }))
     }
 
@@ -268,9 +245,9 @@ impl Router {
     pub async fn get_server_protocol(&self, host: &str, key: &str) -> Result<ProtocolConfig> {
         let conn_cfg = ServerConnectConfig::new(host, key).await?;
 
-        // TODO: ??? move outbound connect to tun_service
         match self
-            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path, IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
+            .transport
+            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::get_server_protocol(stream, key).await,
@@ -311,8 +288,7 @@ impl Router {
 
         let rng = ChaCha20Rng::from_entropy();
         let res = self
-            // TODO: ??? move outbound connect to tun_service
-            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng, IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
+            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng)
             .await;
 
         let ttfb = ttfb.load(Ordering::Relaxed) as usize;
@@ -477,6 +453,7 @@ impl Router {
 
     pub async fn serve(&self) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
+        self.transport.init().await?;
         self.tun_service.clone().serve().await
     }
 
@@ -485,15 +462,14 @@ impl Router {
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target_host: String,
         client_addr: SocketAddr,
-        outbound_ip: IpAddr,
-    ) -> Result<Option<impl AsyncWriteExt + Unpin + AsyncRead>> {
+    ) -> Result<()> {
         // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
         // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
         let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            let res = self.start_tunnel_with_server(client, target_host, server, rng, outbound_ip).await;
+            let res = self.start_tunnel_with_server(client, target_host, server, rng).await;
             // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
             // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
             // ignore unexpected-eof it's not a problem in our case
@@ -504,10 +480,11 @@ impl Router {
                     res?;
                 }
             }
-            
-            Ok(None)
+
+            Ok(())
         } else {
-            Ok(Some(client))
+            // TODO: ??? use ip instead of parse
+            self.transport.direct_transfer(client, target_host.parse()?).await
         }
     }
 
@@ -517,10 +494,10 @@ impl Router {
         target_host: String,
         selected: SelectedServer,
         rng: impl CryptoRng + Rng,
-        outbound_ip: IpAddr,
     ) -> Result<()> {
         match self
-            .connect(selected.address, &selected.host, &selected.url_path, outbound_ip)
+            .transport
+            .connect(selected.address, &selected.host, &selected.url_path)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, target_host, rng, selected).await,
@@ -528,31 +505,5 @@ impl Router {
                 protocol::process_tunnel(stream, client, target_host, rng, selected).await
             }
         }
-    }
-
-    async fn connect(&self, address: SocketAddr, host: &str, url_path: &Option<String>, outbound_ip: IpAddr) -> Result<StreamType> {
-        let outbound_address = SocketAddr::new(outbound_ip, 0);
-
-        // bind socket to outbound IF
-        let socket = TcpSocket::new_v4()?;
-        socket.bind(outbound_address)?;
-
-        let server = socket.connect(address).await?;        
-        Ok(if let Some(http_path) = url_path {
-            // HTTPS connect
-            let host = if let Some(pos) = host.rfind(':') {
-                &host[..pos]
-            } else {
-                host
-            };
-
-            let domain = pki_types::ServerName::try_from(host)?.to_owned();
-            let tls_conn = TlsConnector::from(self.tls_cfg.clone());
-            let server = tls_conn.connect(domain, server).await?;
-
-            StreamType::UgradeStream(UgradeStream::from_stream(server, host, http_path))
-        } else {
-            StreamType::TcpStream(server)
-        })
     }
 }

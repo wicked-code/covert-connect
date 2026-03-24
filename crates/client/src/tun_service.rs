@@ -7,11 +7,9 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result, anyhow};
-use if_addrs::get_if_addrs;
+use anyhow::{Result, anyhow};
 use tokio::{
-    io::{AsyncRead, AsyncWriteExt},
-    net::{TcpListener, TcpSocket, UdpSocket},
+    net::TcpListener,
     time::{sleep, timeout},
 };
 
@@ -46,23 +44,21 @@ impl TunService {
     }
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
-        let outbound_ip = find_outbound_ip().await?;
-
         let (if_addr_v4, if_addr_v6) = self.init_tun().await?;
 
         self.tcp_proxy_nat.init().await?;
 
         let self_clone = self.clone();
         tokio::spawn(async move {
-            if let Err(e) = self_clone.serve_tcp_proxy(outbound_ip, IpAddr::V6(if_addr_v6)).await {
+            if let Err(e) = self_clone.serve_tcp_proxy(IpAddr::V6(if_addr_v6)).await {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
             }
         });
 
-        self.serve_tcp_proxy(outbound_ip, IpAddr::V4(if_addr_v4)).await
+        self.serve_tcp_proxy(IpAddr::V4(if_addr_v4)).await
     }
 
-    async fn serve_tcp_proxy(self: &Arc<Self>, outbound_ip: IpAddr, if_addr: IpAddr) -> Result<()> {
+    async fn serve_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<()> {
         let mut listener = self.bind_tcp_proxy(if_addr).await?;
         loop {
             let result = listener.accept().await;
@@ -78,20 +74,8 @@ impl TunService {
                         };
 
                         let target = session.dst_addr;
-                        match router
-                            .start_tunnel(stream, target.to_string(), session.src_addr, outbound_ip)
-                            .await
-                        {
-                            Ok(res) => {
-                                if let Some(stream) = res {
-                                    if let Err(err) = self_clone.direct_connection(stream, target, outbound_ip).await {
-                                        tracing::error!("connection error: {:?}", err);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!("server io error: {:?}", e);
-                            }
+                        if let Err(err) = router.start_tunnel(stream, target.to_string(), session.src_addr).await {
+                            tracing::warn!("server io error: {:?}", err);
                         }
 
                         self_clone.tcp_proxy_nat.on_session_closed(port, session.src_addr);
@@ -202,14 +186,18 @@ impl TunService {
             IpHeader::V4(mut ipv4) => match ip.next_header {
                 NextHeader::Tcp(mut tcp) => self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4),
                 NextHeader::Udp(mut udp) => self.process_udp_v4_packet(&mut ipv4, &mut udp, address_v4, gateway_v4),
-                NextHeader::Icmpv4(mut icmp) => self.process_icmp_v4_packet(&mut ipv4, &mut icmp, address_v4, gateway_v4),
+                NextHeader::Icmpv4(mut icmp) => {
+                    self.process_icmp_v4_packet(&mut ipv4, &mut icmp, address_v4, gateway_v4)
+                }
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v4_packet(&mut ipv4, &mut igmp, address_v4, gateway_v4),
                 _ => ProcessResult::Consume,
             },
             IpHeader::V6(mut ipv6) => match ip.next_header {
                 NextHeader::Tcp(mut tcp) => self.process_tcp_v6_packet(&mut ipv6, &mut tcp, address_v6, gateway_v6),
                 NextHeader::Udp(mut udp) => self.process_udp_v6_packet(&mut ipv6, &mut udp, address_v6, gateway_v6),
-                NextHeader::Icmpv6(mut icmp) => self.process_icmp_v6_packet(&mut ipv6, &mut icmp, address_v6, gateway_v6),
+                NextHeader::Icmpv6(mut icmp) => {
+                    self.process_icmp_v6_packet(&mut ipv6, &mut icmp, address_v6, gateway_v6)
+                }
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v6_packet(&mut ipv6, &mut igmp, address_v6, gateway_v6),
                 _ => ProcessResult::Consume,
             },
@@ -378,26 +366,6 @@ impl TunService {
         ProcessResult::Consume
     }
 
-    async fn direct_connection(
-        &self,
-        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
-        target: SocketAddr,
-        outbound_ip: IpAddr,
-    ) -> Result<()> {
-        tracing::info!("direct connection to {}", target);
-
-        let outbound_address = SocketAddr::new(outbound_ip, 0);
-
-        // bind socket to outbound IF
-        let socket = TcpSocket::new_v4()?;
-        socket.bind(outbound_address)?;
-
-        let mut server = socket.connect(target).await?;
-
-        tokio::io::copy_bidirectional(&mut client, &mut server).await?;
-        Ok(())
-    }
-
     fn tcp_proxy_port(&self) -> u16 {
         self.tcp_proxy_port.load(Ordering::Relaxed)
     }
@@ -438,47 +406,4 @@ impl TunService {
 
         Err(last_err.unwrap_or_else(|| anyhow!("failed to bind to {}", default_address)))
     }
-}
-
-async fn find_outbound_ip() -> Result<IpAddr> {
-    // try public dns
-    // TODO: ??? move ips to config or allow override via config
-    for target in ["8.8.8.8", "1.1.1.1", "208.67.222.222"] {
-        if let Ok(ip) = get_outbound_ip(IpAddr::V4(target.parse()?)).await {
-            return Ok(ip);
-        }
-    }
-
-    // fallback to IPv6 if IPv4 fails
-    for target in ["2001:4860:4860::8888", "2606:4700:4700::1111", "2620:119:35::35"] {
-        if let Ok(ip) = get_outbound_ip(IpAddr::V6(target.parse()?)).await {
-            tracing::warn!("found V6");
-            return Ok(ip);
-        }
-    }
-
-    // fallback to first IF which is not a loopback
-    get_if_addrs()?
-        .into_iter()
-        .find_map(|iface| {
-            if !iface.is_loopback() && iface.ip().is_ipv4() {
-                tracing::warn!("found loopback");
-                Some(iface.ip())
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| anyhow!("outbound ip not found"))
-}
-
-async fn get_outbound_ip(target: IpAddr) -> Result<IpAddr> {
-    let bind_addr = if target.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
-    let socket = UdpSocket::bind(bind_addr).await?;
-
-    let target = SocketAddr::new(target, 53);
-    socket
-        .connect(target)
-        .await
-        .with_context(|| format!("Failed to connect UDP socket to {}", target))?;
-    Ok(socket.local_addr()?.ip())
 }
