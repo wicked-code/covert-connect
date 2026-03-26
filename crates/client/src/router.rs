@@ -461,6 +461,7 @@ impl Router {
         &self,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target_host: String,
+        target_addr: SocketAddr,
         client_addr: SocketAddr,
     ) -> Result<()> {
         // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
@@ -469,7 +470,7 @@ impl Router {
         let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            let res = self.start_tunnel_with_server(client, target_host, server, rng).await;
+            let res = self.start_tunnel_with_server(client, target_addr.to_string(), server, rng).await;
             // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
             // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
             // ignore unexpected-eof it's not a problem in our case
@@ -484,7 +485,7 @@ impl Router {
             Ok(())
         } else {
             // TODO: ??? use ip instead of parse
-            self.transport.direct_transfer(client, target_host.parse()?).await
+            self.transport.direct_transfer(client, target_addr).await
         }
     }
 

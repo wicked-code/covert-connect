@@ -28,6 +28,7 @@ pub struct TcpProxyNat {
     closed_sessions: Mutex<Vec<TcpProxyClosedSession>>,
     ports: RwLock<FxHashMap<SocketAddr, u16>>,
     port_index: AtomicU16,
+    tcp_proxy_port: AtomicU16,
 }
 
 impl TcpProxyNat {
@@ -37,6 +38,7 @@ impl TcpProxyNat {
             closed_sessions: Mutex::new(Vec::new()),
             ports: RwLock::new(FxHashMap::default()),
             port_index: AtomicU16::new(MIN_NAT_PORT),
+            tcp_proxy_port: AtomicU16::new(0),
         })
     }
 
@@ -73,7 +75,7 @@ impl TcpProxyNat {
         sessions.get(&port).cloned().ok_or_else(|| anyhow!("Session not found"))
     }
 
-    pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr, proxy_port: u16) -> u16 {
+    pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr) -> u16 {
         let ports = self.ports.read();
         // TODO: ???? is it possible to have different src_addr.ip() but same src_addr.port()?
         match ports.get(&src_addr) {
@@ -82,7 +84,8 @@ impl TcpProxyNat {
                 drop(ports);
 
                 let mut port = self.port_index.fetch_add(1, Ordering::Relaxed);
-                while port >= MAX_NAT_PORT || port == proxy_port || self.sessions.read().contains_key(&port) {
+                let tcp_proxy_port = self.tcp_proxy_port();
+                while port >= MAX_NAT_PORT || port == tcp_proxy_port || self.sessions.read().contains_key(&port) {
                     if port >= MAX_NAT_PORT {
                         self.port_index.store(MIN_NAT_PORT, Ordering::Relaxed);
                         port = MIN_NAT_PORT;
@@ -98,6 +101,14 @@ impl TcpProxyNat {
                 port
             }
         }
+    }
+
+    pub fn set_tcp_proxy_port(&self, port: u16) {
+        self.tcp_proxy_port.store(port, Ordering::Relaxed);
+    }
+
+    pub fn tcp_proxy_port(&self) -> u16 {
+        self.tcp_proxy_port.load(Ordering::Relaxed)
     }
 
     pub fn on_session_closed(&self, port: u16, src_addr: SocketAddr) {

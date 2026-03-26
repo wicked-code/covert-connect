@@ -1,9 +1,6 @@
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    sync::{
-        Arc, Weak,
-        atomic::{AtomicU16, Ordering},
-    },
+    sync::{Arc, Weak},
     time::Duration,
 };
 
@@ -13,7 +10,10 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat};
+use crate::{
+    router::Router,
+    tun_tcp_proxy_nat::TcpProxyNat,
+};
 use futures_util::StreamExt;
 use net_packet::ip::{IpHeader, IpPacket, NextHeader};
 
@@ -30,61 +30,72 @@ enum ProcessResult {
 
 pub struct TunService {
     router: Weak<Router>,
-    tcp_proxy_nat: Arc<TcpProxyNat>,
-    tcp_proxy_port: AtomicU16,
+    tcp_proxy_nat_v4: Arc<TcpProxyNat>,
+    tcp_proxy_nat_v6: Arc<TcpProxyNat>,
 }
 
 impl TunService {
     pub fn new(router: Weak<Router>) -> Arc<Self> {
         Arc::new(Self {
             router,
-            tcp_proxy_nat: TcpProxyNat::new(),
-            tcp_proxy_port: AtomicU16::new(0),
+            tcp_proxy_nat_v4: TcpProxyNat::new(),
+            tcp_proxy_nat_v6: TcpProxyNat::new(),
         })
     }
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
+        // TODO: ??? add stop and serve should run more than once!!!
         let (if_addr_v4, if_addr_v6) = self.init_tun().await?;
 
-        self.tcp_proxy_nat.init().await?;
+        self.tcp_proxy_nat_v4.init().await?;
+        self.tcp_proxy_nat_v6.init().await?;
 
         let self_clone = self.clone();
+        let tcp_proxy_nat_v6 = self.tcp_proxy_nat_v6.clone();
         tokio::spawn(async move {
-            if let Err(e) = self_clone.serve_tcp_proxy(IpAddr::V6(if_addr_v6)).await {
+            if let Err(e) = self_clone
+                .serve_tcp_proxy(IpAddr::V6(if_addr_v6), tcp_proxy_nat_v6)
+                .await
+            {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
             }
         });
 
-        self.serve_tcp_proxy(IpAddr::V4(if_addr_v4)).await
+        self.serve_tcp_proxy(IpAddr::V4(if_addr_v4), self.tcp_proxy_nat_v4.clone())
+            .await
     }
 
-    async fn serve_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<()> {
-        let mut listener = self.bind_tcp_proxy(if_addr).await?;
+    async fn serve_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr, tcp_proxy_nat: Arc<TcpProxyNat>) -> Result<()> {
+        // TODO: ??? do not store weak reference, pass router to serve and then to serve_tcp_proxy
+        let mut listener = self.bind_tcp_proxy(if_addr, tcp_proxy_nat.clone()).await?;
         loop {
             let result = listener.accept().await;
             match result {
                 Ok((stream, client_addr)) => {
-                    let self_clone = self.clone();
+                    let tcp_proxy_nat = tcp_proxy_nat.clone();
                     let router = self.router.upgrade().unwrap().clone();
                     tokio::task::spawn(async move {
                         let port = client_addr.port();
-                        let Ok(session) = self_clone.tcp_proxy_nat.get_session(port) else {
+                        let Ok(session) = tcp_proxy_nat.get_session(port) else {
                             tracing::error!("session not found for port {}", port);
                             return;
                         };
 
                         let target = session.dst_addr;
-                        if let Err(err) = router.start_tunnel(stream, target.to_string(), session.src_addr).await {
+                        if let Err(err) = router
+                            .start_tunnel(stream, target.to_string(), target, session.src_addr)
+                            .await
+                        {
                             tracing::warn!("server io error: {:?}", err);
                         }
 
-                        self_clone.tcp_proxy_nat.on_session_closed(port, session.src_addr);
+                        tcp_proxy_nat.on_session_closed(port, session.src_addr);
                     });
                 }
                 Err(error) => {
                     drop(listener);
                     tracing::error!("accept failed: {:?}", error);
-                    listener = self.bind_tcp_proxy(if_addr).await?;
+                    listener = self.bind_tcp_proxy(if_addr, tcp_proxy_nat.clone()).await?;
                 }
             }
         }
@@ -211,9 +222,9 @@ impl TunService {
         address_v4: Ipv4Addr,
         gateway_v4: Ipv4Addr,
     ) -> ProcessResult {
-        let tcp_proxy_port = self.tcp_proxy_port();
+        let tcp_proxy_port = self.tcp_proxy_nat_v4.tcp_proxy_port();
         if tcp.src_port() == tcp_proxy_port && ipv4.src_addr() == address_v4 {
-            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
+            let Ok(session) = self.tcp_proxy_nat_v4.get_session(tcp.dst_port()) else {
                 tracing::error!("session not found for port {}", tcp.dst_port());
                 return ProcessResult::Consume;
             };
@@ -235,10 +246,9 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
-            let nat_port = self.tcp_proxy_nat.get_port(
+            let nat_port = self.tcp_proxy_nat_v4.get_port(
                 SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
-                tcp_proxy_port,
             );
 
             ipv4.set_src_addr(gateway_v4);
@@ -260,9 +270,9 @@ impl TunService {
         address_v6: Ipv6Addr,
         gateway_v6: Ipv6Addr,
     ) -> ProcessResult {
-        let tcp_proxy_port = self.tcp_proxy_port();
+        let tcp_proxy_port = self.tcp_proxy_nat_v6.tcp_proxy_port();
         if tcp.src_port() == tcp_proxy_port && ipv6.src_addr() == address_v6 {
-            let Ok(session) = self.tcp_proxy_nat.get_session(tcp.dst_port()) else {
+            let Ok(session) = self.tcp_proxy_nat_v6.get_session(tcp.dst_port()) else {
                 tracing::error!("session not found for port {}", tcp.dst_port());
                 return ProcessResult::Consume;
             };
@@ -283,10 +293,9 @@ impl TunService {
 
             tcp.compute_checksum_v6(src_ip_v6, dst_ip_v6);
         } else {
-            let nat_port = self.tcp_proxy_nat.get_port(
+            let nat_port = self.tcp_proxy_nat_v6.get_port(
                 SocketAddr::new(IpAddr::V6(ipv6.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), tcp.dst_port()),
-                tcp_proxy_port,
             );
 
             ipv6.set_src_addr(gateway_v6);
@@ -366,14 +375,10 @@ impl TunService {
         ProcessResult::Consume
     }
 
-    fn tcp_proxy_port(&self) -> u16 {
-        self.tcp_proxy_port.load(Ordering::Relaxed)
-    }
-
-    async fn bind_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<TcpListener> {
+    async fn bind_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr, tcp_proxy_nat: Arc<TcpProxyNat>) -> Result<TcpListener> {
         let default_address = SocketAddr::new(if_addr, 0);
 
-        // bind may hang forever on a newly created interface (Windows bug, need check on linux),
+        // Bind may hang forever on a newly created interface (Windows bug, needs checking on Linux),
         // so retry with a timeout on each attempt.
         let mut last_err = None;
         for attempt in 1..=MAX_BIND_ATTEMPTS {
@@ -386,7 +391,7 @@ impl TunService {
                 Ok(Ok(listener)) => {
                     let address = listener.local_addr()?;
                     tracing::info!("proxy server started: {:?}", address);
-                    self.tcp_proxy_port.store(address.port(), Ordering::Relaxed);
+                    tcp_proxy_nat.set_tcp_proxy_port(address.port());
                     return Ok(listener);
                 }
                 Ok(Err(err)) => {
