@@ -1,16 +1,23 @@
 use anyhow::{Result, anyhow};
-use parking_lot::{RwLock, Mutex};
+use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
-use std::sync::atomic::Ordering;
 use std::{
-    net::SocketAddr,
-    sync::{Arc, atomic::AtomicU16},
+    net::{SocketAddr, IpAddr},
+    sync::{Arc, atomic::{AtomicU16, Ordering}},
+    time::Duration,
 };
+use tokio::{
+    net::TcpListener,
+    time::{sleep, timeout},
+};
+use crate::router::Router;
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
+const BIND_TIMEOUT: Duration = Duration::from_millis(1000);
+const MAX_BIND_ATTEMPTS: u32 = 15;
 
-const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 pub struct TcpProxySession {
     pub src_addr: SocketAddr,
@@ -70,6 +77,79 @@ impl TcpProxyNat {
         Ok(())
     }
 
+    pub async fn serve_proxy(self: &Arc<Self>, if_addr: IpAddr, router: Arc<Router>) -> Result<()> {
+        // TODO: ??? do not store weak reference, pass router to serve and then to serve_tcp_proxy
+        let mut listener = self.bind_proxy(if_addr).await?;
+        loop {
+            let result = listener.accept().await;
+            match result {
+                Ok((stream, client_addr)) => {
+                    let self_clone = self.clone();
+                    let router = router.clone();
+                    tokio::task::spawn(async move {
+                        let port = client_addr.port();
+                        let Ok(session) = self_clone.get_session(port) else {
+                            tracing::error!("session not found for port {}", port);
+                            return;
+                        };
+
+                        let target = session.dst_addr;
+                        if let Err(err) = router
+                            .start_tunnel(stream, target.to_string(), target, session.src_addr)
+                            .await
+                        {
+                            tracing::warn!("server io error: {:?}", err);
+                        }
+
+                        self_clone.on_session_closed(port, session.src_addr);
+                    });
+                }
+                Err(error) => {
+                    drop(listener);
+                    tracing::error!("accept failed: {:?}", error);
+                    listener = self.bind_proxy(if_addr).await?;
+                }
+            }
+        }
+    }
+
+    async fn bind_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<TcpListener> {
+        let default_address = SocketAddr::new(if_addr, 0);
+
+        // Bind may hang forever on a newly created interface (Windows bug, needs checking on Linux),
+        // so retry with a timeout on each attempt.
+        let mut last_err = None;
+        for attempt in 1..=MAX_BIND_ATTEMPTS {
+            match timeout(BIND_TIMEOUT, async {
+                sleep(BIND_TIMEOUT).await;
+                TcpListener::bind(default_address).await
+            })
+            .await
+            {
+                Ok(Ok(listener)) => {
+                    let address = listener.local_addr()?;
+                    tracing::info!("proxy server started: {:?}", address);
+                    self.set_proxy_port(address.port());
+                    return Ok(listener);
+                }
+                Ok(Err(err)) => {
+                    if attempt > 4 {
+                        tracing::warn!("bind attempt {}/{} failed: {}", attempt, MAX_BIND_ATTEMPTS, err);
+                    }
+                    last_err = Some(err.into());
+                }
+                Err(_) => {
+                    if attempt > 4 {
+                        tracing::warn!("bind attempt {}/{} timed out", attempt, MAX_BIND_ATTEMPTS);
+                    }
+                    last_err = Some(anyhow!("bind to {} timed out", default_address));
+                }
+            }
+        }
+
+        Err(last_err.unwrap_or_else(|| anyhow!("failed to bind to {}", default_address)))
+    }
+
     pub fn get_session(&self, port: u16) -> Result<Arc<TcpProxySession>> {
         let sessions = self.sessions.read();
         sessions.get(&port).cloned().ok_or_else(|| anyhow!("Session not found"))
@@ -103,7 +183,7 @@ impl TcpProxyNat {
         }
     }
 
-    pub fn set_tcp_proxy_port(&self, port: u16) {
+    fn set_proxy_port(&self, port: u16) {
         self.tcp_proxy_port.store(port, Ordering::Relaxed);
     }
 
@@ -113,7 +193,11 @@ impl TcpProxyNat {
 
     pub fn on_session_closed(&self, port: u16, src_addr: SocketAddr) {
         // delete session after timeout since there may be some packets in flight after session closed
-        self.closed_sessions.lock().push(TcpProxyClosedSession { src_addr, port, time: std::time::Instant::now() });
+        self.closed_sessions.lock().push(TcpProxyClosedSession {
+            src_addr,
+            port,
+            time: std::time::Instant::now(),
+        });
     }
 
     fn delete_session(&self, port: u16, src_addr: SocketAddr) {

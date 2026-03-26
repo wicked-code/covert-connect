@@ -48,8 +48,8 @@ pub struct Router {
 
 impl Router {
     pub fn new(state: RouterState) -> Result<Arc<Self>> {
-        Ok(Arc::new_cyclic(|weak_self| Router {
-            tun_service: TunService::new(weak_self.clone()),
+        Ok(Arc::new(Router {
+            tun_service: TunService::new(),
             servers: Default::default(),
             direct_apps: Default::default(),
             direct_domains: Default::default(),
@@ -450,11 +450,11 @@ impl Router {
     pub fn is_initialized(&self) -> bool {
         self.initialized.load(Ordering::Relaxed)
     }
-
-    pub async fn serve(&self) -> Result<()> {
+ 
+    pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
         self.transport.init().await?;
-        self.tun_service.clone().serve().await
+        self.tun_service.clone().serve(self.clone()).await
     }
 
     pub async fn start_tunnel(
@@ -470,7 +470,9 @@ impl Router {
         let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            let res = self.start_tunnel_with_server(client, target_addr.to_string(), server, rng).await;
+            let res = self
+                .start_tunnel_with_server(client, target_addr.to_string(), server, rng)
+                .await;
             // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
             // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
             // ignore unexpected-eof it's not a problem in our case

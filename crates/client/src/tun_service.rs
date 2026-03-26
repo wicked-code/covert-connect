@@ -19,9 +19,6 @@ use net_packet::ip::{IpHeader, IpPacket, NextHeader};
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
-const BIND_TIMEOUT: Duration = Duration::from_millis(1000);
-const MAX_BIND_ATTEMPTS: u32 = 15;
-
 #[derive(PartialEq)]
 enum ProcessResult {
     Consume,
@@ -29,21 +26,19 @@ enum ProcessResult {
 }
 
 pub struct TunService {
-    router: Weak<Router>,
     tcp_proxy_nat_v4: Arc<TcpProxyNat>,
     tcp_proxy_nat_v6: Arc<TcpProxyNat>,
 }
 
 impl TunService {
-    pub fn new(router: Weak<Router>) -> Arc<Self> {
+    pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            router,
             tcp_proxy_nat_v4: TcpProxyNat::new(),
             tcp_proxy_nat_v6: TcpProxyNat::new(),
         })
     }
 
-    pub async fn serve(self: &Arc<Self>) -> Result<()> {
+    pub async fn serve(self: &Arc<Self>, router: Arc<Router>) -> Result<()> {
         // TODO: ??? add stop and serve should run more than once!!!
         let (if_addr_v4, if_addr_v6) = self.init_tun().await?;
 
@@ -51,54 +46,19 @@ impl TunService {
         self.tcp_proxy_nat_v6.init().await?;
 
         let self_clone = self.clone();
-        let tcp_proxy_nat_v6 = self.tcp_proxy_nat_v6.clone();
+        let router_clone = router.clone();
         tokio::spawn(async move {
             if let Err(e) = self_clone
-                .serve_tcp_proxy(IpAddr::V6(if_addr_v6), tcp_proxy_nat_v6)
+                .tcp_proxy_nat_v6
+                .serve_proxy(IpAddr::V6(if_addr_v6), router_clone)
                 .await
             {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
             }
         });
 
-        self.serve_tcp_proxy(IpAddr::V4(if_addr_v4), self.tcp_proxy_nat_v4.clone())
+        self.tcp_proxy_nat_v4.serve_proxy(IpAddr::V4(if_addr_v4), router.clone())
             .await
-    }
-
-    async fn serve_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr, tcp_proxy_nat: Arc<TcpProxyNat>) -> Result<()> {
-        // TODO: ??? do not store weak reference, pass router to serve and then to serve_tcp_proxy
-        let mut listener = self.bind_tcp_proxy(if_addr, tcp_proxy_nat.clone()).await?;
-        loop {
-            let result = listener.accept().await;
-            match result {
-                Ok((stream, client_addr)) => {
-                    let tcp_proxy_nat = tcp_proxy_nat.clone();
-                    let router = self.router.upgrade().unwrap().clone();
-                    tokio::task::spawn(async move {
-                        let port = client_addr.port();
-                        let Ok(session) = tcp_proxy_nat.get_session(port) else {
-                            tracing::error!("session not found for port {}", port);
-                            return;
-                        };
-
-                        let target = session.dst_addr;
-                        if let Err(err) = router
-                            .start_tunnel(stream, target.to_string(), target, session.src_addr)
-                            .await
-                        {
-                            tracing::warn!("server io error: {:?}", err);
-                        }
-
-                        tcp_proxy_nat.on_session_closed(port, session.src_addr);
-                    });
-                }
-                Err(error) => {
-                    drop(listener);
-                    tracing::error!("accept failed: {:?}", error);
-                    listener = self.bind_tcp_proxy(if_addr, tcp_proxy_nat.clone()).await?;
-                }
-            }
-        }
     }
 
     async fn init_tun(self: &Arc<Self>) -> Result<(Ipv4Addr, Ipv6Addr)> {
@@ -373,42 +333,5 @@ impl TunService {
     ) -> ProcessResult {
         tracing::debug!("IGMPv6 packet: {:?}", igmp);
         ProcessResult::Consume
-    }
-
-    async fn bind_tcp_proxy(self: &Arc<Self>, if_addr: IpAddr, tcp_proxy_nat: Arc<TcpProxyNat>) -> Result<TcpListener> {
-        let default_address = SocketAddr::new(if_addr, 0);
-
-        // Bind may hang forever on a newly created interface (Windows bug, needs checking on Linux),
-        // so retry with a timeout on each attempt.
-        let mut last_err = None;
-        for attempt in 1..=MAX_BIND_ATTEMPTS {
-            match timeout(BIND_TIMEOUT, async {
-                sleep(BIND_TIMEOUT).await;
-                TcpListener::bind(default_address).await
-            })
-            .await
-            {
-                Ok(Ok(listener)) => {
-                    let address = listener.local_addr()?;
-                    tracing::info!("proxy server started: {:?}", address);
-                    tcp_proxy_nat.set_tcp_proxy_port(address.port());
-                    return Ok(listener);
-                }
-                Ok(Err(err)) => {
-                    if attempt > 4 {
-                        tracing::warn!("bind attempt {}/{} failed: {}", attempt, MAX_BIND_ATTEMPTS, err);
-                    }
-                    last_err = Some(err.into());
-                }
-                Err(_) => {
-                    if attempt > 4 {
-                        tracing::warn!("bind attempt {}/{} timed out", attempt, MAX_BIND_ATTEMPTS);
-                    }
-                    last_err = Some(anyhow!("bind to {} timed out", default_address));
-                }
-            }
-        }
-
-        Err(last_err.unwrap_or_else(|| anyhow!("failed to bind to {}", default_address)))
     }
 }
