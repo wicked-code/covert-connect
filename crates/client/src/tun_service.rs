@@ -1,19 +1,10 @@
+use anyhow::{Result, anyhow};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    sync::{Arc, Weak},
-    time::Duration,
+    sync::Arc,
 };
 
-use anyhow::{Result, anyhow};
-use tokio::{
-    net::TcpListener,
-    time::{sleep, timeout},
-};
-
-use crate::{
-    router::Router,
-    tun_tcp_proxy_nat::TcpProxyNat,
-};
+use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat};
 use futures_util::StreamExt;
 use net_packet::ip::{IpHeader, IpPacket, NextHeader};
 
@@ -57,7 +48,8 @@ impl TunService {
             }
         });
 
-        self.tcp_proxy_nat_v4.serve_proxy(IpAddr::V4(if_addr_v4), router.clone())
+        self.tcp_proxy_nat_v4
+            .serve_proxy(IpAddr::V4(if_addr_v4), router.clone())
             .await
     }
 
