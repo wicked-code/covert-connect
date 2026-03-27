@@ -32,7 +32,8 @@ sys-process.workspace = true
 net-packet.workspace = true
 
 if-addrs = "0.15.0"
-tun = {version = "0.8.6", features = ["async"]}
+#tun = {version = "0.8.6", features = ["async"]}
+tun = {git = "https://github.com/wicked-code/rust-tun", features = ["async"]}
 futures-util = "0.3.32"
 tokio-util = "0.7.18"
 network-interface = "2.0.5"

@@ -19,7 +19,7 @@ use rand_chacha::ChaCha20Rng;
 
 use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
-    protocol::{self, SelectedServer, Server},
+    protocol::{self, DataProtocol, SelectedServer, Server},
     streams::ttfb_stream::TtfbStream,
     transport::{StreamType, Transport},
     tun_service::TunService,
@@ -288,7 +288,7 @@ impl Router {
 
         let rng = ChaCha20Rng::from_entropy();
         let res = self
-            .start_tunnel_with_server(req_stream, domain.to_owned() + ":80", selected, rng)
+            .start_tunnel_with_server(req_stream, DataProtocol::Tcp, domain.to_owned() + ":80", selected, rng)
             .await;
 
         let ttfb = ttfb.load(Ordering::Relaxed) as usize;
@@ -454,12 +454,13 @@ impl Router {
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
         self.transport.init().await?;
-        self.tun_service.clone().serve(self.clone()).await
+        self.tun_service.serve(self.clone()).await
     }
 
     pub async fn start_tunnel(
         &self,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
+        data_protocol: DataProtocol,
         target_host: String,
         target_addr: SocketAddr,
         client_addr: SocketAddr,
@@ -471,7 +472,7 @@ impl Router {
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
             let res = self
-                .start_tunnel_with_server(client, target_addr.to_string(), server, rng)
+                .start_tunnel_with_server(client, data_protocol, target_addr.to_string(), server, rng)
                 .await;
             // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
             // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
@@ -494,6 +495,7 @@ impl Router {
     async fn start_tunnel_with_server(
         &self,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
+        data_protocol: DataProtocol,
         target_host: String,
         selected: SelectedServer,
         rng: impl CryptoRng + Rng,
@@ -503,9 +505,9 @@ impl Router {
             .connect(selected.address, &selected.host, &selected.url_path)
             .await?
         {
-            StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, target_host, rng, selected).await,
+            StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await,
             StreamType::UgradeStream(stream) => {
-                protocol::process_tunnel(stream, client, target_host, rng, selected).await
+                protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await
             }
         }
     }

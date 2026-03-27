@@ -137,14 +137,10 @@ impl<'a> UdpHeader<'a> {
         self.set_checksum(if result == 0 { 0xFFFF } else { result });
     }
 
-    /// Consumes the packet and splits it into the fixed UDP header and payload.
-    ///
-    /// The returned `UdpHeader` stores only the header slice, allowing the payload
-    /// slice to be used independently for parsing upper-layer packets.
+    /// Returns the payload bytes following the header.
     #[inline]
-    pub(crate) fn split(self) -> (Self, &'a mut [u8]) {
-        let (header, payload) = self.buf.split_at_mut(self.header_len());
-        (Self { buf: header }, payload)
+    pub fn payload(&self) -> &[u8] {
+        &self.buf[self.header_len()..]
     }
 }
 

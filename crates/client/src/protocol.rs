@@ -22,6 +22,12 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
+pub enum DataProtocol {
+    Tcp,
+    Udp,
+    Icmp, // TODO: ??? not supported yet
+}
+
 #[derive(Clone)]
 pub struct Server {
     pub config: ServerConfig,
@@ -194,7 +200,8 @@ pub async fn get_server_protocol(
 pub async fn process_tunnel(
     mut server: impl AsyncWriteExt + Unpin + AsyncRead,
     mut client: impl AsyncWriteExt + Unpin + AsyncRead,
-    host: String,
+    data_protocol: DataProtocol,
+    mut host: String,
     mut rng: impl CryptoRng + Rng,
     selected_server: SelectedServer,
 ) -> Result<()> {
@@ -205,6 +212,12 @@ pub async fn process_tunnel(
         header_padding,
         ..
     } = &selected_server.protocol;
+
+    match data_protocol {
+        DataProtocol::Tcp => (),
+        DataProtocol::Udp => host.insert(rng.gen_range(0..host.len() - 1), '!'),
+        DataProtocol::Icmp => host.insert(rng.gen_range(0..host.len() - 1), '~'),
+    };
 
     // prepare header
     let key_size = cipher_type.key_size();

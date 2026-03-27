@@ -20,12 +20,12 @@ use std::{
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpSocket, TcpStream, lookup_host},
+    net::{TcpListener, TcpSocket, TcpStream, UdpSocket, lookup_host},
     time::timeout,
 };
 
 pub const LOCAL_HOST: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max TCP packet size
+pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 
 async fn start_tunnel(
     stream: &mut TcpStream,
@@ -159,8 +159,11 @@ async fn start_tunnel(
         }
     };
 
+    let is_udp = host.contains('!');
+    let host = host.replace('!', "");
+
     // prefer ipv4
-    let addr = lookup_host(host)
+    let addr = lookup_host(&host)
         .await?
         .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc })
         .ok_or_else(|| anyhow!("host {host} notfound"))?;
@@ -176,22 +179,62 @@ async fn start_tunnel(
         ChaCha20Rng::from_entropy(),
     );
 
-    let mut out_stream = match cfg.out_address {
-        Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {
-            let socket = match out_addr {
-                IpAddr::V4(_) => TcpSocket::new_v4()?,
-                IpAddr::V6(_) => TcpSocket::new_v6()?,
-            };
+    if is_udp {
+        tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
-            socket.bind(SocketAddr::new(out_addr, 0))?;
-            socket.connect(addr).await?
+        let out_socket = UdpSocket::bind(match cfg.out_address {
+            Some(out_addr) => SocketAddr::new(out_addr, 0),
+            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+        })
+        .await?;
+
+        out_socket.connect(addr).await?;
+
+        let mut read_packet_len = 0;
+        let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
+        let mut recv_buf = vec![0u8; MAX_PACKET_SIZE];
+        loop {
+            tokio::select! {
+                result = if read_packet_len == 0 { client.read_exact(&mut read_buf) } else { client.read_exact(&mut read_buf[2..read_packet_len]) } => {
+                    let n = result?;
+                    if n < 2 { break; }
+                    if read_packet_len == 0 {
+                        read_packet_len = ((read_buf[0] as usize) << 8) + read_buf[1] as usize;
+                        if read_packet_len > MAX_PACKET_SIZE {
+                            anyhow::bail!("packet size too big");
+                        }
+                    } else {
+                        out_socket.send(&read_buf[2..read_packet_len]).await?;
+                        read_packet_len = 0;
+                    }
+                }
+                result = out_socket.recv(&mut recv_buf[2..]) => {
+                    let n = result?;
+                    if n == 0 { break; }
+                    recv_buf[0] = ((n >> 8) & 0xff) as u8;
+                    recv_buf[1] = (n & 0xff) as u8;
+                    client.write_all(&recv_buf[..n + 2]).await?;
+                }
+            }
         }
-        _ => TcpStream::connect(addr).await?,
-    };
+    } else {
+        let mut out_stream = match cfg.out_address {
+            Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {
+                let socket = match out_addr {
+                    IpAddr::V4(_) => TcpSocket::new_v4()?,
+                    IpAddr::V6(_) => TcpSocket::new_v6()?,
+                };
 
-    tracing::info!("CONNECT from {socket_addr} to {addr}");
+                socket.bind(SocketAddr::new(out_addr, 0))?;
+                socket.connect(addr).await?
+            }
+            _ => TcpStream::connect(addr).await?,
+        };
 
-    tokio::io::copy_bidirectional(&mut client, &mut out_stream).await?;
+        tracing::info!("CONNECT from {socket_addr} to {addr}");
+
+        tokio::io::copy_bidirectional(&mut client, &mut out_stream).await?;
+    }
 
     Ok(())
 }

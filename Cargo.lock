@@ -3342,8 +3342,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "tun"
 version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87dce40a7bfb165d8eb8e96f7463230f3d91b56aae21e0f1e56db60161962e1a"
+source = "git+https://github.com/wicked-code/rust-tun#9a9394bf055840d83b5e401f7ee7dd67929fc96c"
 dependencies = [
  "bytes",
  "cfg-if",

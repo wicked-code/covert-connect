@@ -10,7 +10,7 @@ use tokio::{
     net::TcpListener,
     time::{sleep, timeout},
 };
-use crate::router::Router;
+use crate::{protocol::DataProtocol, router::Router};
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
@@ -78,7 +78,6 @@ impl TcpProxyNat {
     }
 
     pub async fn serve_proxy(self: &Arc<Self>, if_addr: IpAddr, router: Arc<Router>) -> Result<()> {
-        // TODO: ??? do not store weak reference, pass router to serve and then to serve_tcp_proxy
         let mut listener = self.bind_proxy(if_addr).await?;
         loop {
             let result = listener.accept().await;
@@ -95,7 +94,7 @@ impl TcpProxyNat {
 
                         let target = session.dst_addr;
                         if let Err(err) = router
-                            .start_tunnel(stream, target.to_string(), target, session.src_addr)
+                            .start_tunnel(stream, DataProtocol::Tcp, target.to_string(), target, session.src_addr)
                             .await
                         {
                             tracing::warn!("server io error: {:?}", err);
