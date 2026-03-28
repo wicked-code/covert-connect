@@ -429,7 +429,7 @@ impl Router {
             100 / unweighted_count
         };
 
-        let rnd_val = rng.gen_range(0..avr_weight * servers.len());
+        let rnd_val = rng.gen_range(0..avr_weight * enabled_count);
 
         let mut cur_weight = 0_usize;
         for srv in servers.iter() {
