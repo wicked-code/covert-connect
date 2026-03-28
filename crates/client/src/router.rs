@@ -326,9 +326,14 @@ impl Router {
         target_host: &str,
         mut rng: impl CryptoRng + Rng,
         client_addr: SocketAddr,
+        data_protocol: &DataProtocol,
     ) -> Result<Option<SelectedServer>> {
         let mut process_name = String::from("");
-        match process_path_by_local_addr(client_addr, Protocol::TCP) {
+        match process_path_by_local_addr(client_addr, match data_protocol {
+            DataProtocol::Tcp => Protocol::TCP,
+            DataProtocol::Udp => Protocol::UDP,
+            DataProtocol::Icmp => Protocol::TCP,
+        }) {
             Ok(process_path) => {
                 tracing::info!("{} connecting to {}", process_path, target_host);
                 let a = Path::new(&process_path)
@@ -468,7 +473,7 @@ impl Router {
         // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
         // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
-        let selected = self.select_server(&target_host, &mut rng, client_addr).await?;
+        let selected = self.select_server(&target_host, &mut rng, client_addr, &data_protocol).await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
             let res = self
