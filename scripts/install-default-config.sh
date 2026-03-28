@@ -7,6 +7,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 SCRIPT_DIR=$( cd "$( dirname "$0" )" && pwd )
+mkdir -p "/etc/covert-connect"
 cp "$SCRIPT_DIR/../conf/default_server.yaml" "/etc/covert-connect/server.yaml"
 
 cd $SCRIPT_DIR
