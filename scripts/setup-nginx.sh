@@ -193,8 +193,11 @@ elif command -v host >/dev/null 2>&1; then
 	DOMAIN_IP=$(host -t A "$DOMAIN" 2>/dev/null | awk '/has address/{print $NF}' | head -1 || true)
 elif command -v nslookup >/dev/null 2>&1; then
 	DOMAIN_IP=$(nslookup "$DOMAIN" 2>/dev/null | awk '/^Address: /{print $2}' | head -1 || true)
+elif command -v curl >/dev/null 2>&1; then
+	DOMAIN_IP=$(curl -s --max-time 5 "https://dns.google/resolve?name=${DOMAIN}&type=A" 2>/dev/null \
+		| grep -o '"data":"[0-9.]*"' | head -1 | cut -d'"' -f4 || true)
 else
-	echo "No DNS lookup tool (dig/host/nslookup) found. Cannot verify domain DNS."
+	echo "No DNS lookup tool (dig/host/nslookup/curl) found. Cannot verify domain DNS."
 	exit 1
 fi
 
