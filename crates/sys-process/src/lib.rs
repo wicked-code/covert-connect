@@ -52,7 +52,7 @@ pub fn process_path_by_local_addr(addr: SocketAddr, protocol: Protocol) -> Resul
         }
     }
 
-    bail!("no sockets found");
+    bail!("no sockets found, local addr: {:?}, protocol: {:?}", addr, protocol);
 }
 
 fn path_by_pids(pids: Vec<u32>, addr: SocketAddr) -> Result<String> {

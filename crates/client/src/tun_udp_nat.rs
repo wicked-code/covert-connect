@@ -90,7 +90,7 @@ impl UdpNat {
                     .start_tunnel(stream, DataProtocol::Udp, dst_addr.to_string(), dst_addr, src_addr)
                     .await
                 {
-                    tracing::warn!("server io error: {:?}", err);
+                    tracing::warn!("server io error: {:?}, udp: src_addr={}, dst_addr={}", err, src_addr, dst_addr);
                 }
             }
         });
