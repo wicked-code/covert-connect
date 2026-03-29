@@ -140,7 +140,6 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
             return Poll::Ready(Ok(buf.len()));
         }
 
-        // TODO: ??? rewrite wihtout spawn use Pin::new(&mut this.writer)
         let chunk_len = packet_len + 2;
         match IpPacket::build(ip_protocols::UDP, this.dst_addr, this.src_addr, &data[2..chunk_len]) {
             Ok(packet) => {
