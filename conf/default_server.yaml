@@ -6,7 +6,7 @@ unauth_cooldown: 55..777
 # The setting below MUST be the same on client and server
 max_connect_delay: 10000
 header_padding: 50..777
-#encryption_limit: 1024
+encryption_limit: 1024
 data_padding:
   max: 250
   rate: 10

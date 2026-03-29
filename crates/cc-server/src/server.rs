@@ -180,8 +180,6 @@ async fn start_tunnel(
     );
 
     if is_udp {
-        tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
-
         let out_socket = UdpSocket::bind(match cfg.out_address {
             Some(out_addr) => SocketAddr::new(out_addr, 0),
             None => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
@@ -190,12 +188,14 @@ async fn start_tunnel(
 
         out_socket.connect(addr).await?;
 
+        tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
+
         let mut read_packet_len = 0;
         let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
         let mut recv_buf = vec![0u8; MAX_PACKET_SIZE];
         loop {
             tokio::select! {
-                result = if read_packet_len == 0 { client.read_exact(&mut read_buf) } else { client.read_exact(&mut read_buf[2..read_packet_len]) } => {
+                result = if read_packet_len == 0 { client.read_exact(&mut read_buf[..2]) } else { client.read_exact(&mut read_buf[..read_packet_len]) } => {
                     let n = result?;
                     if n < 2 { break; }
                     if read_packet_len == 0 {
@@ -204,7 +204,7 @@ async fn start_tunnel(
                             anyhow::bail!("packet size too big");
                         }
                     } else {
-                        out_socket.send(&read_buf[2..read_packet_len]).await?;
+                        out_socket.send(&read_buf[..read_packet_len]).await?;
                         read_packet_len = 0;
                     }
                 }
