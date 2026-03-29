@@ -85,8 +85,8 @@ impl UdpNat {
 
                 let stream = UdpStream::new(writer.clone(), src_addr, dst_addr);
                 let data = stream.data();
+                self_clone.sessions.write().insert(src_addr, data.clone());
                 data.send_packet(payload);
-                self_clone.sessions.write().insert(src_addr, data);
 
                 if let Err(err) = router
                     .start_tunnel(stream, DataProtocol::Udp, dst_addr.to_string(), dst_addr, src_addr)

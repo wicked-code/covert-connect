@@ -13,7 +13,7 @@ use crate::{
 };
 use anyhow::{Result, bail};
 
-const DEFAULT_TTL: u8 = 8;
+const DEFAULT_TTL: u8 = 64;
 
 pub enum IpHeader<'a> {
     V4(Ipv4Header<'a>),
@@ -122,7 +122,7 @@ impl<'a> IpPacket<'a> {
 
     /// Creates a new `IpPacket` by parsing an existing buffer.
     #[inline]
-    pub fn from(buf: &'a mut [u8]) -> Result<Self> {
+    pub fn try_from(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV4_MIN_HEADER_LEN {
             bail!("Slice too short for IP header.");
         }

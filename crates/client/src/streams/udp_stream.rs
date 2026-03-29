@@ -1,7 +1,12 @@
 use net_packet::{ip::IpPacket, ip_protocols};
 use parking_lot::Mutex;
 use std::{
-    io, net::SocketAddr, pin::Pin, sync::Arc, task::{Context, Poll, Waker}, vec
+    io,
+    net::SocketAddr,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, Waker},
+    vec,
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
@@ -137,17 +142,22 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
 
         // TODO: ??? rewrite wihtout spawn use Pin::new(&mut this.writer)
         let chunk_len = packet_len + 2;
-        tokio::task::spawn({
-            let mut writer = this.writer.clone();
-            let src = this.src_addr.clone();
-            let dst = this.dst_addr.clone();
-            let packet = IpPacket::build(ip_protocols::UDP, dst, src, &data[2..chunk_len]).unwrap();
-            async move {
-                if let Err(e) = writer.write_all(&packet).await {
-                    tracing::warn!("udp stream write error: {:?}", e);
-                }
+        match IpPacket::build(ip_protocols::UDP, this.dst_addr, this.src_addr, &data[2..chunk_len]) {
+            Ok(packet) => {
+                tokio::task::spawn({
+                    let mut writer = this.writer.clone();
+                    // dst, src because it's NAT, and packet is from dst to src
+                    async move {
+                        if let Err(e) = writer.write_all(&packet).await {
+                            tracing::warn!("udp stream write error: {:?}", e);
+                        }
+                    }
+                });
             }
-        });
+            Err(e) => {
+                tracing::warn!("Failed to build IP packet: {:?}", e);
+            }
+        }
 
         Poll::Ready(Ok(chunk_len - prev_len))
     }
@@ -168,7 +178,7 @@ mod tests {
     use net_packet::udp::UDP_HEADER_LEN;
     use std::task::{RawWaker, RawWakerVTable};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
     const IP_UDP_OVERHEAD: usize = IPV4_MIN_HEADER_LEN + UDP_HEADER_LEN; // 28
 
@@ -191,26 +201,16 @@ mod tests {
     }
 
     impl AsyncWrite for MockWriter {
-        fn poll_write(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<Result<usize, io::Error>> {
+        fn poll_write(self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
             self.written.lock().push(buf.to_vec());
             Poll::Ready(Ok(buf.len()))
         }
 
-        fn poll_flush(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), io::Error>> {
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
             Poll::Ready(Ok(()))
         }
 
-        fn poll_shutdown(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), io::Error>> {
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
             Poll::Ready(Ok(()))
         }
     }
@@ -484,10 +484,7 @@ mod tests {
         assert!(written.lock().is_empty());
 
         // Second write: rest of header + partial data
-        Pin::new(&mut stream)
-            .write_all(&[0x03, 0x01, 0x02])
-            .await
-            .unwrap();
+        Pin::new(&mut stream).write_all(&[0x03, 0x01, 0x02]).await.unwrap();
         tokio::task::yield_now().await;
         assert!(written.lock().is_empty());
 
