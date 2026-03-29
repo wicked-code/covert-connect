@@ -9,7 +9,8 @@ use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
 use tun::DeviceWriter;
 
-const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+// TODO: move to settings
+const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 pub struct UdpNat {
     sessions: RwLock<FxHashMap<SocketAddr, Arc<UdpStreamData>>>,
@@ -82,8 +83,9 @@ impl UdpNat {
                     return;
                 }
 
-                let stream = UdpStream::new(writer.clone());
+                let stream = UdpStream::new(writer.clone(), src_addr, dst_addr);
                 let data = stream.data();
+                data.send_packet(payload);
                 self_clone.sessions.write().insert(src_addr, data);
 
                 if let Err(err) = router

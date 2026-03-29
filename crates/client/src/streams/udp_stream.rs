@@ -1,10 +1,7 @@
+use net_packet::{ip::IpPacket, ip_protocols};
 use parking_lot::Mutex;
 use std::{
-    io,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, Waker},
-    vec,
+    io, net::SocketAddr, pin::Pin, sync::Arc, task::{Context, Poll, Waker}, vec
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
@@ -17,6 +14,8 @@ pub struct UdpStreamData {
 
 pub struct UdpStream<W: AsyncWrite + Clone> {
     writer: W,
+    src_addr: SocketAddr,
+    dst_addr: SocketAddr,
     data: Arc<UdpStreamData>,
     read_state: ReadState,
     write_data: vec::Vec<u8>,
@@ -67,9 +66,11 @@ impl UdpStreamData {
 }
 
 impl<W: AsyncWrite + Clone> UdpStream<W> {
-    pub fn new(writer: W) -> Self {
+    pub fn new(writer: W, src_addr: SocketAddr, dst_addr: SocketAddr) -> Self {
         Self {
             writer,
+            src_addr,
+            dst_addr,
             data: Arc::new(UdpStreamData::new()),
             read_state: ReadState::Wait,
             write_data: vec::Vec::new(),
@@ -134,10 +135,13 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
             return Poll::Ready(Ok(buf.len()));
         }
 
+        // TODO: ??? rewrite wihtout spawn use Pin::new(&mut this.writer)
         let chunk_len = packet_len + 2;
         tokio::task::spawn({
             let mut writer = this.writer.clone();
-            let packet = data[2..chunk_len].to_vec();
+            let src = this.src_addr.clone();
+            let dst = this.dst_addr.clone();
+            let packet = IpPacket::build(ip_protocols::UDP, dst, src, &data[2..chunk_len]).unwrap();
             async move {
                 if let Err(e) = writer.write_all(&packet).await {
                     tracing::warn!("udp stream write error: {:?}", e);
@@ -160,9 +164,18 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use net_packet::ipv4::IPV4_MIN_HEADER_LEN;
+    use net_packet::udp::UDP_HEADER_LEN;
     use std::task::{RawWaker, RawWakerVTable};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::time::{sleep, Duration};
+
+    const IP_UDP_OVERHEAD: usize = IPV4_MIN_HEADER_LEN + UDP_HEADER_LEN; // 28
+
+    /// Extract the UDP payload from a raw IP packet written by poll_write.
+    fn extract_udp_payload(packet: &[u8]) -> &[u8] {
+        &packet[IP_UDP_OVERHEAD..]
+    }
 
     #[derive(Clone)]
     struct MockWriter {
@@ -211,14 +224,18 @@ mod tests {
         unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) }
     }
 
+    fn test_addr() -> SocketAddr {
+        "127.0.0.1:1234".parse().unwrap()
+    }
+
     fn new_stream() -> UdpStream<MockWriter> {
-        UdpStream::new(MockWriter::new())
+        UdpStream::new(MockWriter::new(), test_addr(), test_addr())
     }
 
     fn new_stream_with_writer() -> (UdpStream<MockWriter>, Arc<Mutex<Vec<Vec<u8>>>>) {
         let w = MockWriter::new();
         let written = w.written.clone();
-        (UdpStream::new(w), written)
+        (UdpStream::new(w, test_addr(), test_addr()), written)
     }
 
     // ════════════════════════════════════════════════
@@ -453,7 +470,7 @@ mod tests {
 
         let packets = written.lock();
         assert_eq!(packets.len(), 1);
-        assert_eq!(packets[0], vec![0xAA, 0xBB, 0xCC]);
+        assert_eq!(extract_udp_payload(&packets[0]), &[0xAA, 0xBB, 0xCC]);
     }
 
     // 4d. Chunk assembled across multiple writes
@@ -480,21 +497,22 @@ mod tests {
 
         let packets = written.lock();
         assert_eq!(packets.len(), 1);
-        assert_eq!(packets[0], vec![0x01, 0x02, 0x03]);
+        assert_eq!(extract_udp_payload(&packets[0]), &[0x01, 0x02, 0x03]);
     }
 
-    // 4e. Empty payload chunk (len=0) — dispatches empty write
+    // 4e. Empty payload chunk (len=0) — dispatches IP+UDP packet with no payload
     #[tokio::test]
     async fn poll_write_zero_length_chunk() {
         let (mut stream, written) = new_stream_with_writer();
 
         // [0x00, 0x00] means len=0, chunk_len=2, packet=data[2..2]=empty
-        // write_all on empty slice is a no-op, so nothing appears in mock writer
         Pin::new(&mut stream).write_all(&[0x00, 0x00]).await.unwrap();
         tokio::task::yield_now().await;
 
         let packets = written.lock();
-        assert!(packets.is_empty());
+        assert_eq!(packets.len(), 1);
+        assert_eq!(packets[0].len(), IP_UDP_OVERHEAD);
+        assert!(extract_udp_payload(&packets[0]).is_empty());
     }
 
     // 4f. Large packet (> 256 bytes)
@@ -513,7 +531,7 @@ mod tests {
 
         let packets = written.lock();
         assert_eq!(packets.len(), 1);
-        assert_eq!(packets[0], payload);
+        assert_eq!(extract_udp_payload(&packets[0]), &payload[..]);
     }
 
     // ════════════════════════════════════════════════

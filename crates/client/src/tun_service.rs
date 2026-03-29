@@ -154,7 +154,7 @@ impl TunService {
         address_v6: Ipv6Addr,
         gateway_v6: Ipv6Addr,
     ) -> ProcessResult {
-        let ip = match IpPacket::new(packet) {
+        let ip = match IpPacket::from(packet) {
             Ok(ip) => ip,
             Err(err) => {
                 tracing::error!("Invalid packet: {:?}", err);

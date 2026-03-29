@@ -1,3 +1,5 @@
+use std::net::{IpAddr, SocketAddr};
+
 use crate::{
     hopbyhop::HopByHopHeader,
     icmpv4::Icmpv4Header,
@@ -5,11 +7,13 @@ use crate::{
     igmp::IgmpHeader,
     ip_protocols,
     ipv4::{IPV4_MIN_HEADER_LEN, Ipv4Header},
-    ipv6::Ipv6Header,
+    ipv6::{IPV6_HEADER_LEN, Ipv6Header},
     tcp::TcpHeader,
-    udp::UdpHeader,
+    udp::{UdpHeader, UDP_HEADER_LEN},
 };
 use anyhow::{Result, bail};
+
+const DEFAULT_TTL: u8 = 8;
 
 pub enum IpHeader<'a> {
     V4(Ipv4Header<'a>),
@@ -47,9 +51,78 @@ fn parse_transport<'a>(protocol: u8, payload: &'a mut [u8]) -> Result<NextHeader
 }
 
 impl<'a> IpPacket<'a> {
+    /// Builds a new IP packet and returns the completed buffer.
+    /// Use `IpPacket::from(&mut buf)` afterwards if you need to modify fields.
+    #[inline]
+    pub fn build(protocol: u8, src_addr: SocketAddr, dst_addr: SocketAddr, payload: &[u8]) -> Result<Vec<u8>> {
+        if src_addr.is_ipv4() != dst_addr.is_ipv4() {
+            bail!("Source and destination IP version mismatch.");
+        }
+
+        let mut packet = Vec::with_capacity(payload.len() + 48);
+        let is_v4 = src_addr.is_ipv4();
+
+        // Write IP header
+        if is_v4 {
+            packet.resize(IPV4_MIN_HEADER_LEN, 0);
+            let mut header = Ipv4Header::new(&mut packet)?;
+            header.set_version(4);
+            header.set_ihl((IPV4_MIN_HEADER_LEN / 4) as u8);
+            if let IpAddr::V4(addr) = src_addr.ip() { header.set_src_addr(addr); }
+            if let IpAddr::V4(addr) = dst_addr.ip() { header.set_dst_addr(addr); }
+            header.set_ttl(DEFAULT_TTL);
+            header.set_protocol(protocol);
+        } else {
+            packet.resize(IPV6_HEADER_LEN, 0);
+            let mut header = Ipv6Header::new(&mut packet)?;
+            header.set_version(6);
+            header.set_hop_limit(DEFAULT_TTL);
+            if let IpAddr::V6(addr) = src_addr.ip() { header.set_src_addr(addr); }
+            if let IpAddr::V6(addr) = dst_addr.ip() { header.set_dst_addr(addr); }
+            header.set_next_header(protocol);
+        }
+
+        // Write transport header + payload
+        let ip_len = packet.len();
+        match protocol {
+            ip_protocols::UDP => {
+                packet.resize(ip_len + UDP_HEADER_LEN, 0);
+                packet.extend_from_slice(payload);
+                let datagram_len = (UDP_HEADER_LEN + payload.len()) as u16;
+                let mut udp = UdpHeader::new(&mut packet[ip_len..])?;
+                udp.set_src_port(src_addr.port());
+                udp.set_dst_port(dst_addr.port());
+                udp.set_length(datagram_len);
+                if is_v4 {
+                    if let (IpAddr::V4(src), IpAddr::V4(dst)) = (src_addr.ip(), dst_addr.ip()) {
+                        udp.compute_checksum_v4(src, dst, datagram_len);
+                    }
+                } else {
+                    if let (IpAddr::V6(src), IpAddr::V6(dst)) = (src_addr.ip(), dst_addr.ip()) {
+                        udp.compute_checksum_v6(src, dst, datagram_len as u32);
+                    }
+                }
+            }
+            _ => bail!("Unsupported IP protocol to create {}", protocol),
+        }
+
+        // Finalize IP header (total length + checksum)
+        let total_len = packet.len();
+        if is_v4 {
+            let mut header = Ipv4Header::new(&mut packet)?;
+            header.set_total_length(total_len as u16);
+            header.compute_checksum();
+        } else {
+            let mut header = Ipv6Header::new(&mut packet)?;
+            header.set_payload_length((total_len - IPV6_HEADER_LEN) as u16);
+        }
+
+        Ok(packet)
+    }
+
     /// Creates a new `IpPacket` by parsing an existing buffer.
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Result<Self> {
+    pub fn from(buf: &'a mut [u8]) -> Result<Self> {
         if buf.len() < IPV4_MIN_HEADER_LEN {
             bail!("Slice too short for IP header.");
         }
