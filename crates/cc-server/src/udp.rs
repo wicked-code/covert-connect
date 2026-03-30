@@ -37,12 +37,10 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
         let mut buf = vec![0u8; MAX_PACKET_SIZE + 2];
         loop {
             let n = out_socket.recv(&mut buf[2..]).await?;
-            if n == 0 { break; }
             buf[0] = ((n >> 8) & 0xff) as u8;
             buf[1] = (n & 0xff) as u8;
             writer.write_all(&buf[..n + 2]).await?;
         }
-        Ok(())
     };
 
     tokio::select! {
