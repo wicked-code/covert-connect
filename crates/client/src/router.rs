@@ -19,9 +19,9 @@ use rand_chacha::ChaCha20Rng;
 
 use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
+    egress_connector::{EgressConnector, StreamType},
     protocol::{self, DataProtocol, SelectedServer, Server},
     streams::ttfb_stream::TtfbStream,
-    egress_connector::{StreamType, EgressConnector},
     tun_service::TunService,
 };
 use crypto::config::ProtocolConfig;
@@ -287,24 +287,10 @@ impl Router {
         let req_stream = TtfbStream::new(ttfb.clone());
 
         let rng = ChaCha20Rng::from_entropy();
-        let res = self
-            .start_tunnel_with_server(req_stream, DataProtocol::Tcp, domain.to_owned() + ":80", selected, rng)
-            .await;
+        self.start_tunnel_with_server(req_stream, DataProtocol::Tcp, domain.to_owned() + ":80", selected, rng)
+            .await?;
 
-        let ttfb = ttfb.load(Ordering::Relaxed) as usize;
-
-        // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
-        // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
-        // ignore unexpected-eof it's not a problem in our case
-        if let Err(ref e) = res {
-            if let Some(io_err) = e.downcast_ref::<std::io::Error>()
-                && io_err.kind() != std::io::ErrorKind::UnexpectedEof
-            {
-                res?;
-            }
-        }
-
-        Ok(ttfb)
+        Ok(ttfb.load(Ordering::Relaxed) as usize)
     }
 
     pub async fn remove_server(&self, host: &str) -> Result<()> {
@@ -329,11 +315,14 @@ impl Router {
         data_protocol: &DataProtocol,
     ) -> Result<Option<SelectedServer>> {
         let mut process_name = String::from("");
-        match process_path_by_local_addr(client_addr, match data_protocol {
-            DataProtocol::Tcp => Protocol::TCP,
-            DataProtocol::Udp => Protocol::UDP,
-            DataProtocol::Icmp => Protocol::TCP,
-        }) {
+        match process_path_by_local_addr(
+            client_addr,
+            match data_protocol {
+                DataProtocol::Tcp => Protocol::TCP,
+                DataProtocol::Udp => Protocol::UDP,
+                DataProtocol::Icmp => Protocol::TCP,
+            },
+        ) {
             Ok(process_path) => {
                 tracing::info!("{} connecting to {}", process_path, target_host);
                 let a = Path::new(&process_path)
@@ -455,7 +444,7 @@ impl Router {
     pub fn is_initialized(&self) -> bool {
         self.initialized.load(Ordering::Relaxed)
     }
- 
+
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
         self.egress_connector.init().await?;
@@ -471,23 +460,13 @@ impl Router {
         client_addr: SocketAddr,
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<EgressConnector>)>> {
         let mut rng = ChaCha20Rng::from_entropy();
-        let selected = self.select_server(&target_host, &mut rng, client_addr, &data_protocol).await?;
+        let selected = self
+            .select_server(&target_host, &mut rng, client_addr, &data_protocol)
+            .await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            let res = self
-                .start_tunnel_with_server(client, data_protocol, target_addr.to_string(), server, rng)
-                .await;
-            // TODO: ??? move inside start_tunnel_with_server or even deeper, start_tunnel_with_server should suppress this error
-            // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
-            // ignore unexpected-eof it's not a problem in our case
-            if let Err(ref e) = res {
-                if let Some(io_err) = e.downcast_ref::<std::io::Error>()
-                    && io_err.kind() != std::io::ErrorKind::UnexpectedEof
-                {
-                    res?;
-                }
-            }
-
+            self.start_tunnel_with_server(client, data_protocol, target_addr.to_string(), server, rng)
+                .await?;
             Ok(None)
         } else {
             Ok(Some((client, self.egress_connector.clone())))
@@ -507,10 +486,18 @@ impl Router {
             .connect_with_upgrade(selected.address, &selected.host, &selected.url_path)
             .await?
         {
-            StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await,
+            StreamType::TcpStream(stream) => {
+                protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await
+            }
             StreamType::UpgradeStream(stream) => {
                 protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await
             }
         }
+        .or_else(|err| match err.downcast_ref::<std::io::Error>() {
+            // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
+            // ignore unexpected-eof it's not a problem in our case            
+            Some(io_err) if io_err.kind() == std::io::ErrorKind::UnexpectedEof => Ok(()),
+            _ => Err(err),
+        })
     }
 }
