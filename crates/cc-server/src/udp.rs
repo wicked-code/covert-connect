@@ -19,11 +19,17 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
         async move {
             let mut buf = vec![0u8; MAX_PACKET_SIZE];
             loop {
-                reader.read_exact(&mut buf[..2]).await?;
+                // Read length header — clean EOF on first byte means transfer done
+                let n = reader.read(&mut buf[..2]).await?;
+                if n == 0 { break; }
+                if n < 2 {
+                    reader.read_exact(&mut buf[1..2]).await?;
+                }
                 let len = ((buf[0] as usize) << 8) + buf[1] as usize;
                 reader.read_exact(&mut buf[..len]).await?;
                 socket.send(&buf[..len]).await?;
             }
+            Ok(())
         }
     };
 
@@ -36,7 +42,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
             buf[1] = (n & 0xff) as u8;
             writer.write_all(&buf[..n + 2]).await?;
         }
-        Ok::<(), anyhow::Error>(())
+        Ok(())
     };
 
     tokio::select! {
