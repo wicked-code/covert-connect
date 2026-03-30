@@ -163,6 +163,27 @@ impl TunService {
             }
         };
 
+        // Early exit for traffic that should never go through VPN
+        // TODO: ??? use is_global() when it's stable
+        match ip.header {
+            IpHeader::V4(ref ipv4) => {
+                let addr = ipv4.dst_addr();
+                if addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() {
+                    return ProcessResult::Consume;
+                }
+            }
+            IpHeader::V6(ref ipv6) => {
+                let addr = ipv6.dst_addr();
+                if addr.is_loopback()
+                    || addr.is_unique_local()
+                    || addr.is_unicast_link_local()
+                    || (addr.is_multicast() && (addr.segments()[0] & 0x000f) != 14)
+                {
+                    return ProcessResult::Consume;
+                }
+            }
+        }
+
         match ip.header {
             IpHeader::V4(mut ipv4) => match ip.next_header {
                 NextHeader::Tcp(mut tcp) => self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4),

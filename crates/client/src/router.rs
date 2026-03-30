@@ -470,8 +470,6 @@ impl Router {
         target_addr: SocketAddr,
         client_addr: SocketAddr,
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<EgressConnector>)>> {
-        // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
-        // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
         let selected = self.select_server(&target_host, &mut rng, client_addr, &data_protocol).await?;
         if let Some(server) = selected {
