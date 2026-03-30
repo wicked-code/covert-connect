@@ -7,11 +7,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::DeviceWriter;
 
 use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat, tun_udp_nat::UdpNat};
-use net_packet::ip::{IpHeader, IpPacket, NextHeader};
+use net_packet::{MAX_PACKET_SIZE, ip::{IpHeader, IpPacket, NextHeader}};
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
-
-pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 
 #[derive(PartialEq)]
 enum ProcessResult {

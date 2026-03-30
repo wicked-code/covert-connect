@@ -9,6 +9,7 @@ use crypto::{
     kdf::Kdf,
     stream::EncryptedStream,
 };
+use net_packet::MAX_PACKET_SIZE;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use std::{
@@ -24,9 +25,6 @@ use tokio::{
     time::timeout,
 };
 
-pub const LOCAL_HOST: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
-
 async fn start_tunnel(
     stream: &mut TcpStream,
     socket_addr: SocketAddr,
@@ -36,7 +34,7 @@ async fn start_tunnel(
     upgrade_support: bool,
 ) -> Result<()> {
     let unauth_cooldown = cfg.unauth_cooldown.clone();
-    if upgrade_support && socket_addr.ip() == LOCAL_HOST {
+    if upgrade_support && socket_addr.ip().is_loopback() {
         if let Err(err) = process_http_upgrade(stream, url_path).await {
             terminate_slowly(stream, unauth_cooldown).await;
             return Err(err);

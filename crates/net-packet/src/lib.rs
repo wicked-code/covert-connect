@@ -9,6 +9,8 @@ pub mod ipv6;
 pub mod tcp;
 pub mod udp;
 
+pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
+
 /// Well-known IP protocol numbers.
 pub mod ip_protocols {
     pub const HOPBYHOP: u8 = 0;

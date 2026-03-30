@@ -2,13 +2,11 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use net_packet::MAX_PACKET_SIZE;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::UdpSocket,
 };
-
-// TODO: ??? move MAX_PACKET_SIZE to common place (used many times)
-pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 
 pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socket: UdpSocket) -> Result<()> {
     let (mut reader, mut writer) = tokio::io::split(client);

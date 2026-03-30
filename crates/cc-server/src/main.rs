@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cc_server::{config::AppConfig, server::{self, LOCAL_HOST}};
+use cc_server::{config::AppConfig, server};
 use clap::Parser;
 use colored::*;
 use crypto::kdf::Kdf;
@@ -80,12 +80,12 @@ fn generate_new_key(cfg_path: &Path, old_key: &str) -> Result<()> {
 }
 
 fn show_proxy_path(address: SocketAddr, url_path: &str) {
-    if address.ip() != LOCAL_HOST {
+    if !address.ip().is_loopback() {
         tracing::warn!(
             "\n{} {} {} {}",
             address.ip().to_string().yellow().bold(),
             "can be visible from outside.\naddress".yellow(),
-            LOCAL_HOST.to_string().yellow().bold(),
+            "127.0.0.1".to_string().yellow().bold(),
             "is recommended in https proxy mode.".yellow(),
         );
     }

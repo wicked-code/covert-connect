@@ -27,6 +27,8 @@ serde.workspace = true
 tokio.workspace = true
 num_enum.workspace = true
 
+net-packet.workspace = true
+
 hex-literal = "0.4.1"
 
 [features]

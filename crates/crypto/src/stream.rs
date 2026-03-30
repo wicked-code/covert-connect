@@ -1,6 +1,7 @@
 use super::{DataPadding, cipher::Cipher};
 use bytes::{BufMut, BytesMut};
 use futures::{Future, ready};
+use net_packet::MAX_PACKET_SIZE;
 use pin_project_lite::pin_project;
 use rand::Rng;
 use rand_core::{CryptoRng, RngCore};
@@ -13,7 +14,6 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 
-pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max TCP packet size
 pub const DEF_PACKET_SIZE: usize = 1534; // MTU default + 2xTagSize(16) + datalen(1)
 
 pin_project! {
