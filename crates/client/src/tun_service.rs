@@ -7,7 +7,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::DeviceWriter;
 
 use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat, tun_udp_nat::UdpNat};
-use net_packet::{MAX_PACKET_SIZE, ip::{IpHeader, IpPacket, NextHeader}};
+use net_packet::{
+    MAX_PACKET_SIZE,
+    ip::{IpHeader, IpPacket, NextHeader},
+};
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
@@ -161,43 +164,27 @@ impl TunService {
             }
         };
 
-        // Early exit for traffic that should never go through VPN
-        // TODO: ??? use is_global() when it's stable
-        match ip.header {
-            IpHeader::V4(ref ipv4) => {
-                let addr = ipv4.dst_addr();
-                if addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() {
-                    return ProcessResult::Consume;
-                }
-            }
-            IpHeader::V6(ref ipv6) => {
-                let addr = ipv6.dst_addr();
-                if addr.is_loopback()
-                    || addr.is_unique_local()
-                    || addr.is_unicast_link_local()
-                    || (addr.is_multicast() && (addr.segments()[0] & 0x000f) != 14)
-                {
-                    return ProcessResult::Consume;
-                }
-            }
-        }
-
         match ip.header {
             IpHeader::V4(mut ipv4) => match ip.next_header {
-                NextHeader::Tcp(mut tcp) => self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4),
+                NextHeader::Tcp(mut tcp) => {
+                    return self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4);
+                }
                 NextHeader::Udp(mut udp) => self.process_udp_v4_packet(&mut ipv4, &mut udp),
                 NextHeader::Icmpv4(mut icmp) => self.process_icmp_v4_packet(&mut ipv4, &mut icmp),
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v4_packet(&mut ipv4, &mut igmp),
-                _ => ProcessResult::Consume,
+                _ => (),
             },
             IpHeader::V6(mut ipv6) => match ip.next_header {
-                NextHeader::Tcp(mut tcp) => self.process_tcp_v6_packet(&mut ipv6, &mut tcp, address_v6, gateway_v6),
+                NextHeader::Tcp(mut tcp) => {
+                    return self.process_tcp_v6_packet(&mut ipv6, &mut tcp, address_v6, gateway_v6);
+                }
                 NextHeader::Udp(mut udp) => self.process_udp_v6_packet(&mut ipv6, &mut udp),
                 NextHeader::Icmpv6(mut icmp) => self.process_icmp_v6_packet(&mut ipv6, &mut icmp),
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v6_packet(&mut ipv6, &mut igmp),
-                _ => ProcessResult::Consume,
+                _ => (),
             },
         }
+        ProcessResult::Consume
     }
 
     fn process_tcp_v4_packet(
@@ -231,6 +218,10 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
+            if is_local_v4(ipv4.dst_addr()) {
+                return ProcessResult::Consume;
+            }
+
             let nat_port = self.tcp_proxy_nat_v4.get_port(
                 SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
@@ -278,6 +269,10 @@ impl TunService {
 
             tcp.compute_checksum_v6(src_ip_v6, dst_ip_v6);
         } else {
+            if is_local_v6(ipv6.dst_addr()) {
+                return ProcessResult::Consume;
+            }
+
             let nat_port = self.tcp_proxy_nat_v6.get_port(
                 SocketAddr::new(IpAddr::V6(ipv6.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), tcp.dst_port()),
@@ -294,66 +289,72 @@ impl TunService {
         ProcessResult::WriteBack
     }
 
-    fn process_udp_v4_packet(
-        &self,
-        ipv4: &mut net_packet::ipv4::Ipv4Header,
-        udp: &mut net_packet::udp::UdpHeader,
-    ) -> ProcessResult {
-        tracing::debug!("UDPv4 packet: {:?}", udp);
+    fn process_udp_v4_packet(&self, ipv4: &mut net_packet::ipv4::Ipv4Header, udp: &mut net_packet::udp::UdpHeader) {
+        if is_local_v4(ipv4.dst_addr()) {
+            return;
+        }
+
         self.udp_nat.send(
             SocketAddr::new(IpAddr::V4(ipv4.src_addr()), udp.src_port()),
             SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), udp.dst_port()),
             udp.payload(),
         );
-        ProcessResult::Consume
     }
 
-    fn process_udp_v6_packet(
-        &self,
-        ipv6: &mut net_packet::ipv6::Ipv6Header,
-        udp: &mut net_packet::udp::UdpHeader,
-    ) -> ProcessResult {
+    fn process_udp_v6_packet(&self, ipv6: &mut net_packet::ipv6::Ipv6Header, udp: &mut net_packet::udp::UdpHeader) {
+        if is_local_v6(ipv6.dst_addr()) {
+            return;
+        }
+
         self.udp_nat.send(
             SocketAddr::new(IpAddr::V6(ipv6.src_addr()), udp.src_port()),
             SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), udp.dst_port()),
             udp.payload(),
         );
-        ProcessResult::Consume
     }
 
     fn process_icmp_v4_packet(
         &self,
         ipv4: &mut net_packet::ipv4::Ipv4Header,
         icmp: &mut net_packet::icmpv4::Icmpv4Header,
-    ) -> ProcessResult {
+    ) {
+        if is_local_v4(ipv4.dst_addr()) {
+            return;
+        }
+
         tracing::debug!("ICMPv4 packet: {:?}, to {}", icmp, ipv4.dst_addr());
-        ProcessResult::Consume
     }
 
     fn process_icmp_v6_packet(
         &self,
         ipv6: &mut net_packet::ipv6::Ipv6Header,
         icmp: &mut net_packet::icmpv6::Icmpv6Header,
-    ) -> ProcessResult {
+    ) {
+        if is_local_v6(ipv6.dst_addr()) {
+            return;
+        }
+        
         tracing::debug!("ICMPv6 packet: {:?}, to {}", icmp, ipv6.dst_addr());
-        ProcessResult::Consume
     }
 
-    fn process_igmp_v4_packet(
-        &self,
-        ipv4: &mut net_packet::ipv4::Ipv4Header,
-        igmp: &mut net_packet::igmp::IgmpHeader,
-    ) -> ProcessResult {
+    fn process_igmp_v4_packet(&self, ipv4: &mut net_packet::ipv4::Ipv4Header, igmp: &mut net_packet::igmp::IgmpHeader) {
         tracing::debug!("IGMPv4 packet: {:?}, to {}", igmp, ipv4.dst_addr());
-        ProcessResult::Consume
     }
 
-    fn process_igmp_v6_packet(
-        &self,
-        ipv6: &mut net_packet::ipv6::Ipv6Header,
-        igmp: &mut net_packet::igmp::IgmpHeader,
-    ) -> ProcessResult {
+    fn process_igmp_v6_packet(&self, ipv6: &mut net_packet::ipv6::Ipv6Header, igmp: &mut net_packet::igmp::IgmpHeader) {
         tracing::debug!("IGMPv6 packet: {:?}, to {}", igmp, ipv6.dst_addr());
-        ProcessResult::Consume
     }
+}
+
+fn is_local_v4(addr: Ipv4Addr) -> bool {
+    // TODO: ??? use is_global() when it's stable
+    addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private()
+}
+
+fn is_local_v6(addr: Ipv6Addr) -> bool {
+    // TODO: ??? use is_global() when it's stable
+    addr.is_loopback()
+        || addr.is_unique_local()
+        || addr.is_unicast_link_local()
+        || (addr.is_multicast() && (addr.segments()[0] & 0x000f) != 14)
 }
