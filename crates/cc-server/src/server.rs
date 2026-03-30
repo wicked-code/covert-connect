@@ -1,5 +1,5 @@
 use crate::{config::AppConfig, udp::udp_transfer};
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use bytes::{BufMut, BytesMut};
 use chrono::Utc;
 use crypto::{
@@ -184,9 +184,13 @@ async fn start_tunnel(
             Some(out_addr) => SocketAddr::new(out_addr, 0),
             None => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
         })
-        .await?;
+        .await
+        .with_context(|| format!("Failed to bind UDP to {:?}", cfg.out_address))?;
 
-        out_socket.connect(addr).await?;
+        out_socket
+            .connect(addr)
+            .await
+            .with_context(|| format!("Failed to connect UDP to {:?}", addr))?;
 
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
@@ -199,10 +203,17 @@ async fn start_tunnel(
                     IpAddr::V6(_) => TcpSocket::new_v6()?,
                 };
 
-                socket.bind(SocketAddr::new(out_addr, 0))?;
-                socket.connect(addr).await?
+                socket
+                    .bind(SocketAddr::new(out_addr, 0))
+                    .with_context(|| format!("Failed to bind TCP to {:?}", out_addr))?;
+                socket
+                    .connect(addr)
+                    .await
+                    .with_context(|| format!("Failed to connect TCP to {:?}", addr))?
             }
-            _ => TcpStream::connect(addr).await?,
+            _ => TcpStream::connect(addr)
+                .await
+                .with_context(|| format!("Failed to connect socket to {:?}", addr))?,
         };
 
         tracing::info!("CONNECT from {socket_addr} to {addr}");
