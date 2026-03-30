@@ -1,16 +1,11 @@
 use anyhow::Result;
+use cc_server::{config::AppConfig, server::{self, LOCAL_HOST}};
 use clap::Parser;
 use colored::*;
 use crypto::kdf::Kdf;
 use is_terminal::IsTerminal;
 use std::{net::SocketAddr, path::Path};
 use tracing_subscriber::EnvFilter;
-
-mod config;
-mod server;
-
-use config::AppConfig;
-use server::LOCAL_HOST;
 
 /// Covert-Connect server
 #[derive(Parser)]

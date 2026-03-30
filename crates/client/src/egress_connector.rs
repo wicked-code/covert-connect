@@ -5,29 +5,30 @@ use std::{
     sync::Arc,
 };
 use tokio::{
+    io,
+    net::{TcpSocket, TcpStream, UdpSocket},
     task,
-    io::{self, AsyncRead, AsyncWriteExt},
-    net::{TcpSocket, TcpStream},
 };
+
 use tokio_rustls::{
     TlsConnector,
     client::TlsStream,
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
-use crate::{outbound::find_outbound_ip, streams::upgrade_stream::UgradeStream};
+use crate::{outbound::find_outbound_ip, streams::upgrade_stream::UpgradeStream};
 
 pub enum StreamType {
     TcpStream(TcpStream),
-    UgradeStream(UgradeStream<TlsStream<TcpStream>>),
+    UpgradeStream(UpgradeStream<TlsStream<TcpStream>>),
 }
 
-pub struct Transport {
+pub struct EgressConnector {
     outbound_ip: ArcSwap<IpAddr>,
     tls_cfg: Arc<rustls::ClientConfig>,
 }
 
-impl Transport {
+impl EgressConnector {
     pub fn new() -> Arc<Self> {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
@@ -75,8 +76,13 @@ impl Transport {
         Ok(())
     }
 
-    pub async fn connect(&self, address: SocketAddr, host: &str, url_path: &Option<String>) -> Result<StreamType> {
-        let server = self.connect_internal(address).await?;
+    pub async fn connect_with_upgrade(
+        &self,
+        address: SocketAddr,
+        host: &str,
+        url_path: &Option<String>,
+    ) -> Result<StreamType> {
+        let server = self.connect_tcp(address).await?;
         Ok(if let Some(http_path) = url_path {
             // HTTPS connect
             let host = if let Some(pos) = host.rfind(':') {
@@ -89,32 +95,13 @@ impl Transport {
             let tls_conn = TlsConnector::from(self.tls_cfg.clone());
             let server = tls_conn.connect(domain, server).await?;
 
-            StreamType::UgradeStream(UgradeStream::from_stream(server, host, http_path))
+            StreamType::UpgradeStream(UpgradeStream::from_stream(server, host, http_path))
         } else {
             StreamType::TcpStream(server)
         })
     }
 
-    pub async fn direct_transfer(
-        &self,
-        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
-        target: SocketAddr,
-    ) -> Result<()> {
-        tracing::info!("direct connection to {}", target);
-
-        let mut server = self.connect_internal(target).await?;
-
-        tokio::io::copy_bidirectional(&mut client, &mut server).await?;
-        Ok(())
-    }
-
-    async fn update(self: &Arc<Self>) -> Result<()> {
-        let outbound_ip = find_outbound_ip().await?;
-        self.outbound_ip.store(Arc::new(outbound_ip));
-        Ok(())
-    }
-
-    async fn connect_internal(&self, target: SocketAddr) -> io::Result<TcpStream> {
+    pub async fn connect_tcp(&self, target: SocketAddr) -> io::Result<TcpStream> {
         let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
 
         // bind socket to outbound IF
@@ -125,5 +112,19 @@ impl Transport {
         socket.bind(outbound_address)?;
 
         socket.connect(target).await
+    }
+
+    pub async fn connect_udp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
+        let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
+        let out_socket = UdpSocket::bind(outbound_address).await?;
+
+        out_socket.connect(target).await?;
+        Ok(out_socket)
+    }
+
+    async fn update(self: &Arc<Self>) -> Result<()> {
+        let outbound_ip = find_outbound_ip().await?;
+        self.outbound_ip.store(Arc::new(outbound_ip));
+        Ok(())
     }
 }

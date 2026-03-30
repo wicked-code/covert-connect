@@ -1,4 +1,4 @@
-use crate::config::AppConfig;
+use crate::{config::AppConfig, udp::udp_transfer};
 use anyhow::{Result, anyhow};
 use bytes::{BufMut, BytesMut};
 use chrono::Utc;
@@ -190,33 +190,7 @@ async fn start_tunnel(
 
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
-        let mut read_packet_len = 0;
-        let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
-        let mut recv_buf = vec![0u8; MAX_PACKET_SIZE];
-        loop {
-            tokio::select! {
-                result = if read_packet_len == 0 { client.read_exact(&mut read_buf[..2]) } else { client.read_exact(&mut read_buf[..read_packet_len]) } => {
-                    let n = result?;
-                    if n < 2 { break; }
-                    if read_packet_len == 0 {
-                        read_packet_len = ((read_buf[0] as usize) << 8) + read_buf[1] as usize;
-                        if read_packet_len > MAX_PACKET_SIZE {
-                            anyhow::bail!("packet size too big");
-                        }
-                    } else {
-                        out_socket.send(&read_buf[..read_packet_len]).await?;
-                        read_packet_len = 0;
-                    }
-                }
-                result = out_socket.recv(&mut recv_buf[2..]) => {
-                    let n = result?;
-                    if n == 0 { break; }
-                    recv_buf[0] = ((n >> 8) & 0xff) as u8;
-                    recv_buf[1] = (n & 0xff) as u8;
-                    client.write_all(&recv_buf[..n + 2]).await?;
-                }
-            }
-        }
+        udp_transfer(&mut client, out_socket).await?;
     } else {
         let mut out_stream = match cfg.out_address {
             Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {

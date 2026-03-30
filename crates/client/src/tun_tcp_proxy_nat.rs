@@ -1,16 +1,20 @@
+use crate::{egress_connector::EgressConnector, protocol::DataProtocol, router::Router};
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{
-    net::{SocketAddr, IpAddr},
-    sync::{Arc, atomic::{AtomicU16, Ordering}},
+    net::{IpAddr, SocketAddr},
+    sync::{
+        Arc,
+        atomic::{AtomicU16, Ordering},
+    },
     time::Duration,
 };
 use tokio::{
     net::TcpListener,
     time::{sleep, timeout},
+    io::{AsyncRead, AsyncWriteExt},
 };
-use crate::{protocol::DataProtocol, router::Router};
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
@@ -93,11 +97,17 @@ impl TcpProxyNat {
                         };
 
                         let target = session.dst_addr;
-                        if let Err(err) = router
+                        match router
                             .start_tunnel(stream, DataProtocol::Tcp, target.to_string(), target, session.src_addr)
                             .await
                         {
-                            tracing::warn!("server io error: {:?}", err);
+                            Ok(Some((stream, egress_connector))) => {
+                                Self::direct_transfer(&egress_connector, stream, target).await;
+                            }
+                            Ok(None) => {}
+                            Err(err) => {
+                                tracing::warn!("server io error: {:?}", err);
+                            }
                         }
 
                         self_clone.on_session_closed(port, session.src_addr);
@@ -109,6 +119,26 @@ impl TcpProxyNat {
                     listener = self.bind_proxy(if_addr).await?;
                 }
             }
+        }
+    }
+
+    async fn direct_transfer(
+        egress_connector: &Arc<EgressConnector>,
+        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target: SocketAddr,
+    ) {
+        tracing::info!("Direct connection to {}", target);
+
+        let mut server = match egress_connector.connect_tcp(target).await {
+            Ok(stream) => stream,
+            Err(err) => {
+                tracing::warn!("Direct connection to {} failed, err: {:?}", target, err);
+                return;
+            }
+        };
+
+        if let Err(err) = tokio::io::copy_bidirectional(&mut client, &mut server).await {
+            tracing::warn!("Direct connection io error: {:?}, target: {}", err, target);
         }
     }
 

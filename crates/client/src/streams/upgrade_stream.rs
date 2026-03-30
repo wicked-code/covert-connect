@@ -10,7 +10,7 @@ const MAX_UPGRADE_RESPONSE: usize = u8::MAX as usize;
 
 pin_project! {
     /// A stream wrapper that helps transfer the data through https proxy
-    pub struct UgradeStream<S>
+    pub struct UpgradeStream<S>
     {
         #[pin]
         inner: S,
@@ -26,7 +26,7 @@ enum UpgradeState {
     Upgraded,
 }
 
-impl<S> UgradeStream<S>
+impl<S> UpgradeStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<S> AsyncRead for UgradeStream<S>
+impl<S> AsyncRead for UpgradeStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<S> AsyncWrite for UgradeStream<S>
+impl<S> AsyncWrite for UpgradeStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {

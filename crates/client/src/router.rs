@@ -21,7 +21,7 @@ use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
     protocol::{self, DataProtocol, SelectedServer, Server},
     streams::ttfb_stream::TtfbStream,
-    transport::{StreamType, Transport},
+    egress_connector::{StreamType, EgressConnector},
     tun_service::TunService,
 };
 use crypto::config::ProtocolConfig;
@@ -43,7 +43,7 @@ pub struct Router {
     direct_domains: RwLock<Vec<String>>,
 
     tun_service: Arc<TunService>,
-    transport: Arc<Transport>,
+    egress_connector: Arc<EgressConnector>,
 }
 
 impl Router {
@@ -55,7 +55,7 @@ impl Router {
             direct_domains: Default::default(),
             state: RwLock::new(state),
             initialized: AtomicBool::new(false),
-            transport: Transport::new(),
+            egress_connector: EgressConnector::new(),
         }))
     }
 
@@ -246,12 +246,12 @@ impl Router {
         let conn_cfg = ServerConnectConfig::new(host, key).await?;
 
         match self
-            .transport
-            .connect(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
+            .egress_connector
+            .connect_with_upgrade(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::get_server_protocol(stream, key).await,
-            StreamType::UgradeStream(stream) => protocol::get_server_protocol(stream, key).await,
+            StreamType::UpgradeStream(stream) => protocol::get_server_protocol(stream, key).await,
         }
     }
 
@@ -458,7 +458,7 @@ impl Router {
  
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
-        self.transport.init().await?;
+        self.egress_connector.init().await?;
         self.tun_service.serve(self.clone()).await
     }
 
@@ -469,7 +469,7 @@ impl Router {
         target_host: String,
         target_addr: SocketAddr,
         client_addr: SocketAddr,
-    ) -> Result<()> {
+    ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<EgressConnector>)>> {
         // TODO: ??? add target: SocketAddr and outbound_ip: IpAddr
         // target should be used to connect instead of url in case we mesmatch url or target_host not found
         let mut rng = ChaCha20Rng::from_entropy();
@@ -490,10 +490,9 @@ impl Router {
                 }
             }
 
-            Ok(())
+            Ok(None)
         } else {
-            // TODO: ??? use ip instead of parse
-            self.transport.direct_transfer(client, target_addr).await
+            Ok(Some((client, self.egress_connector.clone())))
         }
     }
 
@@ -506,12 +505,12 @@ impl Router {
         rng: impl CryptoRng + Rng,
     ) -> Result<()> {
         match self
-            .transport
-            .connect(selected.address, &selected.host, &selected.url_path)
+            .egress_connector
+            .connect_with_upgrade(selected.address, &selected.host, &selected.url_path)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await,
-            StreamType::UgradeStream(stream) => {
+            StreamType::UpgradeStream(stream) => {
                 protocol::process_tunnel(stream, client, data_protocol, target_host, rng, selected).await
             }
         }

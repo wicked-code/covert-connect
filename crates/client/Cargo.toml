@@ -30,6 +30,7 @@ webpki-roots.workspace = true
 crypto.workspace = true
 sys-process.workspace = true
 net-packet.workspace = true
+cc-server.workspace = true
 
 if-addrs = "0.15.0"
 #tun = {version = "0.8.6", features = ["async"]}

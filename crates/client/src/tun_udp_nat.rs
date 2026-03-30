@@ -1,13 +1,13 @@
 use crate::{
-    protocol::DataProtocol,
-    router::Router,
-    streams::udp_stream::{UdpStream, UdpStreamData},
+    egress_connector::EgressConnector, protocol::DataProtocol, router::Router, streams::udp_stream::{UdpStream, UdpStreamData}
 };
 use anyhow::Result;
+use cc_server::udp::udp_transfer;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
 use tun::DeviceWriter;
+use tokio::io::{AsyncRead, AsyncWriteExt};
 
 // TODO: move to settings
 const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -88,13 +88,44 @@ impl UdpNat {
                 self_clone.sessions.write().insert(src_addr, data.clone());
                 data.send_packet(payload);
 
-                if let Err(err) = router
+                match router
                     .start_tunnel(stream, DataProtocol::Udp, dst_addr.to_string(), dst_addr, src_addr)
                     .await
                 {
-                    tracing::warn!("server io error: {:?}, udp: src_addr={}, dst_addr={}", err, src_addr, dst_addr);
+                    Ok(Some((stream, egress_connector))) => {
+                        Self::direct_transfer(&egress_connector, stream, dst_addr).await;
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        tracing::warn!(
+                            "server io error: {:?}, udp: src_addr={}, dst_addr={}",
+                            err,
+                            src_addr,
+                            dst_addr
+                        );
+                    }
                 }
             }
         });
+    }
+
+    async fn direct_transfer(
+        egress_connector: &Arc<EgressConnector>,
+        client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target: SocketAddr,
+    ) {
+        tracing::info!("Direct connection (UDP) to {}", target);
+
+        let out_socket = match egress_connector.connect_udp(target).await {
+            Ok(socket) => socket,
+            Err(err) => {
+                tracing::warn!("Direct connection (UDP) to {} failed, err: {:?}", target, err);
+                return;
+            }
+        };
+
+        if let Err(err) = udp_transfer(client, out_socket).await {
+            tracing::warn!("Direct connection (UDP) io error: {:?}, target: {}", err, target);
+        }
     }
 }
