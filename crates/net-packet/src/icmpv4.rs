@@ -163,7 +163,7 @@ impl<'a> Icmpv4Header<'a> {
     /// The returned `Icmpv4Header` stores only the header slice, allowing the payload
     /// slice to be used independently for parsing upper-layer packets.
     #[inline]
-    pub(crate) fn split(self) -> (Self, &'a mut [u8]) {
+    pub fn split(self) -> (Self, &'a mut [u8]) {
         let (header, payload) = self.buf.split_at_mut(self.header_len());
         (Self { buf: header }, payload)
     }

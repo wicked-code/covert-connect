@@ -92,7 +92,7 @@ impl<'a> HopByHopHeader<'a> {
     /// Consumes the header and splits the buffer into the Hop-by-Hop header
     /// slice and the remaining payload.
     #[inline]
-    pub(crate) fn split(self) -> (Self, &'a mut [u8]) {
+    pub fn split(self) -> (Self, &'a mut [u8]) {
         let len = self.header_len();
         let (header, payload) = self.buf.split_at_mut(len);
         (Self { buf: header }, payload)
