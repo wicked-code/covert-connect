@@ -9,6 +9,7 @@ use tokio::{
     net::{TcpSocket, TcpStream, UdpSocket},
     task,
 };
+use socket2::{Domain, Protocol, Socket, Type};
 
 use tokio_rustls::{
     TlsConnector,
@@ -116,10 +117,29 @@ impl EgressConnector {
 
     pub async fn connect_udp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
         let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
-        let out_socket = UdpSocket::bind(outbound_address).await?;
+        let socket = UdpSocket::bind(outbound_address).await?;
 
-        out_socket.connect(target).await?;
-        Ok(out_socket)
+        socket.connect(target).await?;
+        Ok(socket)
+    }
+
+    pub async fn connect_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
+        let (domain, protocol) = if target.is_ipv4() {
+            (Domain::IPV4, Protocol::ICMPV4)
+        } else {
+            (Domain::IPV6, Protocol::ICMPV6)
+        };
+        let socket = Socket::new(domain, Type::RAW, Some(protocol))?;
+        socket.set_nonblocking(true)?;
+
+        let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
+        socket.bind(&outbound_address.into())?;
+
+        let std_udp: std::net::UdpSocket = socket.into();
+        let socket = UdpSocket::from_std(std_udp)?;
+
+        socket.connect(target).await?;
+        Ok(socket)
     }
 
     async fn update(self: &Arc<Self>) -> Result<()> {

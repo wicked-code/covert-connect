@@ -24,6 +24,7 @@ pub struct TunService {
     tcp_proxy_nat_v4: Arc<TcpProxyNat>,
     tcp_proxy_nat_v6: Arc<TcpProxyNat>,
     udp_nat: Arc<UdpNat>,
+    icmp_nat: Arc<UdpNat>,
 }
 
 impl TunService {
@@ -31,7 +32,8 @@ impl TunService {
         Arc::new(Self {
             tcp_proxy_nat_v4: TcpProxyNat::new(),
             tcp_proxy_nat_v6: TcpProxyNat::new(),
-            udp_nat: UdpNat::new(),
+            udp_nat: UdpNat::new(false),
+            icmp_nat: UdpNat::new(true),
         })
     }
 
@@ -42,7 +44,8 @@ impl TunService {
 
         self.tcp_proxy_nat_v4.init().await?;
         self.tcp_proxy_nat_v6.init().await?;
-        self.udp_nat.init(router.clone(), writer).await?;
+        self.udp_nat.init(router.clone(), writer.clone()).await?;
+        self.icmp_nat.init(router.clone(), writer).await?;
 
         let self_clone = self.clone();
         let router_clone = router.clone();
@@ -108,8 +111,6 @@ impl TunService {
             })
             .unwrap_or(Ipv6Addr::UNSPECIFIED);
         let gateaway_v6 = Ipv6Addr::from(u128::from(address_v6) + 1);
-
-        tracing::info!("tun interface: {:?}", net_if);
 
         let (writer, mut reader) = dev.split()?;
 
@@ -322,7 +323,11 @@ impl TunService {
             return;
         }
 
-        tracing::debug!("ICMPv4 packet: {:?}, to {}", icmp, ipv4.dst_addr());
+        self.icmp_nat.send(
+            SocketAddr::new(IpAddr::V4(ipv4.src_addr()), 0),
+            SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), 0),
+            icmp.data(),
+        );
     }
 
     fn process_icmp_v6_packet(
@@ -333,8 +338,12 @@ impl TunService {
         if is_local_v6(ipv6.dst_addr()) {
             return;
         }
-        
-        tracing::debug!("ICMPv6 packet: {:?}, to {}", icmp, ipv6.dst_addr());
+
+        self.icmp_nat.send(
+            SocketAddr::new(IpAddr::V6(ipv6.src_addr()), 0),
+            SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), 0),
+            icmp.data(),
+        );
     }
 
     fn process_igmp_v4_packet(&self, ipv4: &mut net_packet::ipv4::Ipv4Header, igmp: &mut net_packet::igmp::IgmpHeader) {

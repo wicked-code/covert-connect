@@ -22,6 +22,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
+#[derive(Clone, Copy, Debug)]
 pub enum DataProtocol {
     Tcp,
     Udp,

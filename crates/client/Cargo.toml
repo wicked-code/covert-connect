@@ -23,6 +23,7 @@ bytes.workspace = true
 parking_lot.workspace = true
 const_format.workspace = true
 num_enum.workspace = true
+socket2.workspace = true
 
 tokio-rustls.workspace = true
 webpki-roots.workspace = true

@@ -129,6 +129,12 @@ impl<'a> Icmpv6Header<'a> {
         &self.buf[ICMPV6_HEADER_LEN..]
     }
 
+    /// Returns the entire ICMPv6 message, including header and payload.
+    #[inline]
+    pub fn data(&self) -> &[u8] {
+        &self.buf[..]
+    }
+
     /// Verifies the ICMPv6 checksum using the IPv6 pseudo-header.
     ///
     /// ICMPv6 checksums are computed over a pseudo-header (source addr,

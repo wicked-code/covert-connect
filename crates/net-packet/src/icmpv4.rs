@@ -102,6 +102,12 @@ impl<'a> Icmpv4Header<'a> {
         &self.buf[ICMPV4_HEADER_LEN..]
     }
 
+    /// Returns the entire ICMPv4 message including both header and payload.
+    #[inline]
+    pub fn data(&self) -> &[u8] {
+        &self.buf[..]
+    }
+
     /// Verifies the ICMP checksum over the entire message.
     #[inline]
     pub fn verify_checksum(&self, message_len: usize) -> bool {

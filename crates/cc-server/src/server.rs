@@ -12,9 +12,10 @@ use crypto::{
 use net_packet::MAX_PACKET_SIZE;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
+use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     mem,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     ops::Range,
     str,
     time::Duration,
@@ -158,7 +159,8 @@ async fn start_tunnel(
     };
 
     let is_udp = host.contains('!');
-    let host = host.replace('!', "");
+    let is_icmp = host.contains('~');
+    let host = host.replace('!', "").replace('~', "");
 
     // prefer ipv4
     let addr = lookup_host(&host)
@@ -178,21 +180,57 @@ async fn start_tunnel(
     );
 
     if is_udp {
-        let out_socket = UdpSocket::bind(match cfg.out_address {
+        let socket = UdpSocket::bind(match cfg.out_address {
             Some(out_addr) => SocketAddr::new(out_addr, 0),
-            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+            None => if addr.is_ipv4() {
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
+            } else {
+                SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)
+            },
         })
         .await
         .with_context(|| format!("Failed to bind UDP to {:?}", cfg.out_address))?;
 
-        out_socket
+        socket
             .connect(addr)
             .await
             .with_context(|| format!("Failed to connect UDP to {:?}", addr))?;
 
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
-        udp_transfer(&mut client, out_socket).await?;
+        udp_transfer(&mut client, socket).await?;
+    } else if is_icmp {
+        let (domain, protocol, default_ip) = if addr.is_ipv4() {
+            (Domain::IPV4, Protocol::ICMPV4, IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        } else {
+            (Domain::IPV6, Protocol::ICMPV6, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
+        };
+
+        let socket = Socket::new(domain, Type::RAW, Some(protocol))?;
+        socket.set_nonblocking(true)?;
+
+        let outbound_address = SocketAddr::new(
+            match cfg.out_address {
+                Some(out_addr) => out_addr,
+                None => default_ip,
+            },
+            0,
+        );
+        socket
+            .bind(&outbound_address.into())
+            .with_context(|| format!("Failed to bind ICMP to {:?}", cfg.out_address))?;
+
+        let std_udp: std::net::UdpSocket = socket.into();
+        let socket = UdpSocket::from_std(std_udp)?;
+
+        socket
+            .connect(addr)
+            .await
+            .with_context(|| format!("Failed to connect ICMP to {:?}", addr))?;
+
+        tracing::info!("CONNECT (ICMP) from {socket_addr} to {addr}");
+
+        udp_transfer(&mut client, socket).await?;
     } else {
         let mut out_stream = match cfg.out_address {
             Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {

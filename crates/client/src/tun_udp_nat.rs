@@ -1,13 +1,16 @@
 use crate::{
-    egress_connector::EgressConnector, protocol::DataProtocol, router::Router, streams::udp_stream::{UdpStream, UdpStreamData}
+    egress_connector::EgressConnector,
+    protocol::DataProtocol,
+    router::Router,
+    streams::udp_stream::{UdpStream, UdpStreamData},
 };
 use anyhow::Result;
 use cc_server::udp::udp_transfer;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
-use tun::DeviceWriter;
 use tokio::io::{AsyncRead, AsyncWriteExt};
+use tun::DeviceWriter;
 
 // TODO: move to settings
 const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -16,14 +19,16 @@ pub struct UdpNat {
     sessions: RwLock<FxHashMap<SocketAddr, Arc<UdpStreamData>>>,
     router: Mutex<Option<Arc<Router>>>,
     writer: Mutex<Option<DeviceWriter>>,
+    is_icmp: bool,
 }
 
 impl UdpNat {
-    pub fn new() -> Arc<Self> {
+    pub fn new(is_icmp: bool) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             router: Mutex::new(None),
             writer: Mutex::new(None),
+            is_icmp,
         })
     }
 
@@ -32,12 +37,17 @@ impl UdpNat {
         *self.writer.lock() = Some(writer);
 
         let self_clone = self.clone();
-        let mut interval = tokio::time::interval(SESSION_CLOSE_TIMEOUT);
         tokio::spawn(async move {
+            let mut interval = tokio::time::interval(SESSION_CLOSE_TIMEOUT);
+            let mut delete_sessions: Vec<Arc<UdpStreamData>> = Vec::new();
             loop {
+                for session in &delete_sessions {
+                    session.done();
+                }
+                delete_sessions.clear();
+
                 interval.tick().await;
 
-                let mut delete_sessions = Vec::new();
                 let mut sessions = self_clone.sessions.write();
                 sessions.retain(|_, session| {
                     if session.last_active().elapsed() >= SESSION_CLOSE_TIMEOUT {
@@ -47,11 +57,6 @@ impl UdpNat {
                         true
                     }
                 });
-                drop(sessions);
-
-                for session in delete_sessions {
-                    session.done();
-                }
             }
         });
 
@@ -83,17 +88,26 @@ impl UdpNat {
                     return;
                 }
 
-                let stream = UdpStream::new(writer.clone(), src_addr, dst_addr);
+                let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, self_clone.is_icmp);
                 let data = stream.data();
                 self_clone.sessions.write().insert(src_addr, data.clone());
                 data.send_packet(payload);
 
+                let data_protocol = if self_clone.is_icmp {
+                    DataProtocol::Icmp
+                } else {
+                    DataProtocol::Udp
+                };
                 match router
-                    .start_tunnel(stream, DataProtocol::Udp, dst_addr.to_string(), dst_addr, src_addr)
+                    .start_tunnel(stream, data_protocol, dst_addr.to_string(), dst_addr, src_addr)
                     .await
                 {
                     Ok(Some((stream, egress_connector))) => {
-                        Self::direct_transfer(&egress_connector, stream, dst_addr).await;
+                        if self_clone.is_icmp {
+                            Self::direct_transfer_icmp(&egress_connector, stream, dst_addr).await;
+                        } else {
+                            Self::direct_transfer(&egress_connector, stream, dst_addr).await;
+                        }
                     }
                     Ok(None) => {}
                     Err(err) => {
@@ -126,6 +140,26 @@ impl UdpNat {
 
         if let Err(err) = udp_transfer(client, out_socket).await {
             tracing::warn!("Direct connection (UDP) io error: {:?}, target: {}", err, target);
+        }
+    }
+
+    async fn direct_transfer_icmp(
+        egress_connector: &Arc<EgressConnector>,
+        client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target: SocketAddr,
+    ) {
+        tracing::info!("Direct connection (ICMP) to {}", target);
+
+        let out_socket = match egress_connector.connect_icmp(target).await {
+            Ok(socket) => socket,
+            Err(err) => {
+                tracing::warn!("Direct connection (ICMP) to {} failed, err: {:?}", target, err);
+                return;
+            }
+        };
+
+        if let Err(err) = udp_transfer(client, out_socket).await {
+            tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {}", err, target);
         }
     }
 }

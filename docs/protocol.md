@@ -10,7 +10,7 @@
     host len                u8    |  host name string length
     tag                           |  aead tag of ChaCha20Poly1305 or Aes256Gcm (depens on config)
 
-    host name                     |  host name string or ip, "!" at any point mean udp
+    host name                     |  host name string or ip, "!" at any point mean udp, "~" mean icmp
     tag                           |  aead tag of ChaCha20Poly1305 or Aes256Gcm (depens on config)
 
     padding                       |  random padding, not encrypted

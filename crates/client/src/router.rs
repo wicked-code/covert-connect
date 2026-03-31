@@ -320,7 +320,7 @@ impl Router {
             match data_protocol {
                 DataProtocol::Tcp => Protocol::TCP,
                 DataProtocol::Udp => Protocol::UDP,
-                DataProtocol::Icmp => Protocol::TCP,
+                DataProtocol::Icmp => Protocol::UDP,
             },
         ) {
             Ok(process_path) => {

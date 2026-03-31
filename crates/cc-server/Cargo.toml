@@ -21,6 +21,7 @@ shellexpand.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
+socket2.workspace = true
 
 crypto.workspace = true
 net-packet.workspace = true

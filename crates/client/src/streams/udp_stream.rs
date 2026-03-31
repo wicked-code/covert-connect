@@ -1,8 +1,12 @@
-use net_packet::{ip::IpPacket, ip_protocols};
+use anyhow::{Result, anyhow, bail};
+use net_packet::{
+    ip::{IpHeader, IpPacket, NextHeader},
+    ip_protocols,
+};
 use parking_lot::Mutex;
 use std::{
     io,
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
@@ -24,6 +28,7 @@ pub struct UdpStream<W: AsyncWrite + Clone> {
     data: Arc<UdpStreamData>,
     read_state: ReadState,
     write_data: vec::Vec<u8>,
+    is_icmp: bool,
 }
 
 #[derive(PartialEq)]
@@ -71,7 +76,7 @@ impl UdpStreamData {
 }
 
 impl<W: AsyncWrite + Clone> UdpStream<W> {
-    pub fn new(writer: W, src_addr: SocketAddr, dst_addr: SocketAddr) -> Self {
+    pub fn new(writer: W, src_addr: SocketAddr, dst_addr: SocketAddr, is_icmp: bool) -> Self {
         Self {
             writer,
             src_addr,
@@ -79,6 +84,7 @@ impl<W: AsyncWrite + Clone> UdpStream<W> {
             data: Arc::new(UdpStreamData::new()),
             read_state: ReadState::Wait,
             write_data: vec::Vec::new(),
+            is_icmp,
         }
     }
 
@@ -129,36 +135,41 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
         let this = self.get_mut();
         let data = &mut this.write_data;
 
-        let prev_len = data.len();
         data.extend_from_slice(&buf);
         if data.len() < 2 {
             return Poll::Ready(Ok(buf.len()));
         }
 
         let packet_len = ((data[0] as usize) << 8) + data[1] as usize;
-        if data.len() < packet_len + 2 {
+        let chunk_len = packet_len + 2;
+        if data.len() < chunk_len {
             return Poll::Ready(Ok(buf.len()));
         }
 
-        let chunk_len = packet_len + 2;
-        match IpPacket::build(ip_protocols::UDP, this.dst_addr, this.src_addr, &data[2..chunk_len]) {
-            Ok(packet) => {
-                tokio::task::spawn({
-                    let mut writer = this.writer.clone();
-                    // dst, src because it's NAT, and packet is from dst to src
-                    async move {
-                        if let Err(e) = writer.write_all(&packet).await {
-                            tracing::warn!("udp stream write error: {:?}", e);
-                        }
+        let packet = &data[2..chunk_len];
+        if this.is_icmp {
+            // in case of ICMP payload is full L3 packet, because of raw socket
+            let mut packet = packet.to_vec();
+            match IpPacket::try_from(&mut packet) {
+                Ok(ip) => {
+                    // swap src and dst, because it's NAT, and packet is from dst to src
+                    match correct_icmp_packet(ip, this.dst_addr, this.src_addr) {
+                        Ok(_) => Self::send_packet(this.writer.clone(), packet),
+                        Err(e) => tracing::warn!("Failed to correct ICMP packet: {:?}", e),
                     }
-                });
+                }
+                Err(e) => tracing::warn!("Failed to parse ICMP packet: {:?}", e),
             }
-            Err(e) => {
-                tracing::warn!("Failed to build IP packet: {:?}", e);
+        } else {
+            // swap src and dst, because it's NAT, and packet is from dst to src
+            match IpPacket::build(ip_protocols::UDP, this.dst_addr, this.src_addr, packet) {
+                Ok(packet) => Self::send_packet(this.writer.clone(), packet),
+                Err(e) => tracing::warn!("Failed to build IP packet: {:?}", e),
             }
         }
+        data.drain(..chunk_len);
 
-        Poll::Ready(Ok(chunk_len - prev_len))
+        Poll::Ready(Ok(buf.len()))
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
@@ -168,6 +179,66 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
     fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), io::Error>> {
         Poll::Ready(Ok(()))
     }
+}
+
+impl<W: AsyncWrite + Clone + Unpin + Send + 'static> UdpStream<W> {
+    fn send_packet(writer: W, packet: Vec<u8>) {
+        tokio::task::spawn({
+            let mut writer = writer.clone();
+            // dst, src because it's NAT, and packet is from dst to src
+            async move {
+                if let Err(e) = writer.write_all(&packet).await {
+                    tracing::warn!("udp stream write error: {:?}", e);
+                }
+            }
+        });
+    }
+}
+
+fn correct_icmp_packet(ip: IpPacket, src_addr: SocketAddr, dst_addr: SocketAddr) -> Result<()> {
+    match ip.header {
+        IpHeader::V4(mut header) => {
+            let IpAddr::V4(src_addr) = src_addr.ip() else {
+                bail!("Correct icmp: src_addr is not IPv4");
+            };
+            let IpAddr::V4(dst_addr) = dst_addr.ip() else {
+                bail!("Correct icmp: dst_addr is not IPv4");
+            };
+            header.set_src_addr(src_addr);
+            header.set_dst_addr(dst_addr);
+            header.compute_checksum();
+
+            let message_len = (header.total_length() as usize)
+                .checked_sub(header.header_len())
+                .ok_or_else(|| anyhow!("Malformed IPv4: total_length < header_len"))?;
+            match ip.next_header {
+                NextHeader::Icmpv4(mut icmp_v4) => {
+                    icmp_v4.compute_checksum(message_len);
+                }
+                _ => bail!("Unsupported protocol in ICMP packet"),
+            }
+        }
+        IpHeader::V6(mut header) => {
+            let IpAddr::V6(src_addr) = src_addr.ip() else {
+                bail!("Correct icmp: src_addr is not IPv6");
+            };
+            let IpAddr::V6(dst_addr) = dst_addr.ip() else {
+                bail!("Correct icmp: dst_addr is not IPv6");
+            };
+            header.set_src_addr(src_addr);
+            header.set_dst_addr(dst_addr);
+
+            let message_len = header.payload_length() as usize;
+            match ip.next_header {
+                NextHeader::Icmpv6(mut icmp_v6) => {
+                    icmp_v6.compute_checksum(src_addr, dst_addr, message_len);
+                }
+                _ => bail!("Unsupported protocol in ICMP packet"),
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -228,13 +299,13 @@ mod tests {
     }
 
     fn new_stream() -> UdpStream<MockWriter> {
-        UdpStream::new(MockWriter::new(), test_addr(), test_addr())
+        UdpStream::new(MockWriter::new(), test_addr(), test_addr(), false)
     }
 
     fn new_stream_with_writer() -> (UdpStream<MockWriter>, Arc<Mutex<Vec<Vec<u8>>>>) {
         let w = MockWriter::new();
         let written = w.written.clone();
-        (UdpStream::new(w, test_addr(), test_addr()), written)
+        (UdpStream::new(w, test_addr(), test_addr(), false), written)
     }
 
     // ════════════════════════════════════════════════
