@@ -6,7 +6,7 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::DeviceWriter;
 
-use crate::{router::Router, tun_tcp_proxy_nat::TcpProxyNat, tun_udp_nat::UdpNat};
+use crate::{router::Router, tun::tcp_proxy_nat::TcpProxyNat, tun::udp_nat::UdpNat};
 use net_packet::{
     MAX_PACKET_SIZE,
     ip::{IpHeader, IpPacket, NextHeader},

@@ -22,7 +22,7 @@ use crate::{
     egress_connector::{EgressConnector, StreamType},
     protocol::{self, DataProtocol, SelectedServer, Server},
     streams::ttfb_stream::TtfbStream,
-    tun_service::TunService,
+    tun::service::TunService,
 };
 use crypto::config::ProtocolConfig;
 
@@ -447,6 +447,7 @@ impl Router {
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
+        // TODO:??? make egress_connector singleton and remove this initialization
         self.egress_connector.init().await?;
         self.tun_service.serve(self.clone()).await
     }
