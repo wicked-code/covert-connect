@@ -54,7 +54,7 @@ impl DnsHandler {
 
         // TODO: ??? redirect record types other than A to outbound DNS server
 
-        let ip_record = self.dns_mapper.resolve(query.name().to_string().as_str());
+        let ip_record = self.dns_mapper.resolve(query.name().to_string().as_str().trim_end_matches('.'));
 
         let records = [Record::from_rdata(
             Name::from(query.name().clone()),
@@ -116,8 +116,7 @@ impl DnsServer {
         };
         let mut s = ServerFuture::new(handler);
 
-        let mut has_server = false;
-        has_server = UdpSocket::bind(SocketAddr::new(IpAddr::V4(addr), 53))
+        let mut has_server = UdpSocket::bind(SocketAddr::new(IpAddr::V4(addr), 53))
             .await
             .map(|x| {
                 tracing::info!("UDP dns server listening on: {}", addr);

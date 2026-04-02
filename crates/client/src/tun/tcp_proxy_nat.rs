@@ -84,11 +84,12 @@ impl TcpProxyNat {
         Ok(())
     }
 
-    pub async fn serve_proxy(self: &Arc<Self>, if_addr: IpAddr, router: Arc<Router>, after_bind: Option<impl FnOnce() + Send + 'static>) -> Result<()> {
-        let mut listener = self.bind_proxy(if_addr).await?;
-        if let Some(callback) = after_bind {
-            callback();
-        }
+    pub async fn serve_proxy(
+        self: &Arc<Self>,
+        mut listener: TcpListener,
+        if_addr: IpAddr,
+        router: Arc<Router>,
+    ) -> Result<()> {
         loop {
             let result = listener.accept().await;
             match result {
@@ -103,10 +104,11 @@ impl TcpProxyNat {
                         };
 
                         let dst_addr = session.dst_addr;
-                        let host = self_clone
-                            .dns_mapper
-                            .host_by_ip(dst_addr.ip())
-                            .unwrap_or_else(|| dst_addr.to_string());
+                        let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
+                        let host = host.map_or_else(
+                            || dst_addr.to_string(),
+                            |h| format!("{h}:{}", dst_addr.port().to_string()),
+                        );
 
                         match router
                             .start_tunnel(stream, DataProtocol::Tcp, host.clone(), session.src_addr)
@@ -160,7 +162,7 @@ impl TcpProxyNat {
         }
     }
 
-    async fn bind_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<TcpListener> {
+    pub async fn bind_proxy(self: &Arc<Self>, if_addr: IpAddr) -> Result<TcpListener> {
         let default_address = SocketAddr::new(if_addr, 0);
 
         // Bind may hang forever on a newly created interface (Windows bug, needs checking on Linux),

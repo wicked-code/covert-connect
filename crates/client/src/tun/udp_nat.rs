@@ -97,10 +97,11 @@ impl UdpNat {
                 self_clone.sessions.write().insert(src_addr, data.clone());
                 data.send_packet(payload);
 
-                let host = self_clone
-                    .dns_mapper
-                    .host_by_ip(dst_addr.ip())
-                    .unwrap_or_else(|| dst_addr.to_string());
+                let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
+                let host = host.map_or_else(
+                    || dst_addr.to_string(),
+                    |h| format!("{h}:{}", dst_addr.port().to_string()),
+                );
 
                 let data_protocol = if self_clone.is_icmp {
                     DataProtocol::Icmp

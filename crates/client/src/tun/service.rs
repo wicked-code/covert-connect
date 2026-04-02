@@ -46,6 +46,7 @@ impl TunService {
     }
 
     pub async fn stop(&self) -> Result<()> {
+        // TODO: ??? stop all in parallel since some services may be started and some not
         // TODO: ??? stop tun service gracefully
         self.dns_server.stop().await?;
 
@@ -67,7 +68,6 @@ impl TunService {
         // stop: should remove router and writer from udp_proxy_nat
         let (if_addr_v4, if_addr_v6, writer) = self.init_tun().await?;
 
-        self.dns_server.start(if_addr_v4).await?;
         self.tcp_proxy_nat_v4.init().await?;
         self.tcp_proxy_nat_v6.init().await?;
         self.udp_nat.init(router.clone(), writer.clone()).await?;
@@ -76,29 +76,37 @@ impl TunService {
         let self_clone = self.clone();
         let router_clone = router.clone();
         tokio::spawn(async move {
+            let listener = match self_clone.tcp_proxy_nat_v6.bind_proxy(IpAddr::V6(if_addr_v6)).await {
+                Ok(listener) => listener,
+                Err(e) => {
+                    tracing::warn!("IPv6 TCP proxy failed to bind: {:?}", e);
+                    return;
+                }
+            };
+
             if let Err(e) = self_clone
                 .tcp_proxy_nat_v6
-                .serve_proxy(IpAddr::V6(if_addr_v6), router_clone, None::<fn()>)
+                .serve_proxy(listener, IpAddr::V6(if_addr_v6), router_clone)
                 .await
             {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
             }
         });
 
+        let listener = self.tcp_proxy_nat_v4.bind_proxy(IpAddr::V4(if_addr_v4)).await?;
+        self.dns_server.start(if_addr_v4).await?;
+
+        tokio::spawn(async {
+            // TODO: ??? delay for dns start?
+            // send/wait requests to dns server, continue after answer or timeout
+            flush_system_dns_cache()
+                .await
+                .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
+                .ok();
+        });
+
         self.tcp_proxy_nat_v4
-            .serve_proxy(
-                IpAddr::V4(if_addr_v4),
-                router.clone(),
-                Some(|| {
-                    tokio::spawn(async {
-                        // Flush system DNS cache when starting
-                        flush_system_dns_cache()
-                            .await
-                            .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
-                            .ok();
-                    });
-                }),
-            )
+            .serve_proxy(listener, IpAddr::V4(if_addr_v4), router.clone())
             .await
     }
 
