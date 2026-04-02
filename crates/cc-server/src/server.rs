@@ -228,7 +228,7 @@ async fn start_tunnel(
             .await
             .with_context(|| format!("Failed to connect ICMP to {:?}", addr))?;
 
-        tracing::info!("CONNECT (ICMP) from {socket_addr} to {addr}");
+        tracing::info!("CONNECT (ICMP) from {socket_addr} to {host} ({addr})");
 
         udp_transfer(&mut client, socket).await?;
     } else {
@@ -252,7 +252,7 @@ async fn start_tunnel(
                 .with_context(|| format!("Failed to connect socket to {:?}", addr))?,
         };
 
-        tracing::info!("CONNECT from {socket_addr} to {addr}");
+        tracing::info!("CONNECT from {socket_addr} to {host} ({addr})");
 
         tokio::io::copy_bidirectional(&mut client, &mut out_stream).await?;
     }
