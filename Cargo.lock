@@ -678,6 +678,7 @@ dependencies = [
  "futures-util",
  "hickory-client",
  "hickory-proto",
+ "hickory-resolver",
  "hickory-server",
  "hyper",
  "hyper-util",

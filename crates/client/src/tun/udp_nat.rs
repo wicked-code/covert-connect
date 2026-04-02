@@ -1,9 +1,3 @@
-use crate::{
-    egress_connector::EgressConnector,
-    protocol::DataProtocol,
-    router::Router,
-    streams::udp_stream::{UdpStream, UdpStreamData},
-};
 use anyhow::Result;
 use cc_server::udp::udp_transfer;
 use parking_lot::{Mutex, RwLock};
@@ -11,6 +5,14 @@ use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::io::{AsyncRead, AsyncWriteExt};
 use tun::DeviceWriter;
+
+use crate::{
+    egress_connector::EgressConnector,
+    protocol::DataProtocol,
+    router::Router,
+    streams::udp_stream::{UdpStream, UdpStreamData},
+    tun::dns_mapper::DnsMapper,
+};
 
 // TODO: move to settings
 const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -20,15 +22,17 @@ pub struct UdpNat {
     router: Mutex<Option<Arc<Router>>>,
     writer: Mutex<Option<DeviceWriter>>,
     is_icmp: bool,
+    dns_mapper: Arc<DnsMapper>,
 }
 
 impl UdpNat {
-    pub fn new(is_icmp: bool) -> Arc<Self> {
+    pub fn new(is_icmp: bool, dns_mapper: Arc<DnsMapper>) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             router: Mutex::new(None),
             writer: Mutex::new(None),
             is_icmp,
+            dns_mapper,
         })
     }
 
@@ -93,20 +97,29 @@ impl UdpNat {
                 self_clone.sessions.write().insert(src_addr, data.clone());
                 data.send_packet(payload);
 
+                let host = self_clone
+                    .dns_mapper
+                    .host_by_ip(dst_addr.ip())
+                    .unwrap_or_else(|| dst_addr.to_string());
+
                 let data_protocol = if self_clone.is_icmp {
                     DataProtocol::Icmp
                 } else {
                     DataProtocol::Udp
                 };
-                match router
-                    .start_tunnel(stream, data_protocol, dst_addr.to_string(), dst_addr, src_addr)
-                    .await
-                {
+                match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
                     Ok(Some((stream, egress_connector))) => {
+                        let use_dst_addr = egress_connector.lookup_host(&host).await.map_or_else(
+                            || {
+                                tracing::info!("UDP NAT lookup host failed {}", host);
+                                dst_addr
+                            },
+                            |ip| SocketAddr::new(ip, dst_addr.port()),
+                        );
                         if self_clone.is_icmp {
-                            Self::direct_transfer_icmp(&egress_connector, stream, dst_addr).await;
+                            Self::direct_transfer_icmp(&egress_connector, stream, use_dst_addr).await;
                         } else {
-                            Self::direct_transfer(&egress_connector, stream, dst_addr).await;
+                            Self::direct_transfer(&egress_connector, stream, use_dst_addr).await;
                         }
                     }
                     Ok(None) => {}

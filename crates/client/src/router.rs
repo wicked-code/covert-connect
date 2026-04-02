@@ -457,7 +457,6 @@ impl Router {
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         data_protocol: DataProtocol,
         target_host: String,
-        target_addr: SocketAddr,
         client_addr: SocketAddr,
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<EgressConnector>)>> {
         let mut rng = ChaCha20Rng::from_entropy();
@@ -466,7 +465,7 @@ impl Router {
             .await?;
         if let Some(server) = selected {
             self.ensure_config_initialized(&server).await;
-            self.start_tunnel_with_server(client, data_protocol, target_addr.to_string(), server, rng)
+            self.start_tunnel_with_server(client, data_protocol, target_host, server, rng)
                 .await?;
             Ok(None)
         } else {

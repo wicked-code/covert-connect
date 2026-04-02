@@ -6,7 +6,11 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::DeviceWriter;
 
-use crate::{router::Router, tun::tcp_proxy_nat::TcpProxyNat, tun::udp_nat::UdpNat};
+use crate::{
+    router::Router,
+    tun::tcp_proxy_nat::TcpProxyNat,
+    tun::{dns_mapper::DnsMapper, dns_server::DnsServer, udp_nat::UdpNat},
+};
 use net_packet::{
     MAX_PACKET_SIZE,
     ip::{IpHeader, IpPacket, NextHeader},
@@ -21,6 +25,7 @@ enum ProcessResult {
 }
 
 pub struct TunService {
+    dns_server: Arc<DnsServer>,
     tcp_proxy_nat_v4: Arc<TcpProxyNat>,
     tcp_proxy_nat_v6: Arc<TcpProxyNat>,
     udp_nat: Arc<UdpNat>,
@@ -29,12 +34,29 @@ pub struct TunService {
 
 impl TunService {
     pub fn new() -> Arc<Self> {
+        let dns_mapper = DnsMapper::new();
         Arc::new(Self {
-            tcp_proxy_nat_v4: TcpProxyNat::new(),
-            tcp_proxy_nat_v6: TcpProxyNat::new(),
-            udp_nat: UdpNat::new(false),
-            icmp_nat: UdpNat::new(true),
+            tcp_proxy_nat_v4: TcpProxyNat::new(dns_mapper.clone()),
+            tcp_proxy_nat_v6: TcpProxyNat::new(dns_mapper.clone()),
+            udp_nat: UdpNat::new(false, dns_mapper.clone()),
+            icmp_nat: UdpNat::new(true, dns_mapper.clone()),
+            dns_server: DnsServer::new(dns_mapper),
         })
+    }
+
+    pub async fn stop(&self) -> Result<()> {
+        // TODO: ??? stop tun service gracefully
+        self.dns_server.stop().await?;
+
+        // nat should also stop serve_proxy
+        // self.tcp_proxy_nat_v4.stop().await?;
+
+        // nat should also stop serve_proxy
+        // self.tcp_proxy_nat_v6.stop().await?;
+
+        // self.udp_nat.stop().await?;
+        // self.icmp_nat.stop().await?;
+        Ok(())
     }
 
     pub async fn serve(self: &Arc<Self>, router: Arc<Router>) -> Result<()> {
@@ -42,6 +64,7 @@ impl TunService {
         // stop: should remove router and writer from udp_proxy_nat
         let (if_addr_v4, if_addr_v6, writer) = self.init_tun().await?;
 
+        self.dns_server.serve().await?;
         self.tcp_proxy_nat_v4.init().await?;
         self.tcp_proxy_nat_v6.init().await?;
         self.udp_nat.init(router.clone(), writer.clone()).await?;
@@ -80,6 +103,9 @@ impl TunService {
             .address(address_v4)
             .netmask((255, 255, 255, 240))
             .destination(gateaway_v4)
+            .platform_config(|config| {
+                config.dns_servers(&[IpAddr::V4(address_v4)]);
+            })
             .up();
 
         // TODO: ??? test ensure_root_privileges on linux

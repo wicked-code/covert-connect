@@ -1,5 +1,12 @@
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use hickory_resolver::{
+    Resolver,
+    config::{NameServerConfig, ResolverConfig},
+    name_server::TokioConnectionProvider,
+};
+use hickory_proto::xfer::Protocol as DnsProtocol;
+use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -9,7 +16,6 @@ use tokio::{
     net::{TcpSocket, TcpStream, UdpSocket},
     task,
 };
-use socket2::{Domain, Protocol, Socket, Type};
 
 use tokio_rustls::{
     TlsConnector,
@@ -27,6 +33,7 @@ pub enum StreamType {
 pub struct EgressConnector {
     outbound_ip: ArcSwap<IpAddr>,
     tls_cfg: Arc<rustls::ClientConfig>,
+    resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
 }
 
 impl EgressConnector {
@@ -46,6 +53,9 @@ impl EgressConnector {
         Arc::new(Self {
             outbound_ip: ArcSwap::from_pointee(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
             tls_cfg: Arc::new(tls_cfg),
+            resolver: ArcSwap::from_pointee(
+                Resolver::builder_with_config(ResolverConfig::new(), TokioConnectionProvider::default()).build(),
+            ),
         })
     }
 
@@ -142,9 +152,42 @@ impl EgressConnector {
         Ok(socket)
     }
 
+    pub async fn lookup_host(&self, host: &str) -> Option<IpAddr> {
+        self.resolver.load().lookup_ip(host).await.ok().and_then(|lookup| lookup.iter().next())
+    }
+
     async fn update(self: &Arc<Self>) -> Result<()> {
         let outbound_ip = find_outbound_ip().await?;
         self.outbound_ip.store(Arc::new(outbound_ip));
+
+        let mut config = ResolverConfig::new();
+
+        // try outbound IF dns first
+        let if_dns_ips = get_dns_by_if_addr(outbound_ip).await?;
+        for dns_ip in if_dns_ips {
+            config.add_name_server(NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp));        
+        }
+
+        // fallback to public dns if we can't get dns from IF
+        // TODO: ??? move to options, same as in outbound.rs
+        let dns_ips = [
+            "8.8.8.8".parse().unwrap(), 
+            "1.1.1.1".parse().unwrap(),
+        ];
+
+        for dns_ip in dns_ips {
+            config.add_name_server(NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic));
+        }        
+
+        // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
+        for item in config.name_servers() {
+           item.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
+        }
+
+        self.resolver.store(Arc::new(
+            Resolver::builder_with_config(config, TokioConnectionProvider::default()).build(),
+        ));
+
         Ok(())
     }
 }

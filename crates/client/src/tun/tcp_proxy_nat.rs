@@ -1,4 +1,3 @@
-use crate::{egress_connector::EgressConnector, protocol::DataProtocol, router::Router};
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
@@ -11,10 +10,12 @@ use std::{
     time::Duration,
 };
 use tokio::{
+    io::{AsyncRead, AsyncWriteExt},
     net::TcpListener,
     time::{sleep, timeout},
-    io::{AsyncRead, AsyncWriteExt},
 };
+
+use crate::{egress_connector::EgressConnector, protocol::DataProtocol, router::Router, tun::dns_mapper::DnsMapper};
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
@@ -40,16 +41,18 @@ pub struct TcpProxyNat {
     ports: RwLock<FxHashMap<SocketAddr, u16>>,
     port_index: AtomicU16,
     tcp_proxy_port: AtomicU16,
+    dns_mapper: Arc<DnsMapper>,
 }
 
 impl TcpProxyNat {
-    pub fn new() -> Arc<Self> {
+    pub fn new(dns_mapper: Arc<DnsMapper>) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             closed_sessions: Mutex::new(Vec::new()),
             ports: RwLock::new(FxHashMap::default()),
             port_index: AtomicU16::new(MIN_NAT_PORT),
             tcp_proxy_port: AtomicU16::new(0),
+            dns_mapper,
         })
     }
 
@@ -96,13 +99,25 @@ impl TcpProxyNat {
                             return;
                         };
 
-                        let target = session.dst_addr;
+                        let dst_addr = session.dst_addr;
+                        let host = self_clone
+                            .dns_mapper
+                            .host_by_ip(dst_addr.ip())
+                            .unwrap_or_else(|| dst_addr.to_string());
+
                         match router
-                            .start_tunnel(stream, DataProtocol::Tcp, target.to_string(), target, session.src_addr)
+                            .start_tunnel(stream, DataProtocol::Tcp, host.clone(), session.src_addr)
                             .await
                         {
                             Ok(Some((stream, egress_connector))) => {
-                                Self::direct_transfer(&egress_connector, stream, target).await;
+                                let use_dst_addr = egress_connector.lookup_host(&host).await.map_or_else(
+                                    || {
+                                        tracing::info!("UDP NAT lookup host failed {}", host);
+                                        dst_addr
+                                    },
+                                    |ip| SocketAddr::new(ip, dst_addr.port()),
+                                );
+                                Self::direct_transfer(&egress_connector, stream, use_dst_addr).await;
                             }
                             Ok(None) => {}
                             Err(err) => {
@@ -184,32 +199,31 @@ impl TcpProxyNat {
         sessions.get(&port).cloned().ok_or_else(|| anyhow!("Session not found"))
     }
 
+    fn get_new_port(&self) -> u16 {
+        MIN_NAT_PORT + self.port_index.fetch_add(1, Ordering::Relaxed) % (MAX_NAT_PORT - MIN_NAT_PORT)
+    }
+
     pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr) -> u16 {
-        let ports = self.ports.read();
-        // TODO: ???? is it possible to have different src_addr.ip() but same src_addr.port()?
-        match ports.get(&src_addr) {
-            Some(port) => *port,
-            None => {
-                drop(ports);
-
-                let mut port = self.port_index.fetch_add(1, Ordering::Relaxed);
-                let tcp_proxy_port = self.tcp_proxy_port();
-                while port >= MAX_NAT_PORT || port == tcp_proxy_port || self.sessions.read().contains_key(&port) {
-                    if port >= MAX_NAT_PORT {
-                        self.port_index.store(MIN_NAT_PORT, Ordering::Relaxed);
-                        port = MIN_NAT_PORT;
-                    } else {
-                        port = self.port_index.fetch_add(1, Ordering::Relaxed);
-                    }
-                }
-
-                let session = Arc::new(TcpProxySession { src_addr, dst_addr });
-
-                self.sessions.write().insert(port, session);
-                self.ports.write().insert(src_addr, port);
-                port
-            }
+        if let Some(port) = self.ports.read().get(&src_addr) {
+            return *port;
         }
+
+        let mut port = self.get_new_port();
+        let tcp_proxy_port = self.tcp_proxy_port();
+        while port == tcp_proxy_port || self.sessions.read().contains_key(&port) {
+            port = self.get_new_port();
+        }
+
+        let session = Arc::new(TcpProxySession { src_addr, dst_addr });
+
+        let mut ports_wr = self.ports.write();
+        if let Some(port) = ports_wr.get(&src_addr) {
+            return *port;
+        }
+
+        self.sessions.write().insert(port, session);
+        ports_wr.insert(src_addr, port);
+        port
     }
 
     fn set_proxy_port(&self, port: u16) {
@@ -230,7 +244,7 @@ impl TcpProxyNat {
     }
 
     fn delete_session(&self, port: u16, src_addr: SocketAddr) {
-        self.sessions.write().remove(&port);
         self.ports.write().remove(&src_addr);
+        self.sessions.write().remove(&port);
     }
 }
