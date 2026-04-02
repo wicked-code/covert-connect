@@ -1,6 +1,7 @@
+use crate::tun::dns_mapper::DnsMapper;
 use anyhow::{Result, anyhow, bail};
 use hickory_proto::{
-    op::{Header, MessageType, OpCode, ResponseCode},
+    op::{Header, LowerQuery, MessageType, OpCode, ResponseCode},
     rr::{Name, RData, Record, RecordType},
 };
 use hickory_server::{
@@ -23,7 +24,6 @@ struct DnsHandler {
     dns_mapper: Arc<DnsMapper>,
 }
 
-use crate::tun::dns_mapper::DnsMapper;
 pub struct DnsServer {
     dns_mapper: Arc<DnsMapper>,
     server: Mutex<Option<ServerFuture<DnsHandler>>>,
@@ -45,27 +45,52 @@ impl DnsHandler {
         let builder = MessageResponseBuilder::from_message_request(request);
         let mut header = Header::response_from_request(request.header());
 
-        if query.query_type() == RecordType::AAAA {
-            header.set_authoritative(true);
+        Ok(match query.query_type() {
+            RecordType::AAAA => {
+                // IPv6 support just adds complexity and has no any additional value
+                header.set_authoritative(true);
 
-            let response = builder.build_no_records(header);
-            return Ok(response_handle.send_response(response).await?);
-        }
+                let response = builder.build_no_records(header);
+                response_handle.send_response(response).await?
+            }
+            RecordType::A => {
+                header.set_authoritative(true);
 
-        // TODO: ??? redirect record types other than A to outbound DNS server
+                let ip_record = self
+                    .dns_mapper
+                    .resolve(query.name().to_string().as_str().trim_end_matches('.'));
 
-        let ip_record = self.dns_mapper.resolve(query.name().to_string().as_str().trim_end_matches('.'));
+                let records = [Record::from_rdata(
+                    Name::from(query.name().clone()),
+                    ip_record
+                        .expire_time
+                        .duration_since(std::time::Instant::now())
+                        .as_secs() as u32,
+                    RData::A(ip_record.ip.into()),
+                )];
+                let response = builder.build(header, &records, &[], &[], &[]);
+                response_handle.send_response(response).await?
+            }
+            _ => self.forward_to_upstream(query, response_handle).await?,
+        })
+    }
 
-        let records = [Record::from_rdata(
-            Name::from(query.name().clone()),
-            ip_record
-                .expire_time
-                .duration_since(std::time::Instant::now())
-                .as_secs() as u32,
-            RData::A(ip_record.ip.into()),
-        )];
-        let response = builder.build(header, &records, &[], &[], &[]);
-        Ok(response_handle.send_response(response).await?)
+    async fn forward_to_upstream<R: ResponseHandler>(
+        &self,
+        query: &LowerQuery,
+        mut response_handle: R,
+    ) -> Result<ResponseInfo> {
+        // TODO: ???
+        // implment forwarding to upstream DNS server when query type is not A or AAAA
+        // to make good quality we need Egress and Server selector here
+        // if host should go direct we should use Egress
+        // if specific server selected somehow use start_tunnel here
+        // overwise just go through tun (no binding)
+        // to implement queary take a look at:
+        // dns_stream_builder in https://github.com/Watfaq/clash-rs/blob/c414fb750265e9c7f73beb5ab9b6709e4628b4cd/clash-lib/src/app/dns/dns_client.rs#L12
+
+        //Ok(response_handle.send_response(response.into_message()).await?)
+        bail!("unsupported query type: {}", query.query_type());
     }
 }
 
@@ -83,7 +108,7 @@ impl RequestHandler for DnsHandler {
 
         self.handle(request, response_handle).await.unwrap_or_else(|e| {
             // TODO: remove trace or replace to debug
-            tracing::info!("dns request error: {}", e);
+            tracing::error!("dns request error: {}", e);
             let mut h = Header::new();
             h.set_response_code(ResponseCode::ServFail);
             h.into()

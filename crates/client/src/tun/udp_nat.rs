@@ -7,7 +7,7 @@ use tokio::io::{AsyncRead, AsyncWriteExt};
 use tun::DeviceWriter;
 
 use crate::{
-    egress_connector::EgressConnector,
+    egress::Egress,
     protocol::DataProtocol,
     router::Router,
     streams::udp_stream::{UdpStream, UdpStreamData},
@@ -15,7 +15,7 @@ use crate::{
 };
 
 // TODO: move to settings
-const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 pub struct UdpNat {
     sessions: RwLock<FxHashMap<SocketAddr, Arc<UdpStreamData>>>,
@@ -109,8 +109,8 @@ impl UdpNat {
                     DataProtocol::Udp
                 };
                 match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
-                    Ok(Some((stream, egress_connector))) => {
-                        let use_dst_addr = egress_connector.lookup_host(&host).await.map_or_else(
+                    Ok(Some((stream, egress))) => {
+                        let use_dst_addr = egress.lookup_host(&host).await.map_or_else(
                             || {
                                 tracing::info!("UDP NAT lookup host failed {}", host);
                                 dst_addr
@@ -118,9 +118,9 @@ impl UdpNat {
                             |ip| SocketAddr::new(ip, dst_addr.port()),
                         );
                         if self_clone.is_icmp {
-                            Self::direct_transfer_icmp(&egress_connector, stream, use_dst_addr).await;
+                            Self::direct_transfer_icmp(&egress, stream, use_dst_addr).await;
                         } else {
-                            Self::direct_transfer(&egress_connector, stream, use_dst_addr).await;
+                            Self::direct_transfer(&egress, stream, use_dst_addr).await;
                         }
                     }
                     Ok(None) => {}
@@ -137,14 +137,10 @@ impl UdpNat {
         });
     }
 
-    async fn direct_transfer(
-        egress_connector: &Arc<EgressConnector>,
-        client: impl AsyncWriteExt + Unpin + AsyncRead,
-        target: SocketAddr,
-    ) {
+    async fn direct_transfer(egress: &Arc<Egress>, client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
         tracing::info!("Direct connection (UDP) to {}", target);
 
-        let out_socket = match egress_connector.connect_udp(target).await {
+        let out_socket = match egress.connect_udp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (UDP) to {} failed, err: {:?}", target, err);
@@ -158,13 +154,13 @@ impl UdpNat {
     }
 
     async fn direct_transfer_icmp(
-        egress_connector: &Arc<EgressConnector>,
+        egress: &Arc<Egress>,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
     ) {
         tracing::info!("Direct connection (ICMP) to {}", target);
 
-        let out_socket = match egress_connector.connect_icmp(target).await {
+        let out_socket = match egress.connect_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (ICMP) to {} failed, err: {:?}", target, err);

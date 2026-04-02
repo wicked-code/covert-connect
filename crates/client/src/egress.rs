@@ -31,13 +31,13 @@ pub enum StreamType {
     UpgradeStream(UpgradeStream<TlsStream<TcpStream>>),
 }
 
-pub struct EgressConnector {
+pub struct Egress {
     outbound_ip: ArcSwap<IpAddr>,
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
 }
 
-impl EgressConnector {
+impl Egress {
     pub fn new() -> Arc<Self> {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),

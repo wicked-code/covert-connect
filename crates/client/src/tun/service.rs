@@ -8,8 +8,7 @@ use tun::DeviceWriter;
 
 use crate::{
     router::Router,
-    tun::tcp_proxy_nat::TcpProxyNat,
-    tun::{dns_mapper::DnsMapper, dns_server::DnsServer, udp_nat::UdpNat},
+    tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
 };
 use net_packet::{
     MAX_PACKET_SIZE,

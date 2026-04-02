@@ -15,7 +15,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::{egress_connector::EgressConnector, protocol::DataProtocol, router::Router, tun::dns_mapper::DnsMapper};
+use crate::{egress::Egress, protocol::DataProtocol, router::Router, tun::dns_mapper::DnsMapper};
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
@@ -114,15 +114,15 @@ impl TcpProxyNat {
                             .start_tunnel(stream, DataProtocol::Tcp, host.clone(), session.src_addr)
                             .await
                         {
-                            Ok(Some((stream, egress_connector))) => {
-                                let use_dst_addr = egress_connector.lookup_host(&host).await.map_or_else(
+                            Ok(Some((stream, egress))) => {
+                                let use_dst_addr = egress.lookup_host(&host).await.map_or_else(
                                     || {
                                         tracing::info!("UDP NAT lookup host failed {}", host);
                                         dst_addr
                                     },
                                     |ip| SocketAddr::new(ip, dst_addr.port()),
                                 );
-                                Self::direct_transfer(&egress_connector, stream, use_dst_addr).await;
+                                Self::direct_transfer(&egress, stream, use_dst_addr).await;
                             }
                             Ok(None) => {}
                             Err(err) => {
@@ -143,13 +143,13 @@ impl TcpProxyNat {
     }
 
     async fn direct_transfer(
-        egress_connector: &Arc<EgressConnector>,
+        egress: &Arc<Egress>,
         mut client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
     ) {
         tracing::info!("Direct connection to {}", target);
 
-        let mut server = match egress_connector.connect_tcp(target).await {
+        let mut server = match egress.connect_tcp(target).await {
             Ok(stream) => stream,
             Err(err) => {
                 tracing::warn!("Direct connection to {} failed, err: {:?}", target, err);

@@ -19,7 +19,7 @@ use rand_chacha::ChaCha20Rng;
 
 use crate::{
     config::{ServerConfig, ServerConnectConfig, default_server_address},
-    egress_connector::{EgressConnector, StreamType},
+    egress::{Egress, StreamType},
     protocol::{self, DataProtocol, SelectedServer, Server},
     streams::ttfb_stream::TtfbStream,
     tun::service::TunService,
@@ -43,7 +43,7 @@ pub struct Router {
     direct_domains: RwLock<Vec<String>>,
 
     tun_service: Arc<TunService>,
-    egress_connector: Arc<EgressConnector>,
+    egress: Arc<Egress>,
 }
 
 impl Router {
@@ -55,7 +55,7 @@ impl Router {
             direct_domains: Default::default(),
             state: RwLock::new(state),
             initialized: AtomicBool::new(false),
-            egress_connector: EgressConnector::new(),
+            egress: Egress::new(),
         }))
     }
 
@@ -246,7 +246,7 @@ impl Router {
         let conn_cfg = ServerConnectConfig::new(host, key).await?;
 
         match self
-            .egress_connector
+            .egress
             .connect_with_upgrade(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
             .await?
         {
@@ -447,8 +447,8 @@ impl Router {
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
-        // TODO:??? make egress_connector singleton and remove this initialization
-        self.egress_connector.init().await?;
+        // TODO:??? make egress singleton and remove this initialization
+        self.egress.init().await?;
         self.tun_service.serve(self.clone()).await
     }
 
@@ -458,7 +458,7 @@ impl Router {
         data_protocol: DataProtocol,
         target_host: String,
         client_addr: SocketAddr,
-    ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<EgressConnector>)>> {
+    ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, Arc<Egress>)>> {
         let mut rng = ChaCha20Rng::from_entropy();
         let selected = self
             .select_server(&target_host, &mut rng, client_addr, &data_protocol)
@@ -469,7 +469,7 @@ impl Router {
                 .await?;
             Ok(None)
         } else {
-            Ok(Some((client, self.egress_connector.clone())))
+            Ok(Some((client, self.egress.clone())))
         }
     }
 
@@ -482,7 +482,7 @@ impl Router {
         rng: impl CryptoRng + Rng,
     ) -> Result<()> {
         match self
-            .egress_connector
+            .egress
             .connect_with_upgrade(selected.address, &selected.host, &selected.url_path)
             .await?
         {
@@ -495,7 +495,7 @@ impl Router {
         }
         .or_else(|err| match err.downcast_ref::<std::io::Error>() {
             // rutls may return https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
-            // ignore unexpected-eof it's not a problem in our case            
+            // ignore unexpected-eof it's not a problem in our case
             Some(io_err) if io_err.kind() == std::io::ErrorKind::UnexpectedEof => Ok(()),
             _ => Err(err),
         })
