@@ -97,17 +97,7 @@ impl DnsHandler {
 #[async_trait::async_trait]
 impl RequestHandler for DnsHandler {
     async fn handle_request<H: ResponseHandler>(&self, request: &Request, response_handle: H) -> ResponseInfo {
-        // TODO: remove trace
-        tracing::info!(
-            "got dns request [{}][{:?}][{:?}] from {}",
-            request.protocol(),
-            request.queries().first().map(|x| x.query_type()),
-            request.queries().first().map(|x| x.name()),
-            request.src()
-        );
-
         self.handle(request, response_handle).await.unwrap_or_else(|e| {
-            // TODO: remove trace or replace to debug
             tracing::error!("dns request error: {}", e);
             let mut h = Header::new();
             h.set_response_code(ResponseCode::ServFail);

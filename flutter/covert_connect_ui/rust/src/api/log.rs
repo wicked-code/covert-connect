@@ -80,10 +80,16 @@ pub fn init_trace_log() -> Result<Arc<WriterNotifier>> {
     let wrapper = WriterNotifierWrapper(writer_notifier.clone());
     let sender = tracing_subscriber::fmt::layer().json().with_writer(wrapper);
 
+    // only errors from hickory server
+    let hickory_filter = filter::Targets::new()
+        .with_target("hickory_server", filter::LevelFilter::ERROR)
+        .with_default(filter::LevelFilter::INFO);
+
     tracing_subscriber::registry()
-        .with(stdout_log.with_filter(filter::LevelFilter::INFO))
-        .with(app_log.with_filter(filter::LevelFilter::INFO))
-        .with(sender.with_filter(filter::LevelFilter::INFO))
+        .with(stdout_log.with_filter(hickory_filter.clone()))
+        .with(app_log.with_filter(hickory_filter.clone()))
+        .with(sender.with_filter(hickory_filter))
+
         .init();
 
     Ok(writer_notifier)
