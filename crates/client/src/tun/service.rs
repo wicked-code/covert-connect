@@ -17,6 +17,7 @@ use net_packet::{
 };
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
+use sys_net::flush_system_dns_cache;
 
 #[derive(PartialEq)]
 enum ProcessResult {
@@ -56,7 +57,9 @@ impl TunService {
 
         // self.udp_nat.stop().await?;
         // self.icmp_nat.stop().await?;
-        Ok(())
+
+        // Flush system DNS cache when stopping
+        flush_system_dns_cache().await
     }
 
     pub async fn serve(self: &Arc<Self>, router: Arc<Router>) -> Result<()> {
@@ -64,7 +67,7 @@ impl TunService {
         // stop: should remove router and writer from udp_proxy_nat
         let (if_addr_v4, if_addr_v6, writer) = self.init_tun().await?;
 
-        self.dns_server.serve().await?;
+        self.dns_server.start(if_addr_v4).await?;
         self.tcp_proxy_nat_v4.init().await?;
         self.tcp_proxy_nat_v6.init().await?;
         self.udp_nat.init(router.clone(), writer.clone()).await?;
@@ -75,7 +78,7 @@ impl TunService {
         tokio::spawn(async move {
             if let Err(e) = self_clone
                 .tcp_proxy_nat_v6
-                .serve_proxy(IpAddr::V6(if_addr_v6), router_clone)
+                .serve_proxy(IpAddr::V6(if_addr_v6), router_clone, None::<fn()>)
                 .await
             {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
@@ -83,7 +86,19 @@ impl TunService {
         });
 
         self.tcp_proxy_nat_v4
-            .serve_proxy(IpAddr::V4(if_addr_v4), router.clone())
+            .serve_proxy(
+                IpAddr::V4(if_addr_v4),
+                router.clone(),
+                Some(|| {
+                    tokio::spawn(async {
+                        // Flush system DNS cache when starting
+                        flush_system_dns_cache()
+                            .await
+                            .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
+                            .ok();
+                    });
+                }),
+            )
             .await
     }
 

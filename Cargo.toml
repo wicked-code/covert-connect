@@ -48,8 +48,10 @@ parking_lot = { version = "0.12.3", features = ["hardware-lock-elision"] }
 const_format = "0.2.32"
 num_enum = "0.7.2"
 socket2 = "0.6.3"
+async-trait = "0.1"
 
 sys-process = { path = "crates/sys-process" }
+sys-net = { path = "crates/sys-net" }
 crypto = { path = "crates/crypto" }
 client = { path = "crates/client" }
 cc-server = { path = "crates/cc-server" }

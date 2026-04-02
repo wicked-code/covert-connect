@@ -84,8 +84,11 @@ impl TcpProxyNat {
         Ok(())
     }
 
-    pub async fn serve_proxy(self: &Arc<Self>, if_addr: IpAddr, router: Arc<Router>) -> Result<()> {
+    pub async fn serve_proxy(self: &Arc<Self>, if_addr: IpAddr, router: Arc<Router>, after_bind: Option<impl FnOnce() + Send + 'static>) -> Result<()> {
         let mut listener = self.bind_proxy(if_addr).await?;
+        if let Some(callback) = after_bind {
+            callback();
+        }
         loop {
             let result = listener.accept().await;
             match result {

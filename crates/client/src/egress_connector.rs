@@ -23,7 +23,8 @@ use tokio_rustls::{
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
-use crate::{outbound::find_outbound_ip, streams::upgrade_stream::UpgradeStream};
+use crate::{streams::upgrade_stream::UpgradeStream};
+use sys_net::{find_outbound_ip, get_dns_by_if_addr};
 
 pub enum StreamType {
     TcpStream(TcpStream),
@@ -165,7 +166,10 @@ impl EgressConnector {
         // try outbound IF dns first
         let if_dns_ips = get_dns_by_if_addr(outbound_ip).await?;
         for dns_ip in if_dns_ips {
-            config.add_name_server(NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp));        
+            let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp);
+            // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
+            ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
+            config.add_name_server(ns);        
         }
 
         // fallback to public dns if we can't get dns from IF
@@ -176,13 +180,11 @@ impl EgressConnector {
         ];
 
         for dns_ip in dns_ips {
-            config.add_name_server(NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic));
+            let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic);
+            // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
+            ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
+            config.add_name_server(ns);
         }        
-
-        // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-        for item in config.name_servers() {
-           item.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
-        }
 
         self.resolver.store(Arc::new(
             Resolver::builder_with_config(config, TokioConnectionProvider::default()).build(),

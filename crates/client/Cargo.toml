@@ -27,9 +27,11 @@ socket2.workspace = true
 
 tokio-rustls.workspace = true
 webpki-roots.workspace = true
+async-trait.workspace = true
 
 crypto.workspace = true
 sys-process.workspace = true
+sys-net.workspace = true
 net-packet.workspace = true
 cc-server.workspace = true
 

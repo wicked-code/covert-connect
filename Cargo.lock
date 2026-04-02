@@ -669,6 +669,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "async-trait",
  "axum",
  "bytes",
  "cc-server",
@@ -693,6 +694,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "socket2",
+ "sys-net",
  "sys-process",
  "tokio",
  "tokio-rustls",
@@ -3035,6 +3037,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
+]
+
+[[package]]
+name = "sys-net"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "if-addrs",
+ "libc",
+ "tokio",
+ "tracing",
+ "windows",
 ]
 
 [[package]]

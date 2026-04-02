@@ -19,8 +19,8 @@ const MAX_IP_RANGE: u32 = 131072;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct IpRecord {
-    ip: Ipv4Addr,
-    expire_time: std::time::Instant,
+    pub ip: Ipv4Addr,
+    pub expire_time: std::time::Instant,
 }
 
 struct CleanerTask {
@@ -49,7 +49,7 @@ impl DnsMapper {
         })
     }
 
-    pub async fn stop(self: &Arc<Self>) -> Result<()> {
+    pub async fn stop(self: &Arc<Self>) {
         if let Some(cleaner_task) = self.cleaner_task.lock().take() {
             cleaner_task.token.cancel();
             cleaner_task.task.await.ok();
@@ -57,10 +57,9 @@ impl DnsMapper {
 
         self.host_by_ip.write().clear();
         self.ip_by_host.write().clear();
-        Ok(())
     }
 
-    pub async fn start(self: &Arc<Self>) -> Result<()> {
+    pub async fn start(self: &Arc<Self>) -> Result<()> {        
         let self_clone = self.clone();
         let token = CancellationToken::new();
         let task = tokio::spawn({
@@ -100,7 +99,7 @@ impl DnsMapper {
         Ok(())
     }
 
-    pub fn ip_by_host(&self, host: &str) -> IpRecord {
+    pub fn resolve(&self, host: &str) -> IpRecord {
         let mut ip_by_host_wr = self.ip_by_host.write();
         if let Some(record) = ip_by_host_wr.get_mut(host) {
             record.expire_time = std::time::Instant::now() + DEFAULT_TTL;
