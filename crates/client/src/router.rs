@@ -160,7 +160,8 @@ impl Router {
         process_name: &str,
         mut rng: impl CryptoRng + Rng,
     ) -> Option<Arc<ServerContext>> {
-        let mut route = self.table.load().servers_by_process(process_name);
+        let table = self.table.load();
+        let mut route = table.servers_by_process(process_name);
 
         match route {
             RouteResult::NoRoute => {
@@ -185,7 +186,7 @@ impl Router {
                 for domain in &domain_variants {
                     // any server, try check domain
 
-                    route = self.table.load().servers_by_domain(domain);
+                    route = table.servers_by_domain(domain);
                     match route {
                         RouteResult::NoRoute => {}
                         _ => break,
@@ -198,8 +199,12 @@ impl Router {
         let servers = match route {
             RouteResult::Servers(servers) => servers,
             RouteResult::Direct => return None, // direct route, no server
-            RouteResult::NoRoute => self.table.load().servers(), // no route, try any server
+            RouteResult::NoRoute => table.servers(), // no route, try any server
         };
+
+        if servers.is_empty() {
+            return None;
+        }        
 
         let mut total_weight = 0_usize;
         let mut unweighted_count = 0_usize;
