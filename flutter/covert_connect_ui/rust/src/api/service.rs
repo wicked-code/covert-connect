@@ -41,7 +41,7 @@ pub struct ServerState {
     pub rx_total: u64,
     pub tx_total: u64,
     pub err_count: u64,
-    pub succes_count: u64,
+    pub success_count: u64,
 }
 
 pub struct ClientService {
@@ -133,7 +133,7 @@ impl ClientService {
                     rx_total: s.state.rx_total.load(Ordering::Relaxed),
                     tx_total: s.state.tx_total.load(Ordering::Relaxed),
                     err_count: s.state.err_count.load(Ordering::Relaxed),
-                    succes_count: s.state.succes_count.load(Ordering::Relaxed),
+                    success_count: s.state.success_count.load(Ordering::Relaxed),
                 },
                 config: s.config.clone().into(),
                 ip: s.config.address.ip().to_string(),

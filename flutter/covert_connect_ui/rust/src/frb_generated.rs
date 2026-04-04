@@ -1787,12 +1787,12 @@ impl SseDecode for crate::api::service::ServerState {
         let mut var_rxTotal = <u64>::sse_decode(deserializer);
         let mut var_txTotal = <u64>::sse_decode(deserializer);
         let mut var_errCount = <u64>::sse_decode(deserializer);
-        let mut var_succesCount = <u64>::sse_decode(deserializer);
+        let mut var_successCount = <u64>::sse_decode(deserializer);
         return crate::api::service::ServerState {
             rx_total: var_rxTotal,
             tx_total: var_txTotal,
             err_count: var_errCount,
-            succes_count: var_succesCount,
+            success_count: var_successCount,
         };
     }
 }
@@ -2141,7 +2141,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::service::ServerState {
             self.rx_total.into_into_dart().into_dart(),
             self.tx_total.into_into_dart().into_dart(),
             self.err_count.into_into_dart().into_dart(),
-            self.succes_count.into_into_dart().into_dart(),
+            self.success_count.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2475,7 +2475,7 @@ impl SseEncode for crate::api::service::ServerState {
         <u64>::sse_encode(self.rx_total, serializer);
         <u64>::sse_encode(self.tx_total, serializer);
         <u64>::sse_encode(self.err_count, serializer);
-        <u64>::sse_encode(self.succes_count, serializer);
+        <u64>::sse_encode(self.success_count, serializer);
     }
 }
 

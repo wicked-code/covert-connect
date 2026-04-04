@@ -170,13 +170,13 @@ class ServerState {
   final BigInt rxTotal;
   final BigInt txTotal;
   final BigInt errCount;
-  final BigInt succesCount;
+  final BigInt successCount;
 
   const ServerState({
     required this.rxTotal,
     required this.txTotal,
     required this.errCount,
-    required this.succesCount,
+    required this.successCount,
   });
 
   @override
@@ -184,7 +184,7 @@ class ServerState {
       rxTotal.hashCode ^
       txTotal.hashCode ^
       errCount.hashCode ^
-      succesCount.hashCode;
+      successCount.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -194,5 +194,5 @@ class ServerState {
           rxTotal == other.rxTotal &&
           txTotal == other.txTotal &&
           errCount == other.errCount &&
-          succesCount == other.succesCount;
+          successCount == other.successCount;
 }

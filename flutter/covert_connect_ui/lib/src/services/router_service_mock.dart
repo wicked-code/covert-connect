@@ -22,7 +22,7 @@ class RouterServiceMock implements RouterServiceBase {
                 rxTotal: s.state.rxTotal + BigInt.from(Random().nextInt(1000000)),
                 txTotal: s.state.txTotal + BigInt.from(Random().nextInt(1000000)),
                 errCount: s.state.errCount,
-                succesCount: s.state.succesCount,
+                successCount: s.state.successCount,
               ),
             ),
           )
@@ -40,7 +40,7 @@ class RouterServiceMock implements RouterServiceBase {
                 rxTotal: s.state.rxTotal,
                 txTotal: s.state.txTotal,
                 errCount: s.state.errCount,
-                succesCount: s.state.succesCount,
+                successCount: s.state.successCount,
               ),
             ),
           )
@@ -182,7 +182,7 @@ class RouterServiceMock implements RouterServiceBase {
 
     servers.add(
       ServerInfo(
-        state: ServerState(rxTotal: BigInt.zero, txTotal: BigInt.zero, errCount: BigInt.zero, succesCount: BigInt.zero),
+        state: ServerState(rxTotal: BigInt.zero, txTotal: BigInt.zero, errCount: BigInt.zero, successCount: BigInt.zero),
         config: config,
         ip: orginalServers.firstWhereOrNull((x) => x.config.host == config.host)?.ip ?? hostPort.first,
         port: hostPort.length > 1 ? int.parse(hostPort[1]) : 443,
@@ -352,7 +352,7 @@ List<ServerInfo> servers = [
       rxTotal: BigInt.from(0),
       txTotal: BigInt.from(0),
       errCount: BigInt.from(0),
-      succesCount: BigInt.from(0),
+      successCount: BigInt.from(0),
     ),
     config: ServerConfig(
       caption: "",
@@ -377,7 +377,7 @@ List<ServerInfo> servers = [
       rxTotal: BigInt.from(935000),
       txTotal: BigInt.from(325000),
       errCount: BigInt.from(0),
-      succesCount: BigInt.from(3),
+      successCount: BigInt.from(3),
     ),
     config: ServerConfig(
       caption: "",
@@ -403,7 +403,7 @@ List<ServerInfo> servers = [
       rxTotal: BigInt.from(15319000),
       txTotal: BigInt.from(2325000),
       errCount: BigInt.from(1),
-      succesCount: BigInt.from(23),
+      successCount: BigInt.from(23),
     ),
     config: ServerConfig(
       host: "5.255.96.144:8383",
@@ -431,7 +431,7 @@ ServerInfo newServer = ServerInfo(
     rxTotal: BigInt.from(15319000),
     txTotal: BigInt.from(2325000),
     errCount: BigInt.one,
-    succesCount: BigInt.from(23),
+    successCount: BigInt.from(23),
   ),
   config: ServerConfig(
     caption: "Host1",

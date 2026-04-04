@@ -1752,7 +1752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rxTotal: dco_decode_u_64(arr[0]),
       txTotal: dco_decode_u_64(arr[1]),
       errCount: dco_decode_u_64(arr[2]),
-      succesCount: dco_decode_u_64(arr[3]),
+      successCount: dco_decode_u_64(arr[3]),
     );
   }
 
@@ -2187,12 +2187,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_rxTotal = sse_decode_u_64(deserializer);
     var var_txTotal = sse_decode_u_64(deserializer);
     var var_errCount = sse_decode_u_64(deserializer);
-    var var_succesCount = sse_decode_u_64(deserializer);
+    var var_successCount = sse_decode_u_64(deserializer);
     return ServerState(
       rxTotal: var_rxTotal,
       txTotal: var_txTotal,
       errCount: var_errCount,
-      succesCount: var_succesCount,
+      successCount: var_successCount,
     );
   }
 
@@ -2617,7 +2617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_64(self.rxTotal, serializer);
     sse_encode_u_64(self.txTotal, serializer);
     sse_encode_u_64(self.errCount, serializer);
-    sse_encode_u_64(self.succesCount, serializer);
+    sse_encode_u_64(self.successCount, serializer);
   }
 
   @protected

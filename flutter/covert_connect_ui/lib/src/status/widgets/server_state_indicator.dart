@@ -20,11 +20,11 @@ class ServerStateIndicator extends StatelessWidget {
     if (!server.config.enabled) {
       border = Border.all(color: color, width: 1);
       color = Colors.transparent;
-    } else if (server.state.succesCount == BigInt.from(0)) {
+    } else if (server.state.successCount == BigInt.from(0)) {
       if (server.state.errCount > kNotEnoughToCheckHealth) {
         color = darken(Colors.red, 1.0, 0.9, theme.brightness);
       }
-    } else if (server.state.errCount <= server.state.succesCount) {
+    } else if (server.state.errCount <= server.state.successCount) {
       color = Colors.green;
     } else {
       color = darken(Colors.yellow, 0.67, 0.9, theme.brightness);

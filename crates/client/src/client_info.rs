@@ -9,7 +9,7 @@ pub struct ServerState {
     pub rx_total: AtomicU64,
     pub tx_total: AtomicU64,
     pub err_count: AtomicU64, // tunnels with errors i.e. zero data returned from server, used for check healthy connection
-    pub succes_count: AtomicU64, // tunnels with no zero data returned from server, used for check healthy connection
+    pub success_count: AtomicU64, // tunnels with no zero data returned from server, used for check healthy connection
 }
 
 #[derive(Clone)]

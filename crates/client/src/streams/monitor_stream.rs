@@ -48,7 +48,7 @@ where
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => {
                 if !*this.success {
-                    this.state.succes_count.fetch_add(1, Ordering::Relaxed);
+                    this.state.success_count.fetch_add(1, Ordering::Relaxed);
                     *this.success = true;
                 }
 
