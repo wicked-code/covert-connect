@@ -209,7 +209,7 @@ impl Router {
         let mut total_weight = 0_usize;
         let mut unweighted_count = 0_usize;
         for srv in servers.iter() {
-            if let Some(weight) = srv.weight {
+            if let Some(weight) = srv.weight && weight > 0 {
                 total_weight += weight as usize;
             } else {
                 unweighted_count += 1;
