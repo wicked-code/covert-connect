@@ -13,14 +13,14 @@ pub async fn find_outbound_ip() -> Result<IpAddr> {
     // try public dns
     // TODO: ??? move ips to config or allow override via config
     for target in ["8.8.8.8", "1.1.1.1", "208.67.222.222"] {
-        if let Ok(ip) = get_outbound_ip(IpAddr::V4(target.parse()?)).await {
+        if let Ok(ip) = get_outbound_ip(target.parse()?).await {
             return Ok(ip);
         }
     }
 
     // fallback to IPv6 if IPv4 fails
     for target in ["2001:4860:4860::8888", "2606:4700:4700::1111", "2620:119:35::35"] {
-        if let Ok(ip) = get_outbound_ip(IpAddr::V6(target.parse()?)).await {
+        if let Ok(ip) = get_outbound_ip(target.parse()?).await {
             return Ok(ip);
         }
     }

@@ -140,20 +140,123 @@ async fn flush_dns_macos() -> Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-async fn get_dns_macos(_if_addr: IpAddr) -> Result<Vec<IpAddr>> {
+async fn get_dns_macos(if_addr: IpAddr) -> Result<Vec<IpAddr>> {
+    // Find the interface name for the given IP using ifconfig
+    let output = tokio::process::Command::new("ifconfig")
+        .output()
+        .await;
+
+    if let Ok(output) = output {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let if_addr_s = if_addr.to_string();
+            let mut if_name: Option<String> = None;
+            let mut current_if = String::new();
+
+            for line in stdout.lines() {
+                if !line.starts_with('\t') && !line.starts_with(' ') {
+                    // Interface header line, e.g. "en0: flags=..."
+                    if let Some(colon_pos) = line.find(':') {
+                        current_if = line[..colon_pos].to_string();
+                    }
+                } else if line.contains(&format!("inet {}", if_addr_s))
+                    || line.contains(&format!("inet6 {}", if_addr_s))
+                {
+                    if_name = Some(current_if.clone());
+                    break;
+                }
+            }
+
+            if let Some(if_name) = if_name {
+                // Use networksetup to find the hardware port for this interface,
+                // then query its DNS servers
+                let output = tokio::process::Command::new("networksetup")
+                    .args(["-listallhardwareports"])
+                    .output()
+                    .await;
+
+                if let Ok(output) = output {
+                    if output.status.success() {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let mut service_name: Option<String> = None;
+                        let mut current_service = String::new();
+
+                        for line in stdout.lines() {
+                            let line = line.trim();
+                            if let Some(rest) = line.strip_prefix("Hardware Port: ") {
+                                current_service = rest.to_string();
+                            } else if let Some(rest) = line.strip_prefix("Device: ") {
+                                if rest.trim() == if_name {
+                                    service_name = Some(current_service.clone());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if let Some(service_name) = service_name {
+                            let output = tokio::process::Command::new("networksetup")
+                                .args(["-getdnsservers", &service_name])
+                                .output()
+                                .await;
+
+                            if let Ok(output) = output {
+                                if output.status.success() {
+                                    let mut dns_servers = Vec::new();
+                                    for line in String::from_utf8_lossy(&output.stdout).lines() {
+                                        if let Ok(ip) = line.trim().parse::<IpAddr>() {
+                                            if !dns_servers.contains(&ip) {
+                                                dns_servers.push(ip);
+                                            }
+                                        }
+                                    }
+                                    if !dns_servers.is_empty() {
+                                        return Ok(dns_servers);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback to resolv.conf for system-wide DNS
     parse_resolv_conf().or_else(|_| Ok(Vec::new()))
 }
 
 #[cfg(target_os = "linux")]
 async fn flush_dns_linux() -> Result<()> {
-    let _ = tokio::process::Command::new("resolvectl")
+    match tokio::process::Command::new("resolvectl")
         .args(["flush-caches"])
         .output()
-        .await;
-    let _ = tokio::process::Command::new("systemctl")
+        .await
+    {
+        Ok(output) if output.status.success() => {
+            tracing::debug!("DNS cache flushed successfully via resolvectl");
+        }
+        Ok(_) => {
+            tracing::warn!("resolvectl flush-caches failed");
+        }
+        Err(e) => {
+            tracing::warn!("Failed to execute resolvectl: {}", e);
+        }
+    }
+    match tokio::process::Command::new("systemctl")
         .args(["restart", "systemd-resolved"])
         .output()
-        .await;
+        .await
+    {
+        Ok(output) if output.status.success() => {
+            tracing::debug!("systemd-resolved restarted successfully");
+        }
+        Ok(_) => {
+            tracing::warn!("systemctl restart systemd-resolved failed");
+        }
+        Err(e) => {
+            tracing::warn!("Failed to execute systemctl: {}", e);
+        }
+    }
     Ok(())
 }
 
@@ -171,11 +274,15 @@ async fn get_dns_linux(if_addr: IpAddr) -> Result<Vec<IpAddr>> {
             let mut if_name: Option<String> = None;
 
             for line in stdout.lines() {
-                if line.contains(&if_addr_s) {
-                    let mut parts = line.split_whitespace();
-                    let _idx = parts.next();
-                    if let Some(name) = parts.next() {
-                        if_name = Some(name.trim_end_matches(':').to_string());
+                // `ip -o addr show` format: "idx IF inet ADDR/PREFIX ..." or "idx IF inet6 ADDR/PREFIX ..."
+                // Match the exact address (before the /prefix) to avoid false matches
+                // e.g. 10.0.0.1 must not match a line containing 10.0.0.10
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 4 {
+                    let addr_field = parts[3];
+                    let addr_only = addr_field.split('/').next().unwrap_or("");
+                    if addr_only == if_addr_s {
+                        if_name = Some(parts[1].trim_end_matches(':').to_string());
                         break;
                     }
                 }
