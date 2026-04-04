@@ -1,5 +1,4 @@
-use crate::config::ServerConfig;
-use crate::streams::monitor_stream::MonitorStream;
+use crate::{client_info::ServerState, streams::monitor_stream::MonitorStream};
 use anyhow::{Result, bail};
 use bytes::{Buf, BufMut, BytesMut};
 use chrono::Utc;
@@ -14,11 +13,7 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use std::{
     mem,
-    net::SocketAddr,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, atomic::Ordering},
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
@@ -27,28 +22,6 @@ pub enum DataProtocol {
     Tcp,
     Udp,
     Icmp, // TODO: ??? not supported yet
-}
-
-#[derive(Clone)]
-pub struct Server {
-    pub config: ServerConfig,
-    pub state: Arc<ServerState>,
-}
-
-#[derive(Default)]
-pub struct ServerState {
-    pub rx_total: AtomicU64,
-    pub tx_total: AtomicU64,
-    pub err_count: AtomicU64, // tunnels with errors i.e. zero data returned from server, used for check healthy connection
-    pub succes_count: AtomicU64, // tunnels with no zero data returned from server, used for check healthy connection
-}
-
-pub struct SelectedServer {
-    pub host: String,
-    pub address: SocketAddr,
-    pub protocol: ProtocolConfig,
-    pub url_path: Option<String>,
-    pub state: Arc<ServerState>,
 }
 
 const MAX_GET_PROTOCOL_HEADER_PADDING: u16 = 4096;
@@ -204,7 +177,8 @@ pub async fn process_tunnel(
     data_protocol: DataProtocol,
     mut host: String,
     mut rng: impl CryptoRng + Rng,
-    selected_server: SelectedServer,
+    protocol: &ProtocolConfig,
+    state: Arc<ServerState>,
 ) -> Result<()> {
     let ProtocolConfig {
         key,
@@ -212,7 +186,7 @@ pub async fn process_tunnel(
         cipher: cipher_type,
         header_padding,
         ..
-    } = &selected_server.protocol;
+    } = protocol;
 
     match data_protocol {
         DataProtocol::Tcp => (),
@@ -242,7 +216,7 @@ pub async fn process_tunnel(
 
     // header cipher
     let mut header_key = BytesMut::zeroed(key_size);
-    let timestamp = Utc::now().timestamp_millis() / (selected_server.protocol.max_connect_delay as i64);
+    let timestamp = Utc::now().timestamp_millis() / (protocol.max_connect_delay as i64);
     kdf.derive_key_from_timestamp(key.as_bytes(), timestamp, &mut header_key)?;
 
     let mut header_cipher = Cipher::new(*cipher_type, &header_key, &mut rng);
@@ -280,31 +254,19 @@ pub async fn process_tunnel(
         server,
         server_cipher,
         client_cipher,
-        selected_server.protocol.data_padding,
-        selected_server.protocol.encryption_limit,
+        protocol.data_padding,
+        protocol.encryption_limit,
         rng,
     );
 
-    let mut server = MonitorStream::from_stream(server, selected_server.state.clone());
+    let mut server = MonitorStream::from_stream(server, state.clone());
 
     let result = tokio::io::copy_bidirectional(&mut client, &mut server).await;
 
     if !server.is_success() {
-        selected_server.state.err_count.fetch_add(1, Ordering::Relaxed);
+        state.err_count.fetch_add(1, Ordering::Relaxed);
     }
 
     result?;
     Ok(())
-}
-
-impl From<&Server> for SelectedServer {
-    fn from(srv: &Server) -> Self {
-        SelectedServer {
-            host: srv.config.host.clone(),
-            address: srv.config.address,
-            protocol: srv.config.protocol.clone(),
-            url_path: srv.config.url_path.clone(),
-            state: srv.state.clone(),
-        }
-    }
 }

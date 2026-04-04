@@ -13,7 +13,7 @@ class RouterServiceMock implements RouterServiceBase {
   }
 
   @override
-  Future<RouterStatus> getStatus() async {
+  Future<ClientStatus> getStatus() async {
     if (_noValueCount <= 0) {
       servers = servers
           .map(
@@ -49,7 +49,7 @@ class RouterServiceMock implements RouterServiceBase {
       _noValueCount--;
     }
 
-    return RouterStatus(initialized: true, servers: servers);
+    return ClientStatus(initialized: true, servers: servers);
   }
 
   @override
@@ -80,10 +80,10 @@ class RouterServiceMock implements RouterServiceBase {
   }
 
   @override
-  Future<RouterState> getState() async => _proxyState;
+  Future<ClientState> getState() async => _proxyState;
 
   @override
-  Future<void> setState(RouterState state) async {
+  Future<void> setState(ClientState state) async {
     _proxyState = state;
   }
 
@@ -323,7 +323,7 @@ extension ServerConfigEx on ServerConfig {
 
 bool _autostart = true;
 int _noValueCount = 0;
-RouterState _proxyState = RouterState.all;
+ClientState _proxyState = ClientState.all;
 List<String> _log = [
   r'{"timestamp":"2026-01-30T23:41:38.682840Z","level":"INFO","fields":{"message":"proxy server started: 127.0.0.1:25445"},"target":"client::proxy"}',
   r'{"timestamp":"2026-01-30T23:41:38.957804Z","level":"INFO","fields":{"message":"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to jrpc.venom.foundation:443"},"target":"client::proxy"}',

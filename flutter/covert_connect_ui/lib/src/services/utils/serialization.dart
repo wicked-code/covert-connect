@@ -24,11 +24,11 @@ const kDPaddingMax = "d_max";
 const kDPaddingRate = "d_rate";
 const kEncryptionLimit = "encryptionLimit";
 
-RouterConfig proxyConfigFromString(String configStr) {
+ClientConfig proxyConfigFromString(String configStr) {
   final json = jsonDecode(configStr);
 
-  return RouterConfig(
-    state: RouterState.values.byName(json[kState] as String),
+  return ClientConfig(
+    state: ClientState.values.byName(json[kState] as String),
     directDomains: (json[kDomains] as List<dynamic>).map((x) => x as String).toList(),
     directApps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList() ?? [],
     servers: (json[kServers] as List<dynamic>?)?.map((x) => serverConfigFromJson(x as Map<String, dynamic>)).toList() ?? [],
@@ -59,7 +59,7 @@ ProtocolConfig protocolConfigFromJson(Map<String, dynamic> json) {
   );
 }
 
-Map<String, dynamic> proxyCofigToJson(RouterConfig value) => {
+Map<String, dynamic> proxyCofigToJson(ClientConfig value) => {
   kState: value.state.name,
   kDomains: value.directDomains,
   kApps: value.directApps,
@@ -67,11 +67,11 @@ Map<String, dynamic> proxyCofigToJson(RouterConfig value) => {
 };
 
 Map<String, dynamic> serverConfigToJson(ServerConfig value) => {
-  if (value.caption case final caption?) kCaption: caption,
+  kCaption: ?value.caption,
   kHost: value.host,
-  if (value.weight case final weight?) kWeight: weight,
-  if (value.domains case final domains?) kDomains: domains,
-  if (value.apps case final apps?) kApps: apps,
+  kWeight: ?value.weight,
+  kDomains: ?value.domains,
+  kApps: ?value.apps,
   kEnabled: value.enabled,
   kProtocol: protocolConfigToJson(value.protocol),
 };

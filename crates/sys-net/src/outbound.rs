@@ -5,6 +5,11 @@ use if_addrs::get_if_addrs;
 use tokio::net::UdpSocket;
 
 pub async fn find_outbound_ip() -> Result<IpAddr> {
+    // TODO: ??? prefer 192.168.x.x, next 10.x.x.x, next global ip
+    // first two bind attemps should be in this range if not enum if's and sort by adrress family (192.168.x.x, next 10.x.x.x, next global ip)
+    // 172 only if no other IFs found, 
+    // 198.18.0.0/15 and 100.64.0.0/10 completely forbidden
+
     // try public dns
     // TODO: ??? move ips to config or allow override via config
     for target in ["8.8.8.8", "1.1.1.1", "208.67.222.222"] {
@@ -16,7 +21,6 @@ pub async fn find_outbound_ip() -> Result<IpAddr> {
     // fallback to IPv6 if IPv4 fails
     for target in ["2001:4860:4860::8888", "2606:4700:4700::1111", "2620:119:35::35"] {
         if let Ok(ip) = get_outbound_ip(IpAddr::V6(target.parse()?)).await {
-            tracing::warn!("found V6");
             return Ok(ip);
         }
     }
@@ -26,7 +30,6 @@ pub async fn find_outbound_ip() -> Result<IpAddr> {
         .into_iter()
         .find_map(|iface| {
             if !iface.is_loopback() && iface.ip().is_ipv4() {
-                tracing::warn!("found loopback");
                 Some(iface.ip())
             } else {
                 None

@@ -42,10 +42,11 @@ pub struct TcpProxyNat {
     port_index: AtomicU16,
     tcp_proxy_port: AtomicU16,
     dns_mapper: Arc<DnsMapper>,
+    egress: Arc<Egress>,
 }
 
 impl TcpProxyNat {
-    pub fn new(dns_mapper: Arc<DnsMapper>) -> Arc<Self> {
+    pub fn new(dns_mapper: Arc<DnsMapper>, egress: Arc<Egress>) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             closed_sessions: Mutex::new(Vec::new()),
@@ -53,6 +54,7 @@ impl TcpProxyNat {
             port_index: AtomicU16::new(MIN_NAT_PORT),
             tcp_proxy_port: AtomicU16::new(0),
             dns_mapper,
+            egress,
         })
     }
 
@@ -114,15 +116,15 @@ impl TcpProxyNat {
                             .start_tunnel(stream, DataProtocol::Tcp, host.clone(), session.src_addr)
                             .await
                         {
-                            Ok(Some((stream, egress))) => {
-                                let use_dst_addr = egress.lookup_host(&host).await.map_or_else(
+                            Ok(Some(stream)) => {
+                                let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
                                     || {
                                         tracing::info!("UDP NAT lookup host failed {}", host);
                                         dst_addr
                                     },
                                     |ip| SocketAddr::new(ip, dst_addr.port()),
                                 );
-                                Self::direct_transfer(&egress, stream, use_dst_addr).await;
+                                self_clone.direct_transfer(stream, use_dst_addr).await;
                             }
                             Ok(None) => {}
                             Err(err) => {
@@ -143,13 +145,13 @@ impl TcpProxyNat {
     }
 
     async fn direct_transfer(
-        egress: &Arc<Egress>,
+        self: &Arc<Self>,
         mut client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
     ) {
         tracing::info!("Direct connection to {}", target);
 
-        let mut server = match egress.connect_tcp(target).await {
+        let mut server = match self.egress.connect_tcp(target).await {
             Ok(stream) => stream,
             Err(err) => {
                 tracing::warn!("Direct connection to {} failed, err: {:?}", target, err);

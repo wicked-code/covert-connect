@@ -8,31 +8,31 @@ import 'log.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_router`, `get_writer_notifier`, `init_autostart`
+// These functions are ignored because they are not marked as `pub`: `get_client`, `get_writer_notifier`, `init_autostart`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>
-abstract class RouterService implements RustOpaqueInterface {
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>
+abstract class ClientService implements RustOpaqueInterface {
   Future<void> addServer({required ServerConfig config});
 
   static Future<bool> checkDomain({required String domain}) => RustLib
       .instance
       .api
-      .crateApiServiceRouterServiceCheckDomain(domain: domain);
+      .crateApiServiceClientServiceCheckDomain(domain: domain);
 
   Future<void> deleteServer({required String host});
 
   static Future<bool> getAutostart() =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetAutostart();
+      RustLib.instance.api.crateApiServiceClientServiceGetAutostart();
 
-  Future<RouterConfig> getConfig();
+  Future<ClientConfig> getConfig();
 
   Future<List<String>> getDirectApps();
 
   Future<List<String>> getDirectDomains();
 
   static Future<List<LogLine>> getLog({BigInt? start, required BigInt limit}) =>
-      RustLib.instance.api.crateApiServiceRouterServiceGetLog(
+      RustLib.instance.api.crateApiServiceClientServiceGetLog(
         start: start,
         limit: limit,
       );
@@ -42,17 +42,17 @@ abstract class RouterService implements RustOpaqueInterface {
     required String key,
   });
 
-  Future<RouterState> getState();
+  Future<ClientState> getState();
 
-  Future<RouterStatus> getStatus();
+  Future<ClientStatus> getStatus();
 
   Future<int> getTtfb({required String server, required String domain});
 
   static Future<void> log({required String message}) =>
-      RustLib.instance.api.crateApiServiceRouterServiceLog(message: message);
+      RustLib.instance.api.crateApiServiceClientServiceLog(message: message);
 
-  factory RouterService() =>
-      RustLib.instance.api.crateApiServiceRouterServiceNew();
+  factory ClientService() =>
+      RustLib.instance.api.crateApiServiceClientServiceNew();
 
   Future<BigInt> registerLogger({
     required FutureOr<void> Function(String) callback,
@@ -67,15 +67,15 @@ abstract class RouterService implements RustOpaqueInterface {
   static Future<void> setAutostart({required bool enabled}) => RustLib
       .instance
       .api
-      .crateApiServiceRouterServiceSetAutostart(enabled: enabled);
+      .crateApiServiceClientServiceSetAutostart(enabled: enabled);
 
   Future<void> setDomain({required String domain, required String serverHost});
 
   Future<void> setServerEnabled({required String host, required bool value});
 
-  Future<void> setState({required RouterState state});
+  Future<void> setState({required ClientState state});
 
-  Future<void> start({required RouterConfig cfg});
+  Future<void> start({required ClientConfig cfg});
 
   Future<void> stop();
 
@@ -87,13 +87,13 @@ abstract class RouterService implements RustOpaqueInterface {
   });
 }
 
-class RouterConfig {
-  final RouterState state;
+class ClientConfig {
+  final ClientState state;
   final List<String> directDomains;
   final List<String> directApps;
   final List<ServerConfig> servers;
 
-  const RouterConfig({
+  const ClientConfig({
     required this.state,
     required this.directDomains,
     required this.directApps,
@@ -110,7 +110,7 @@ class RouterConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RouterConfig &&
+      other is ClientConfig &&
           runtimeType == other.runtimeType &&
           state == other.state &&
           directDomains == other.directDomains &&
@@ -118,13 +118,13 @@ class RouterConfig {
           servers == other.servers;
 }
 
-enum RouterState { smart, all, off }
+enum ClientState { smart, all, off }
 
-class RouterStatus {
+class ClientStatus {
   final bool initialized;
   final List<ServerInfo> servers;
 
-  const RouterStatus({required this.initialized, required this.servers});
+  const ClientStatus({required this.initialized, required this.servers});
 
   @override
   int get hashCode => initialized.hashCode ^ servers.hashCode;
@@ -132,7 +132,7 @@ class RouterStatus {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RouterStatus &&
+      other is ClientStatus &&
           runtimeType == other.runtimeType &&
           initialized == other.initialized &&
           servers == other.servers;

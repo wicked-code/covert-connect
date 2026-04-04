@@ -25,7 +25,7 @@ class _AppsPageState extends State<AppsPage> {
   String get _inputValue => _inputController.text.encodePunycode();
 
   Future<void> _loadApps() async {
-    final [rootApps as List<String>, status as RouterStatus] = await Future.wait([
+    final [rootApps as List<String>, status as ClientStatus] = await Future.wait([
       di<RouterServiceBase>().getApps(),
       di<RouterServiceBase>().getStatus(),
     ]);

@@ -29,7 +29,7 @@ use crate::api::log::*;
 use crate::api::service::*;
 use crate::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1648889514;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1890605520;
 
 // Section: executor
 
@@ -48,7 +48,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__service__RouterService_add_server_impl(
+fn wire__crate__api__service__ClientService_add_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -56,7 +56,7 @@ fn wire__crate__api__service__RouterService_add_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_add_server",
+            debug_name: "ClientService_add_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -66,7 +66,7 @@ fn wire__crate__api__service__RouterService_add_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_config = <crate::api::wrappers::ServerConfig>::sse_decode(&mut deserializer);
@@ -86,7 +86,7 @@ fn wire__crate__api__service__RouterService_add_server_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::add_server(&*api_that_guard, api_config).await?;
+                            crate::api::service::ClientService::add_server(&*api_that_guard, api_config).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -95,7 +95,7 @@ fn wire__crate__api__service__RouterService_add_server_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_check_domain_impl(
+fn wire__crate__api__service__ClientService_check_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -103,7 +103,7 @@ fn wire__crate__api__service__RouterService_check_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_check_domain",
+            debug_name: "ClientService_check_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -117,7 +117,7 @@ fn wire__crate__api__service__RouterService_check_domain_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::RouterService::check_domain(api_domain).await?;
+                        let output_ok = crate::api::service::ClientService::check_domain(api_domain).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -126,7 +126,7 @@ fn wire__crate__api__service__RouterService_check_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_delete_server_impl(
+fn wire__crate__api__service__ClientService_delete_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -134,7 +134,7 @@ fn wire__crate__api__service__RouterService_delete_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_delete_server",
+            debug_name: "ClientService_delete_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -144,7 +144,7 @@ fn wire__crate__api__service__RouterService_delete_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_host = <String>::sse_decode(&mut deserializer);
@@ -164,7 +164,7 @@ fn wire__crate__api__service__RouterService_delete_server_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::delete_server(&*api_that_guard, api_host).await?;
+                            crate::api::service::ClientService::delete_server(&*api_that_guard, api_host).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -173,7 +173,7 @@ fn wire__crate__api__service__RouterService_delete_server_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_autostart_impl(
+fn wire__crate__api__service__ClientService_get_autostart_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -181,7 +181,7 @@ fn wire__crate__api__service__RouterService_get_autostart_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_autostart",
+            debug_name: "ClientService_get_autostart",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -194,7 +194,7 @@ fn wire__crate__api__service__RouterService_get_autostart_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::RouterService::get_autostart().await?;
+                        let output_ok = crate::api::service::ClientService::get_autostart().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -203,7 +203,7 @@ fn wire__crate__api__service__RouterService_get_autostart_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_config_impl(
+fn wire__crate__api__service__ClientService_get_config_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -211,7 +211,7 @@ fn wire__crate__api__service__RouterService_get_config_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_config",
+            debug_name: "ClientService_get_config",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -221,7 +221,7 @@ fn wire__crate__api__service__RouterService_get_config_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -239,7 +239,7 @@ fn wire__crate__api__service__RouterService_get_config_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::get_config(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::ClientService::get_config(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -248,7 +248,7 @@ fn wire__crate__api__service__RouterService_get_config_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_direct_apps_impl(
+fn wire__crate__api__service__ClientService_get_direct_apps_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -256,7 +256,7 @@ fn wire__crate__api__service__RouterService_get_direct_apps_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_direct_apps",
+            debug_name: "ClientService_get_direct_apps",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -266,7 +266,7 @@ fn wire__crate__api__service__RouterService_get_direct_apps_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -284,7 +284,7 @@ fn wire__crate__api__service__RouterService_get_direct_apps_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::get_direct_apps(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::ClientService::get_direct_apps(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -293,7 +293,7 @@ fn wire__crate__api__service__RouterService_get_direct_apps_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_direct_domains_impl(
+fn wire__crate__api__service__ClientService_get_direct_domains_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -301,7 +301,7 @@ fn wire__crate__api__service__RouterService_get_direct_domains_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_direct_domains",
+            debug_name: "ClientService_get_direct_domains",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -311,7 +311,7 @@ fn wire__crate__api__service__RouterService_get_direct_domains_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -330,7 +330,7 @@ fn wire__crate__api__service__RouterService_get_direct_domains_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::get_direct_domains(&*api_that_guard).await?;
+                            crate::api::service::ClientService::get_direct_domains(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -339,7 +339,7 @@ fn wire__crate__api__service__RouterService_get_direct_domains_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_log_impl(
+fn wire__crate__api__service__ClientService_get_log_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -347,7 +347,7 @@ fn wire__crate__api__service__RouterService_get_log_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_log",
+            debug_name: "ClientService_get_log",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -362,7 +362,7 @@ fn wire__crate__api__service__RouterService_get_log_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::RouterService::get_log(api_start, api_limit).await?;
+                        let output_ok = crate::api::service::ClientService::get_log(api_start, api_limit).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -371,7 +371,7 @@ fn wire__crate__api__service__RouterService_get_log_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_server_protocol_impl(
+fn wire__crate__api__service__ClientService_get_server_protocol_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -379,7 +379,7 @@ fn wire__crate__api__service__RouterService_get_server_protocol_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_server_protocol",
+            debug_name: "ClientService_get_server_protocol",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -389,7 +389,7 @@ fn wire__crate__api__service__RouterService_get_server_protocol_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_server = <String>::sse_decode(&mut deserializer);
@@ -409,7 +409,7 @@ fn wire__crate__api__service__RouterService_get_server_protocol_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::get_server_protocol(
+                        let output_ok = crate::api::service::ClientService::get_server_protocol(
                             &*api_that_guard,
                             api_server,
                             api_key,
@@ -423,7 +423,7 @@ fn wire__crate__api__service__RouterService_get_server_protocol_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_state_impl(
+fn wire__crate__api__service__ClientService_get_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -431,7 +431,7 @@ fn wire__crate__api__service__RouterService_get_state_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_state",
+            debug_name: "ClientService_get_state",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -441,7 +441,7 @@ fn wire__crate__api__service__RouterService_get_state_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -459,7 +459,7 @@ fn wire__crate__api__service__RouterService_get_state_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::get_state(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::ClientService::get_state(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -468,7 +468,7 @@ fn wire__crate__api__service__RouterService_get_state_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_status_impl(
+fn wire__crate__api__service__ClientService_get_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -476,7 +476,7 @@ fn wire__crate__api__service__RouterService_get_status_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_status",
+            debug_name: "ClientService_get_status",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -486,7 +486,7 @@ fn wire__crate__api__service__RouterService_get_status_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -504,7 +504,7 @@ fn wire__crate__api__service__RouterService_get_status_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::get_status(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::ClientService::get_status(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -513,7 +513,7 @@ fn wire__crate__api__service__RouterService_get_status_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_get_ttfb_impl(
+fn wire__crate__api__service__ClientService_get_ttfb_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -521,7 +521,7 @@ fn wire__crate__api__service__RouterService_get_ttfb_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_get_ttfb",
+            debug_name: "ClientService_get_ttfb",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -531,7 +531,7 @@ fn wire__crate__api__service__RouterService_get_ttfb_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_server = <String>::sse_decode(&mut deserializer);
@@ -552,7 +552,7 @@ fn wire__crate__api__service__RouterService_get_ttfb_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::get_ttfb(&*api_that_guard, api_server, api_domain)
+                            crate::api::service::ClientService::get_ttfb(&*api_that_guard, api_server, api_domain)
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -562,7 +562,7 @@ fn wire__crate__api__service__RouterService_get_ttfb_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_log_impl(
+fn wire__crate__api__service__ClientService_log_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -570,7 +570,7 @@ fn wire__crate__api__service__RouterService_log_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_log",
+            debug_name: "ClientService_log",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -585,7 +585,7 @@ fn wire__crate__api__service__RouterService_log_impl(
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok({
-                            crate::api::service::RouterService::log(api_message).await;
+                            crate::api::service::ClientService::log(api_message).await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -595,14 +595,14 @@ fn wire__crate__api__service__RouterService_log_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_new_impl(
+fn wire__crate__api__service__ClientService_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_new",
+            debug_name: "ClientService_new",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -613,13 +613,13 @@ fn wire__crate__api__service__RouterService_new_impl(
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::service::RouterService::new())?;
+                let output_ok = Result::<_, ()>::Ok(crate::api::service::ClientService::new())?;
                 Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__service__RouterService_register_logger_impl(
+fn wire__crate__api__service__ClientService_register_logger_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -627,7 +627,7 @@ fn wire__crate__api__service__RouterService_register_logger_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_register_logger",
+            debug_name: "ClientService_register_logger",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -637,7 +637,7 @@ fn wire__crate__api__service__RouterService_register_logger_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_callback = decode_DartFn_Inputs_String_Output_unit_AnyhowException(
@@ -659,7 +659,7 @@ fn wire__crate__api__service__RouterService_register_logger_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::register_logger(&*api_that_guard, api_callback).await?;
+                            crate::api::service::ClientService::register_logger(&*api_that_guard, api_callback).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -668,7 +668,7 @@ fn wire__crate__api__service__RouterService_register_logger_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_remove_app_impl(
+fn wire__crate__api__service__ClientService_remove_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -676,7 +676,7 @@ fn wire__crate__api__service__RouterService_remove_app_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_remove_app",
+            debug_name: "ClientService_remove_app",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -686,7 +686,7 @@ fn wire__crate__api__service__RouterService_remove_app_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_app = <String>::sse_decode(&mut deserializer);
@@ -706,7 +706,7 @@ fn wire__crate__api__service__RouterService_remove_app_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::remove_app(&*api_that_guard, api_app).await?;
+                            crate::api::service::ClientService::remove_app(&*api_that_guard, api_app).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -715,7 +715,7 @@ fn wire__crate__api__service__RouterService_remove_app_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_remove_domain_impl(
+fn wire__crate__api__service__ClientService_remove_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -723,7 +723,7 @@ fn wire__crate__api__service__RouterService_remove_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_remove_domain",
+            debug_name: "ClientService_remove_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -733,7 +733,7 @@ fn wire__crate__api__service__RouterService_remove_domain_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_domain = <String>::sse_decode(&mut deserializer);
@@ -753,7 +753,7 @@ fn wire__crate__api__service__RouterService_remove_domain_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::remove_domain(&*api_that_guard, api_domain).await?;
+                            crate::api::service::ClientService::remove_domain(&*api_that_guard, api_domain).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -762,7 +762,7 @@ fn wire__crate__api__service__RouterService_remove_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_set_app_impl(
+fn wire__crate__api__service__ClientService_set_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -770,7 +770,7 @@ fn wire__crate__api__service__RouterService_set_app_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_set_app",
+            debug_name: "ClientService_set_app",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -780,7 +780,7 @@ fn wire__crate__api__service__RouterService_set_app_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_app = <String>::sse_decode(&mut deserializer);
@@ -801,7 +801,7 @@ fn wire__crate__api__service__RouterService_set_app_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::set_app(&*api_that_guard, api_app, api_server_host)
+                            crate::api::service::ClientService::set_app(&*api_that_guard, api_app, api_server_host)
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -811,7 +811,7 @@ fn wire__crate__api__service__RouterService_set_app_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_set_autostart_impl(
+fn wire__crate__api__service__ClientService_set_autostart_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -819,7 +819,7 @@ fn wire__crate__api__service__RouterService_set_autostart_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_set_autostart",
+            debug_name: "ClientService_set_autostart",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -833,7 +833,7 @@ fn wire__crate__api__service__RouterService_set_autostart_impl(
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::service::RouterService::set_autostart(api_enabled).await?;
+                        let output_ok = crate::api::service::ClientService::set_autostart(api_enabled).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -842,7 +842,7 @@ fn wire__crate__api__service__RouterService_set_autostart_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_set_domain_impl(
+fn wire__crate__api__service__ClientService_set_domain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -850,7 +850,7 @@ fn wire__crate__api__service__RouterService_set_domain_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_set_domain",
+            debug_name: "ClientService_set_domain",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -860,7 +860,7 @@ fn wire__crate__api__service__RouterService_set_domain_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_domain = <String>::sse_decode(&mut deserializer);
@@ -880,7 +880,7 @@ fn wire__crate__api__service__RouterService_set_domain_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::set_domain(
+                        let output_ok = crate::api::service::ClientService::set_domain(
                             &*api_that_guard,
                             api_domain,
                             api_server_host,
@@ -894,7 +894,7 @@ fn wire__crate__api__service__RouterService_set_domain_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_set_server_enabled_impl(
+fn wire__crate__api__service__ClientService_set_server_enabled_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -902,7 +902,7 @@ fn wire__crate__api__service__RouterService_set_server_enabled_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_set_server_enabled",
+            debug_name: "ClientService_set_server_enabled",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -912,7 +912,7 @@ fn wire__crate__api__service__RouterService_set_server_enabled_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_host = <String>::sse_decode(&mut deserializer);
@@ -932,7 +932,7 @@ fn wire__crate__api__service__RouterService_set_server_enabled_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::set_server_enabled(
+                        let output_ok = crate::api::service::ClientService::set_server_enabled(
                             &*api_that_guard,
                             api_host,
                             api_value,
@@ -946,7 +946,7 @@ fn wire__crate__api__service__RouterService_set_server_enabled_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_set_state_impl(
+fn wire__crate__api__service__ClientService_set_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -954,7 +954,7 @@ fn wire__crate__api__service__RouterService_set_state_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_set_state",
+            debug_name: "ClientService_set_state",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -964,10 +964,10 @@ fn wire__crate__api__service__RouterService_set_state_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
-            let api_state = <crate::api::service::RouterState>::sse_decode(&mut deserializer);
+            let api_state = <crate::api::service::ClientState>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -984,7 +984,7 @@ fn wire__crate__api__service__RouterService_set_state_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::set_state(&*api_that_guard, api_state).await?;
+                            crate::api::service::ClientService::set_state(&*api_that_guard, api_state).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -993,7 +993,7 @@ fn wire__crate__api__service__RouterService_set_state_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_start_impl(
+fn wire__crate__api__service__ClientService_start_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1001,7 +1001,7 @@ fn wire__crate__api__service__RouterService_start_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_start",
+            debug_name: "ClientService_start",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1011,10 +1011,10 @@ fn wire__crate__api__service__RouterService_start_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
-            let api_cfg = <crate::api::service::RouterConfig>::sse_decode(&mut deserializer);
+            let api_cfg = <crate::api::service::ClientConfig>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -1030,7 +1030,7 @@ fn wire__crate__api__service__RouterService_start_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::start(&*api_that_guard, api_cfg).await?;
+                        let output_ok = crate::api::service::ClientService::start(&*api_that_guard, api_cfg).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1039,7 +1039,7 @@ fn wire__crate__api__service__RouterService_start_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_stop_impl(
+fn wire__crate__api__service__ClientService_stop_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1047,7 +1047,7 @@ fn wire__crate__api__service__RouterService_stop_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_stop",
+            debug_name: "ClientService_stop",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1057,7 +1057,7 @@ fn wire__crate__api__service__RouterService_stop_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             deserializer.end();
@@ -1075,7 +1075,7 @@ fn wire__crate__api__service__RouterService_stop_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::stop(&*api_that_guard).await?;
+                        let output_ok = crate::api::service::ClientService::stop(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1084,7 +1084,7 @@ fn wire__crate__api__service__RouterService_stop_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_unregister_logger_impl(
+fn wire__crate__api__service__ClientService_unregister_logger_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1092,7 +1092,7 @@ fn wire__crate__api__service__RouterService_unregister_logger_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_unregister_logger",
+            debug_name: "ClientService_unregister_logger",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1102,7 +1102,7 @@ fn wire__crate__api__service__RouterService_unregister_logger_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_id = <u64>::sse_decode(&mut deserializer);
@@ -1122,7 +1122,7 @@ fn wire__crate__api__service__RouterService_unregister_logger_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::service::RouterService::unregister_logger(&*api_that_guard, api_id).await?;
+                            crate::api::service::ClientService::unregister_logger(&*api_that_guard, api_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1131,7 +1131,7 @@ fn wire__crate__api__service__RouterService_unregister_logger_impl(
         },
     )
 }
-fn wire__crate__api__service__RouterService_update_server_impl(
+fn wire__crate__api__service__ClientService_update_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1139,7 +1139,7 @@ fn wire__crate__api__service__RouterService_update_server_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "RouterService_update_server",
+            debug_name: "ClientService_update_server",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1149,7 +1149,7 @@ fn wire__crate__api__service__RouterService_update_server_impl(
             };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that =
-                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+                <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
             let api_orig_host = <String>::sse_decode(&mut deserializer);
@@ -1169,7 +1169,7 @@ fn wire__crate__api__service__RouterService_update_server_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::RouterService::update_server(
+                        let output_ok = crate::api::service::ClientService::update_server(
                             &*api_that_guard,
                             api_orig_host,
                             api_new_config,
@@ -1406,7 +1406,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Arc<WriterNotifier>>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WriterNotifier>
@@ -1433,11 +1433,11 @@ impl SseDecode for Arc<WriterNotifier> {
     }
 }
 
-impl SseDecode for RouterService {
+impl SseDecode for ClientService {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner =
-            <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_decode(
+            <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                 deserializer,
             );
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
@@ -1471,7 +1471,7 @@ impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>> {
+impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <usize>::sse_decode(deserializer);
@@ -1510,6 +1510,47 @@ impl SseDecode for crate::api::wrappers::CipherType {
             0 => crate::api::wrappers::CipherType::Aes256Gcm,
             1 => crate::api::wrappers::CipherType::ChaCha20Poly1305,
             _ => unreachable!("Invalid variant for CipherType: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::service::ClientConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state = <crate::api::service::ClientState>::sse_decode(deserializer);
+        let mut var_directDomains = <Vec<String>>::sse_decode(deserializer);
+        let mut var_directApps = <Vec<String>>::sse_decode(deserializer);
+        let mut var_servers = <Vec<crate::api::wrappers::ServerConfig>>::sse_decode(deserializer);
+        return crate::api::service::ClientConfig {
+            state: var_state,
+            direct_domains: var_directDomains,
+            direct_apps: var_directApps,
+            servers: var_servers,
+        };
+    }
+}
+
+impl SseDecode for crate::api::service::ClientState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::service::ClientState::Smart,
+            1 => crate::api::service::ClientState::All,
+            2 => crate::api::service::ClientState::Off,
+            _ => unreachable!("Invalid variant for ClientState: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::service::ClientStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_initialized = <bool>::sse_decode(deserializer);
+        let mut var_servers = <Vec<crate::api::service::ServerInfo>>::sse_decode(deserializer);
+        return crate::api::service::ClientStatus {
+            initialized: var_initialized,
+            servers: var_servers,
         };
     }
 }
@@ -1702,47 +1743,6 @@ impl SseDecode for crate::api::wrappers::ProtocolConfig {
     }
 }
 
-impl SseDecode for crate::api::service::RouterConfig {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_state = <crate::api::service::RouterState>::sse_decode(deserializer);
-        let mut var_directDomains = <Vec<String>>::sse_decode(deserializer);
-        let mut var_directApps = <Vec<String>>::sse_decode(deserializer);
-        let mut var_servers = <Vec<crate::api::wrappers::ServerConfig>>::sse_decode(deserializer);
-        return crate::api::service::RouterConfig {
-            state: var_state,
-            direct_domains: var_directDomains,
-            direct_apps: var_directApps,
-            servers: var_servers,
-        };
-    }
-}
-
-impl SseDecode for crate::api::service::RouterState {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::service::RouterState::Smart,
-            1 => crate::api::service::RouterState::All,
-            2 => crate::api::service::RouterState::Off,
-            _ => unreachable!("Invalid variant for RouterState: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::service::RouterStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_initialized = <bool>::sse_decode(deserializer);
-        let mut var_servers = <Vec<crate::api::service::ServerInfo>>::sse_decode(deserializer);
-        return crate::api::service::RouterStatus {
-            initialized: var_initialized,
-            servers: var_servers,
-        };
-    }
-}
-
 impl SseDecode for crate::api::wrappers::ServerConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1846,31 +1846,31 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__service__RouterService_add_server_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__service__RouterService_check_domain_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__service__RouterService_delete_server_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__service__RouterService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__service__RouterService_get_config_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__service__RouterService_get_direct_apps_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__service__RouterService_get_direct_domains_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__service__RouterService_get_log_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__service__RouterService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__service__RouterService_get_state_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__service__RouterService_get_status_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__service__RouterService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__service__RouterService_log_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__service__RouterService_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__service__RouterService_remove_app_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__service__RouterService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__service__RouterService_set_app_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__service__RouterService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__service__RouterService_set_domain_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__service__RouterService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__service__RouterService_set_state_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__service__RouterService_start_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__service__RouterService_stop_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__service__RouterService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__service__RouterService_update_server_impl(port, ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__service__ClientService_add_server_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__service__ClientService_check_domain_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__service__ClientService_delete_server_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__service__ClientService_get_autostart_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__service__ClientService_get_config_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__service__ClientService_get_direct_apps_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__service__ClientService_get_direct_domains_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__service__ClientService_get_log_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__service__ClientService_get_server_protocol_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__service__ClientService_get_state_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__service__ClientService_get_status_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__service__ClientService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__service__ClientService_log_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__service__ClientService_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__service__ClientService_remove_app_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__service__ClientService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__service__ClientService_set_app_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__service__ClientService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__service__ClientService_set_domain_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__service__ClientService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__service__ClientService_set_state_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__service__ClientService_start_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__service__ClientService_stop_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__service__ClientService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__service__ClientService_update_server_impl(port, ptr, rust_vec_len, data_len),
         27 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
         28 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
         29 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
@@ -1888,7 +1888,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        14 => wire__crate__api__service__RouterService_new_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__service__ClientService_new_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1910,15 +1910,15 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Arc<WriterNotifier>>> for Arc<
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<RouterService> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<ClientService> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0).into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<RouterService> {}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<ClientService> {}
 
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<RouterService>> for RouterService {
-    fn into_into_dart(self) -> FrbWrapper<RouterService> {
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ClientService>> for ClientService {
+    fn into_into_dart(self) -> FrbWrapper<ClientService> {
         self.into()
     }
 }
@@ -1953,6 +1953,59 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::wrappers::CipherTy
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::wrappers::CipherType> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::service::ClientConfig {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.direct_domains.into_into_dart().into_dart(),
+            self.direct_apps.into_into_dart().into_dart(),
+            self.servers.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::ClientConfig {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::service::ClientConfig> for crate::api::service::ClientConfig {
+    fn into_into_dart(self) -> crate::api::service::ClientConfig {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::ClientState> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::service::ClientState::Smart => 0.into_dart(),
+            crate::api::service::ClientState::All => 1.into_dart(),
+            crate::api::service::ClientState::Off => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::ClientState> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::ClientState>>
+    for crate::api::service::ClientState
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::service::ClientState> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::service::ClientStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.initialized.into_into_dart().into_dart(),
+            self.servers.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::ClientStatus {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::service::ClientStatus> for crate::api::service::ClientStatus {
+    fn into_into_dart(self) -> crate::api::service::ClientStatus {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2043,59 +2096,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wrappers::ProtocolConfig> for
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::service::RouterConfig {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.state.into_into_dart().into_dart(),
-            self.direct_domains.into_into_dart().into_dart(),
-            self.direct_apps.into_into_dart().into_dart(),
-            self.servers.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::RouterConfig {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::service::RouterConfig> for crate::api::service::RouterConfig {
-    fn into_into_dart(self) -> crate::api::service::RouterConfig {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::RouterState> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::service::RouterState::Smart => 0.into_dart(),
-            crate::api::service::RouterState::All => 1.into_dart(),
-            crate::api::service::RouterState::Off => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::RouterState> {}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::RouterState>>
-    for crate::api::service::RouterState
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::service::RouterState> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::service::RouterStatus {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.initialized.into_into_dart().into_dart(),
-            self.servers.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::service::RouterStatus {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::service::RouterStatus> for crate::api::service::RouterStatus {
-    fn into_into_dart(self) -> crate::api::service::RouterStatus {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::wrappers::ServerConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2170,10 +2170,10 @@ impl SseEncode for Arc<WriterNotifier> {
     }
 }
 
-impl SseEncode for RouterService {
+impl SseEncode for ClientService {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>>::sse_encode(
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_encode(
             flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
             serializer,
         );
@@ -2206,7 +2206,7 @@ impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     }
 }
 
-impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>> {
+impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         let (ptr, size) = self.sse_encode_raw();
@@ -2251,6 +2251,41 @@ impl SseEncode for crate::api::wrappers::CipherType {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::service::ClientConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::service::ClientState>::sse_encode(self.state, serializer);
+        <Vec<String>>::sse_encode(self.direct_domains, serializer);
+        <Vec<String>>::sse_encode(self.direct_apps, serializer);
+        <Vec<crate::api::wrappers::ServerConfig>>::sse_encode(self.servers, serializer);
+    }
+}
+
+impl SseEncode for crate::api::service::ClientState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::service::ClientState::Smart => 0,
+                crate::api::service::ClientState::All => 1,
+                crate::api::service::ClientState::Off => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::service::ClientStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.initialized, serializer);
+        <Vec<crate::api::service::ServerInfo>>::sse_encode(self.servers, serializer);
     }
 }
 
@@ -2411,41 +2446,6 @@ impl SseEncode for crate::api::wrappers::ProtocolConfig {
     }
 }
 
-impl SseEncode for crate::api::service::RouterConfig {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::service::RouterState>::sse_encode(self.state, serializer);
-        <Vec<String>>::sse_encode(self.direct_domains, serializer);
-        <Vec<String>>::sse_encode(self.direct_apps, serializer);
-        <Vec<crate::api::wrappers::ServerConfig>>::sse_encode(self.servers, serializer);
-    }
-}
-
-impl SseEncode for crate::api::service::RouterState {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::service::RouterState::Smart => 0,
-                crate::api::service::RouterState::All => 1,
-                crate::api::service::RouterState::Off => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::service::RouterStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.initialized, serializer);
-        <Vec<crate::api::service::ServerInfo>>::sse_encode(self.servers, serializer);
-    }
-}
-
 impl SseEncode for crate::api::wrappers::ServerConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2531,7 +2531,7 @@ mod io {
     use crate::api::service::*;
     use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -2557,19 +2557,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_covert_connect_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    pub extern "C" fn frbgen_covert_connect_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::increment_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>::increment_strong_count(
             ptr as _,
         );
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_covert_connect_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    pub extern "C" fn frbgen_covert_connect_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::decrement_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>::decrement_strong_count(
             ptr as _,
         );
     }
@@ -2610,7 +2610,7 @@ mod web {
     use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
     use flutter_rust_bridge::for_generated::wasm_bindgen;
     use flutter_rust_bridge::for_generated::wasm_bindgen::prelude::*;
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -2636,19 +2636,19 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::increment_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>::increment_strong_count(
             ptr as _,
         );
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouterService(
+    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouterService>>::decrement_strong_count(
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>::decrement_strong_count(
             ptr as _,
         );
     }

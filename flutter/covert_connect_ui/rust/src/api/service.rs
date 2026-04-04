@@ -5,9 +5,9 @@ use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
 
 use client::config::ServerConfig as ClientServerConfig;
-use client::router::Router;
+use client::client::Client;
 
-pub use client::router::RouterState;
+pub use client::client::ClientState;
 
 use flutter_rust_bridge::{DartFnFuture, frb};
 
@@ -15,15 +15,15 @@ use crate::api::log::{LogLine, WriterNotifier, get_trace_log, init_trace_log};
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 
 #[derive(Clone)]
-pub struct RouterConfig {
-    pub state: RouterState,
+pub struct ClientConfig {
+    pub state: ClientState,
     pub direct_domains: Vec<String>,
     pub direct_apps: Vec<String>,
     pub servers: Vec<ServerConfig>,
 }
 
 #[derive(Clone)]
-pub struct RouterStatus {
+pub struct ClientStatus {
     pub initialized: bool,
     pub servers: Vec<ServerInfo>,
 }
@@ -44,25 +44,25 @@ pub struct ServerState {
     pub succes_count: u64,
 }
 
-pub struct RouterService {
+pub struct ClientService {
     /// flutter_rust_bridge:ignore
-    router: OnceLock<Arc<Router>>,
+    client: OnceLock<Arc<Client>>,
     /// flutter_rust_bridge:ignore
     writer_notifier: OnceLock<Arc<WriterNotifier>>,
 }
 
-impl RouterService {
+impl ClientService {
     #[frb(sync)]
-    pub fn new() -> RouterService {
+    pub fn new() -> ClientService {
         return {
-            RouterService {
-                router: Default::default(),
+            ClientService {
+                client: Default::default(),
                 writer_notifier: OnceLock::new(),
             }
         };
     }
 
-    pub async fn start(&self, cfg: RouterConfig) -> Result<()> {
+    pub async fn start(&self, cfg: ClientConfig) -> Result<()> {
         match init_trace_log() {
             Ok(notifier) => {
                 self.writer_notifier.set(notifier).ok();
@@ -73,20 +73,20 @@ impl RouterService {
             }
         }
 
-        let mut router_state = cfg.state;
+        let mut client_state = cfg.state;
         if cfg.servers.is_empty() {
             // turn off proxy if no servers
-            router_state = RouterState::Off;
+            client_state = ClientState::Off;
         }
 
-        let router_instance = Router::new(router_state)?;
-        self.router
-            .set(router_instance.clone())
-            .map_err(|_| anyhow!("router already initialized"))?;
+        let client_instance = Client::new(client_state);
+        self.client
+            .set(client_instance.clone())
+            .map_err(|_| anyhow!("client already initialized"))?;
 
         flutter_rust_bridge::spawn(async move {
-            router_instance.add_direct_apps(&cfg.direct_apps).await;
-            router_instance.add_direct_domains(&cfg.direct_domains).await;
+            client_instance.add_direct_apps(&cfg.direct_apps).await;
+            client_instance.add_direct_domains(&cfg.direct_domains).await;
 
             for srv in cfg.servers {
                 let mut cfg: ClientServerConfig = srv.into();
@@ -94,10 +94,10 @@ impl RouterService {
                     .await
                     .inspect_err(|e| tracing::error!("config: {:?}", e))
                     .ok();
-                router_instance.add_server(cfg).await;
+                client_instance.add_server(cfg).await;
             }
 
-            if let Err(err) = router_instance.serve().await {
+            if let Err(err) = client_instance.serve().await {
                 tracing::error!("serve: {:?}", err);
             }
         });
@@ -105,14 +105,14 @@ impl RouterService {
         Ok(())
     }
 
-    pub async fn get_config(&self) -> Result<RouterConfig> {
-        let router = self.get_router()?;
+    pub async fn get_config(&self) -> Result<ClientConfig> {
+        let client = self.get_client()?;
 
-        return Ok(RouterConfig {
-            state: router.get_state().await,
-            direct_domains: router.get_direct_domains().await,
-            direct_apps: router.get_direct_apps().await,
-            servers: router
+        return Ok(ClientConfig {
+            state: client.get_state().await,
+            direct_domains: client.get_direct_domains().await,
+            direct_apps: client.get_direct_apps().await,
+            servers: client
                 .get_servers()
                 .await
                 .into_iter()
@@ -121,10 +121,10 @@ impl RouterService {
         });
     }
 
-    pub async fn get_status(&self) -> Result<RouterStatus> {
-        let proxy = self.get_router()?;
+    pub async fn get_status(&self) -> Result<ClientStatus> {
+        let client = self.get_client()?;
 
-        let servers = proxy
+        let servers = client
             .get_servers()
             .await
             .iter()
@@ -141,39 +141,39 @@ impl RouterService {
             })
             .collect();
 
-        Ok(RouterStatus {
-            initialized: proxy.is_initialized(),
+        Ok(ClientStatus {
+            initialized: client.is_initialized(),
             servers,
         })
     }
 
-    pub async fn get_state(&self) -> Result<RouterState> {
-        Ok(self.get_router()?.get_state().await)
+    pub async fn get_state(&self) -> Result<ClientState> {
+        Ok(self.get_client()?.get_state().await)
     }
 
-    pub async fn set_state(&self, state: RouterState) -> Result<()> {
-        self.get_router()?.set_state(state).await
+    pub async fn set_state(&self, state: ClientState) -> Result<()> {
+        self.get_client()?.set_state(state).await
     }
 
     pub async fn set_server_enabled(&self, host: String, value: bool) -> Result<()> {
-        self.get_router()?.set_enabled(&host, value).await
+        self.get_client()?.set_enabled(&host, value).await
     }
 
     pub async fn get_server_protocol(&self, server: String, key: String) -> Result<ProtocolConfig> {
-        let protocol = self.get_router()?.get_server_protocol(&server, &key).await?;
+        let protocol = self.get_client()?.get_server_protocol(&server, &key).await?;
         Ok(protocol.into())
     }
 
     pub async fn stop(&self) -> Result<()> {
-        self.get_router()?.set_state(RouterState::Off).await
+        self.get_client()?.set_state(ClientState::Off).await
     }
 
     pub async fn get_direct_apps(&self) -> Result<Vec<String>> {
-        Ok(self.get_router()?.get_direct_apps().await)
+        Ok(self.get_client()?.get_direct_apps().await)
     }
 
     pub async fn get_direct_domains(&self) -> Result<Vec<String>> {
-        Ok(self.get_router()?.get_direct_domains().await)
+        Ok(self.get_client()?.get_direct_domains().await)
     }
 
     pub async fn add_server(&self, config: ServerConfig) -> Result<()> {
@@ -182,7 +182,7 @@ impl RouterService {
             .await
             .inspect_err(|e| tracing::error!("config init: {:?}", e))
             .ok();
-        self.get_router()?.add_server(cfg).await;
+        self.get_client()?.add_server(cfg).await;
         Ok(())
     }
 
@@ -192,31 +192,31 @@ impl RouterService {
             .await
             .inspect_err(|e| tracing::error!("config init: {:?}", e))
             .ok();
-        self.get_router()?.update_server(&orig_host, cfg).await
+        self.get_client()?.update_server(&orig_host, cfg).await
     }
 
     pub async fn delete_server(&self, host: String) -> Result<()> {
-        self.get_router()?.del_server(&host).await
+        self.get_client()?.del_server(&host).await
     }
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
-        let proxy = self.get_router()?;
-        proxy.set_domain(domain, server_host).await
+        let client = self.get_client()?;
+        client.set_domain(domain, server_host).await
     }
 
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
-        let proxy = self.get_router()?;
-        proxy.remove_domain(domain).await
+        let client = self.get_client()?;
+        client.remove_domain(domain).await
     }
 
     pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
-        let proxy = self.get_router()?;
-        proxy.set_app(app, server_host).await
+        let client = self.get_client()?;
+        client.set_app(app, server_host).await
     }
 
     pub async fn remove_app(&self, app: String) -> Result<()> {
-        let proxy = self.get_router()?;
-        proxy.remove_app(app).await
+        let client = self.get_client()?;
+        client.remove_app(app).await
     }
 
     pub async fn log(message: String) {
@@ -236,17 +236,17 @@ impl RouterService {
     }
 
     pub async fn get_ttfb(&self, server: String, domain: String) -> Result<u32> {
-        let proxy = self.get_router()?;
-        Ok(proxy.get_ttfb(&server, &domain).await? as u32)
+        let client = self.get_client()?;
+        Ok(client.get_ttfb(&server, &domain).await? as u32)
     }
 
     pub async fn get_autostart() -> Result<bool> {
-        let auto = RouterService::init_autostart()?;
+        let auto = ClientService::init_autostart()?;
         Ok(auto.is_enabled()?)
     }
 
     pub async fn set_autostart(enabled: bool) -> Result<()> {
-        let auto = RouterService::init_autostart()?;
+        let auto = ClientService::init_autostart()?;
         if enabled {
             auto.enable()?;
         } else {
@@ -289,13 +289,13 @@ impl RouterService {
             .ok_or_else(|| anyhow!("writer notifier not initialized"))
     }
 
-    fn get_router(&self) -> Result<&Arc<Router>> {
-        self.router.get().ok_or_else(|| anyhow!("router not initialized"))
+    fn get_client(&self) -> Result<&Arc<Client>> {
+        self.client.get().ok_or_else(|| anyhow!("client not initialized"))
     }
 }
 
-#[frb(mirror(RouterState))]
-pub enum _RouterState {
+#[frb(mirror(ClientState))]
+pub enum _ClientState {
     Smart,
     All,
     Off,

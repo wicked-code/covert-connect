@@ -7,7 +7,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::protocol::ServerState;
+use crate::client_info::ServerState;
 
 pin_project! {
     /// A stream wrapper that add rnd padding  and encrypt data

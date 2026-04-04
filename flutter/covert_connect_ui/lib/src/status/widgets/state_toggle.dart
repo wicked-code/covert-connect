@@ -13,9 +13,9 @@ class StateToggle extends StatefulWidget {
 }
 
 class _StateToggleState extends State<StateToggle> {
-  RouterState? _state;
+  ClientState? _state;
 
-  void _setProxyState(RouterState state) async {
+  void _setProxyState(ClientState state) async {
     await di<RouterServiceBase>().setState(state);
     _update();
   }
@@ -25,8 +25,8 @@ class _StateToggleState extends State<StateToggle> {
     if (mounted) setState(() {});
   }
 
-  RouterState _toProxyState(String value) {
-    return RouterState.values.firstWhereOrNull((x) => x.name == value) ?? RouterState.off;
+  ClientState _toProxyState(String value) {
+    return ClientState.values.firstWhereOrNull((x) => x.name == value) ?? ClientState.off;
   }
 
   @override
@@ -53,7 +53,7 @@ class _StateToggleState extends State<StateToggle> {
       child: AnimatedToggleSwitch<String>.size(
         active: _state != null,
         current: _state?.name ?? "",
-        values: [RouterState.off.name, RouterState.smart.name, RouterState.all.name],
+        values: [ClientState.off.name, ClientState.smart.name, ClientState.all.name],
         borderWidth: 0,
         spacing: 2,
         iconOpacity: 0.67,
@@ -75,9 +75,9 @@ class _StateToggleState extends State<StateToggle> {
         },
         customIconBuilder: (context, local, global) {
           final name = switch (_toProxyState(local.value)) {
-            RouterState.off => 'OFF',
-            RouterState.smart => 'SMART',
-            RouterState.all => 'ALL',
+            ClientState.off => 'OFF',
+            ClientState.smart => 'SMART',
+            ClientState.all => 'ALL',
           };
           return Transform.scale(
             scale: 0.8333333333 + local.animationValue * 0.1666666667,

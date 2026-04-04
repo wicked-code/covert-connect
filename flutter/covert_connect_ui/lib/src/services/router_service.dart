@@ -9,9 +9,9 @@ enum LogErrorType {
 }
 
 abstract class RouterServiceBase {
-  Future<RouterStatus> getStatus();
-  Future<RouterState> getState();
-  Future<void> setState(RouterState state);
+  Future<ClientStatus> getStatus();
+  Future<ClientState> getState();
+  Future<void> setState(ClientState state);
   Future<void> setServerEnabled(String host, bool value);
   Future<ProtocolConfig> getServerProtocol(String host, String key);
   Future<List<String>> getDomains();

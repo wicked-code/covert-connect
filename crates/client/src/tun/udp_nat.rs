@@ -7,11 +7,7 @@ use tokio::io::{AsyncRead, AsyncWriteExt};
 use tun::DeviceWriter;
 
 use crate::{
-    egress::Egress,
-    protocol::DataProtocol,
-    router::Router,
-    streams::udp_stream::{UdpStream, UdpStreamData},
-    tun::dns_mapper::DnsMapper,
+    egress::Egress, protocol::DataProtocol, router::Router, streams::udp_stream::{UdpStream, UdpStreamData}, tun::dns_mapper::DnsMapper
 };
 
 // TODO: move to settings
@@ -23,16 +19,18 @@ pub struct UdpNat {
     writer: Mutex<Option<DeviceWriter>>,
     is_icmp: bool,
     dns_mapper: Arc<DnsMapper>,
+    egress: Arc<Egress>,
 }
 
 impl UdpNat {
-    pub fn new(is_icmp: bool, dns_mapper: Arc<DnsMapper>) -> Arc<Self> {
+    pub fn new(is_icmp: bool, dns_mapper: Arc<DnsMapper>, egress: Arc<Egress>) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             router: Mutex::new(None),
             writer: Mutex::new(None),
             is_icmp,
             dns_mapper,
+            egress,
         })
     }
 
@@ -109,8 +107,8 @@ impl UdpNat {
                     DataProtocol::Udp
                 };
                 match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
-                    Ok(Some((stream, egress))) => {
-                        let use_dst_addr = egress.lookup_host(&host).await.map_or_else(
+                    Ok(Some(stream)) => {
+                        let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
                             || {
                                 tracing::info!("UDP NAT lookup host failed {}", host);
                                 dst_addr
@@ -118,9 +116,9 @@ impl UdpNat {
                             |ip| SocketAddr::new(ip, dst_addr.port()),
                         );
                         if self_clone.is_icmp {
-                            Self::direct_transfer_icmp(&egress, stream, use_dst_addr).await;
+                            self_clone.direct_transfer_icmp(stream, use_dst_addr).await;
                         } else {
-                            Self::direct_transfer(&egress, stream, use_dst_addr).await;
+                            self_clone.direct_transfer(stream, use_dst_addr).await;
                         }
                     }
                     Ok(None) => {}
@@ -137,10 +135,10 @@ impl UdpNat {
         });
     }
 
-    async fn direct_transfer(egress: &Arc<Egress>, client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
+    async fn direct_transfer(self: &Arc<Self>, client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
         tracing::info!("Direct connection (UDP) to {}", target);
 
-        let out_socket = match egress.connect_udp(target).await {
+        let out_socket = match self.egress.connect_udp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (UDP) to {} failed, err: {:?}", target, err);
@@ -154,13 +152,13 @@ impl UdpNat {
     }
 
     async fn direct_transfer_icmp(
-        egress: &Arc<Egress>,
+        self: &Arc<Self>,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
     ) {
         tracing::info!("Direct connection (ICMP) to {}", target);
 
-        let out_socket = match egress.connect_icmp(target).await {
+        let out_socket = match self.egress.connect_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (ICMP) to {} failed, err: {:?}", target, err);

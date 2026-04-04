@@ -34,7 +34,7 @@ class _DomainsPageState extends State<DomainsPage> {
   String get _inputValue => _inputController.text.encodePunycode();
 
   Future<void> _loadDomains() async {
-    final [rootDomains as List<String>, status as RouterStatus] = await Future.wait([
+    final [rootDomains as List<String>, status as ClientStatus] = await Future.wait([
       di<RouterServiceBase>().getDomains(),
       di<RouterServiceBase>().getStatus(),
     ]);

@@ -26,7 +26,7 @@ class StatusPage extends StatefulWidget {
 
 class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMixin {
   late Timer _timer;
-  RouterStatus? _status;
+  ClientStatus? _status;
 
   TrafficSample? _prevSample;
   final _speedHistory = List.generate(

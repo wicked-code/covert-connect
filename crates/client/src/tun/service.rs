@@ -7,8 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::DeviceWriter;
 
 use crate::{
-    router::Router,
-    tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
+    egress::Egress, router::Router, tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat}
 };
 use net_packet::{
     MAX_PACKET_SIZE,
@@ -33,13 +32,13 @@ pub struct TunService {
 }
 
 impl TunService {
-    pub fn new() -> Arc<Self> {
+    pub fn new(egress: Arc<Egress>) -> Arc<Self> {
         let dns_mapper = DnsMapper::new();
         Arc::new(Self {
-            tcp_proxy_nat_v4: TcpProxyNat::new(dns_mapper.clone()),
-            tcp_proxy_nat_v6: TcpProxyNat::new(dns_mapper.clone()),
-            udp_nat: UdpNat::new(false, dns_mapper.clone()),
-            icmp_nat: UdpNat::new(true, dns_mapper.clone()),
+            tcp_proxy_nat_v4: TcpProxyNat::new(dns_mapper.clone(), egress.clone()),
+            tcp_proxy_nat_v6: TcpProxyNat::new(dns_mapper.clone(), egress.clone()),
+            udp_nat: UdpNat::new(false, dns_mapper.clone(), egress.clone()),
+            icmp_nat: UdpNat::new(true, dns_mapper.clone(), egress),
             dns_server: DnsServer::new(dns_mapper),
         })
     }

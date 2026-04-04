@@ -18,29 +18,29 @@ class RouterServiceImpl implements RouterServiceBase {
     return router;
   }
 
-  final router = RouterService();
+  final router = ClientService();
 
   Future<void> init() async {
     final prefs = SharedPreferencesAsync();
     String configStr = await prefs.getString(kConfigKey) ?? "";
-    RouterConfig cfg;
+    ClientConfig cfg;
     if (configStr.isNotEmpty) {
       cfg = proxyConfigFromString(configStr);
     } else {
-      cfg = RouterConfig(state: RouterState.off, directDomains: [], directApps: [], servers: []);
+      cfg = ClientConfig(state: ClientState.off, directDomains: [], directApps: [], servers: []);
     }
 
     await router.start(cfg: cfg);
   }
 
   @override
-  Future<RouterState> getState() => router.getState();
+  Future<ClientState> getState() => router.getState();
 
   @override
-  Future<RouterStatus> getStatus() => router.getStatus();
+  Future<ClientStatus> getStatus() => router.getStatus();
 
   @override
-  Future<void> setState(RouterState state) async {
+  Future<void> setState(ClientState state) async {
     try {
       await router.setState(state: state);
     } catch (e) {
@@ -104,7 +104,7 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<bool> checkDomain(String domain) {
-    return RouterService.checkDomain(domain: domain);
+    return ClientService.checkDomain(domain: domain);
   }
 
   @override
@@ -132,12 +132,12 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<bool> getAutostart() {
-    return RouterService.getAutostart();
+    return ClientService.getAutostart();
   }
 
   @override
   Future<void> setAutostart(bool enabled) {
-    return RouterService.setAutostart(enabled: enabled);
+    return ClientService.setAutostart(enabled: enabled);
   }
 
   @override
@@ -154,7 +154,7 @@ class RouterServiceImpl implements RouterServiceBase {
           break;
       }
     }
-    RouterService.log(message: message);
+    ClientService.log(message: message);
   }
 
   @override
@@ -169,13 +169,13 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<List<LogLine>> getLog(BigInt? start, int limit) =>
-      RouterService.getLog(start: start, limit: BigInt.from(limit));
+      ClientService.getLog(start: start, limit: BigInt.from(limit));
 
   Future<void> saveConfig() async {
     final cfg = await router.getConfig();
     String json = jsonEncode(
       cfg,
-      toEncodable: (Object? value) => value is RouterConfig
+      toEncodable: (Object? value) => value is ClientConfig
           ? proxyCofigToJson(value)
           : throw UnsupportedError('Saving proxy config: Cannot convert to JSON: $value'),
     );
