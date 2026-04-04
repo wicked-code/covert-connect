@@ -125,12 +125,6 @@ impl Client {
         Ok(())
     }
 
-    pub async fn remove_server(&self, host: &str) -> Result<()> {
-        self.info.remove_server(host).await?;
-        self.update_router().await;
-        Ok(())
-    }
-
     pub async fn get_servers(&self) -> Vec<ServerInfo> {
         self.info.get_servers().await
     }

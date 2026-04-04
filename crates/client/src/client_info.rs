@@ -199,16 +199,6 @@ impl ClientInfo {
         } else {
             Err(anyhow!("server not found"))
         }
-    }    
-
-    pub async fn remove_server(&self, host: &str) -> Result<()> {
-        let mut servers = self.servers.write().await;
-        if let Some(pos) = servers.iter().position(|s| s.config.host == host) {
-            servers.remove(pos);
-            Ok(())
-        } else {
-            Err(anyhow!("host not found"))
-        }
     }
 
     pub async fn get_servers(&self) -> Vec<ServerInfo> {
