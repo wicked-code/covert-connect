@@ -166,6 +166,7 @@ impl Egress {
         // try outbound IF dns first
         let if_dns_ips = get_dns_by_if_addr(outbound_ip).await?;
         for dns_ip in if_dns_ips {
+            // TODO: ??? check for possible invalid IF dns (198.18.0.0/15 and 100.64.0.0/10) and skip such dns
             let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
             ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
