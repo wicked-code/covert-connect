@@ -162,6 +162,7 @@ impl Client {
         match proxy_state {
             ClientState::Off => {
                 self.tun_service.stop().await;
+                self.router.cancel_all().await;
             }
             ClientState::Smart => {
                 self.router.set_no_direct(false);
@@ -193,6 +194,7 @@ impl Client {
             }
 
             let self_clone = self.clone();
+            self.router.reset_cancel();
             let serve = self.tun_service.serve(self.router.clone(), move || {
                 self_clone.working.store(true, Ordering::Relaxed);
                 self_clone.initialized.store(true, Ordering::Relaxed);
@@ -203,6 +205,7 @@ impl Client {
 
                 // stop all working tasks in order to correct retry
                 self.tun_service.stop().await;
+                self.router.cancel_all().await;
 
                 // wait before retry to avoid high cpu usage when error happens continuously
                 sleep(Duration::from_secs(error_retry_interval_sec)).await;

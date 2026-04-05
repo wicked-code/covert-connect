@@ -10,6 +10,7 @@ use tokio::{
 use tun::DeviceWriter;
 
 use crate::{
+    cancel_watcher::CancellableTaskHandle,
     cancellable_task::CancellableTask,
     egress::Egress,
     protocol::DataProtocol,
@@ -128,7 +129,7 @@ impl UdpNat {
                     DataProtocol::Udp
                 };
                 match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
-                    Ok(Some(stream)) => {
+                    Ok(Some((stream, cancel_handle))) => {
                         let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
                             || {
                                 tracing::info!("UDP NAT lookup host failed {}", host);
@@ -137,9 +138,11 @@ impl UdpNat {
                             |ip| SocketAddr::new(ip, dst_addr.port()),
                         );
                         if self_clone.is_icmp {
-                            self_clone.direct_transfer_icmp(stream, use_dst_addr).await;
+                            self_clone
+                                .direct_transfer_icmp(stream, use_dst_addr, cancel_handle)
+                                .await;
                         } else {
-                            self_clone.direct_transfer(stream, use_dst_addr).await;
+                            self_clone.direct_transfer(stream, use_dst_addr, cancel_handle).await;
                         }
                     }
                     Ok(None) => {}
@@ -156,7 +159,12 @@ impl UdpNat {
         });
     }
 
-    async fn direct_transfer(self: &Arc<Self>, client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
+    async fn direct_transfer(
+        self: &Arc<Self>,
+        client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target: SocketAddr,
+        cancel_handle: CancellableTaskHandle,
+    ) {
         tracing::info!("Direct connection (UDP) to {}", target);
 
         let out_socket = match self.egress.connect_udp(target).await {
@@ -167,8 +175,13 @@ impl UdpNat {
             }
         };
 
-        if let Err(err) = udp_transfer(client, out_socket).await {
-            tracing::warn!("Direct connection (UDP) io error: {:?}, target: {}", err, target);
+        select! {
+            _ = cancel_handle.token.cancelled() => {},
+            result = udp_transfer(client, out_socket) => {
+                if let Err(err) = result {
+                    tracing::warn!("Direct connection (UDP) io error: {:?}, target: {}", err, target);
+                }
+            }
         }
     }
 
@@ -176,6 +189,7 @@ impl UdpNat {
         self: &Arc<Self>,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
+        cancel_handle: CancellableTaskHandle,
     ) {
         tracing::info!("Direct connection (ICMP) to {}", target);
 
@@ -187,8 +201,13 @@ impl UdpNat {
             }
         };
 
-        if let Err(err) = udp_transfer(client, out_socket).await {
-            tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {}", err, target);
+        select! {
+            _ = cancel_handle.token.cancelled() => {},
+            result = udp_transfer(client, out_socket) => {
+                if let Err(err) = result {
+                    tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {}", err, target);
+                }
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{client_info::ServerState, streams::monitor_stream::MonitorStream};
+use crate::{cancel_watcher::CancellableTaskHandle, client_info::ServerState, streams::monitor_stream::MonitorStream};
 use anyhow::{Result, bail};
 use bytes::{Buf, BufMut, BytesMut};
 use chrono::Utc;
@@ -15,7 +15,10 @@ use std::{
     mem,
     sync::{Arc, atomic::Ordering},
 };
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
+    select,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum DataProtocol {
@@ -179,6 +182,7 @@ pub async fn process_tunnel(
     mut rng: impl CryptoRng + Rng,
     protocol: &ProtocolConfig,
     state: Arc<ServerState>,
+    cancel_handle: CancellableTaskHandle,
 ) -> Result<()> {
     let ProtocolConfig {
         key,
@@ -261,7 +265,14 @@ pub async fn process_tunnel(
 
     let mut server = MonitorStream::from_stream(server, state.clone());
 
-    let result = tokio::io::copy_bidirectional(&mut client, &mut server).await;
+    let result = select! {
+        _ = cancel_handle.token.cancelled() => {
+            return Ok(());
+        }
+        result = tokio::io::copy_bidirectional(&mut client, &mut server) => {
+            result
+        }
+    };
 
     if !server.is_success() {
         state.err_count.fetch_add(1, Ordering::Relaxed);

@@ -9,12 +9,16 @@ use std::{
     },
 };
 use sys_process::{Protocol, process_path_by_local_addr};
-use tokio::io::{AsyncRead, AsyncWriteExt};
+use tokio::{
+    io::{AsyncRead, AsyncWriteExt},
+    time::Duration,
+};
 
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 use crate::{
+    cancel_watcher::{CancelWatcher, CancellableTaskHandle},
     config::ServerConnectConfig,
     egress::{Egress, StreamType},
     protocol::{self, DataProtocol},
@@ -23,10 +27,13 @@ use crate::{
 };
 use crypto::config::ProtocolConfig;
 
+const MAX_CANCEL_WAIT_SECS: Duration = Duration::from_secs(10);
+
 pub struct Router {
     egress: Arc<Egress>,
     no_direct: AtomicBool,
     table: ArcSwap<RouterTable>,
+    cancel_watcher: CancelWatcher,
 }
 
 impl Router {
@@ -35,7 +42,16 @@ impl Router {
             egress,
             no_direct: AtomicBool::new(false),
             table: ArcSwap::new(RouterTable::new()),
+            cancel_watcher: CancelWatcher::new(),
         })
+    }
+
+    pub async fn cancel_all(&self) {
+        self.cancel_watcher.wait_for_shutdown(MAX_CANCEL_WAIT_SECS).await;
+    }
+
+    pub fn reset_cancel(&self) {
+        self.cancel_watcher.reset();
     }
 
     pub fn set_no_direct(&self, no_direct: bool) {
@@ -82,7 +98,7 @@ impl Router {
         data_protocol: DataProtocol,
         target_host: String,
         client_addr: SocketAddr,
-    ) -> Result<Option<impl AsyncWriteExt + Unpin + AsyncRead>> {
+    ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, CancellableTaskHandle)>> {
         let mut rng = ChaCha20Rng::from_entropy();
 
         let mut process_name = String::from("");
@@ -110,7 +126,7 @@ impl Router {
                 .await?;
             Ok(None)
         } else {
-            Ok(Some(client))
+            Ok(Some((client, self.cancel_watcher.create_handle())))
         }
     }
 
@@ -136,6 +152,7 @@ impl Router {
                     rng,
                     &server.protocol,
                     server.state.clone(),
+                    self.cancel_watcher.create_handle(),
                 )
                 .await
             }
@@ -148,6 +165,7 @@ impl Router {
                     rng,
                     &server.protocol,
                     server.state.clone(),
+                    self.cancel_watcher.create_handle(),
                 )
                 .await
             }

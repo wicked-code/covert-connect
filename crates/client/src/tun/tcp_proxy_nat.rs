@@ -1,7 +1,6 @@
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
-use tokio_util::sync::CancellationToken;
 use std::{
     net::{IpAddr, SocketAddr},
     sync::{
@@ -16,10 +15,11 @@ use tokio::{
     select,
     time::{sleep, timeout},
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
-    cancellable_task::CancellableTask, egress::Egress, protocol::DataProtocol, router::Router,
-    tun::dns_mapper::DnsMapper,
+    cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask, egress::Egress, protocol::DataProtocol,
+    router::Router, tun::dns_mapper::DnsMapper,
 };
 
 const MIN_NAT_PORT: u16 = 10000;
@@ -137,7 +137,7 @@ impl TcpProxyNat {
                             .start_tunnel(stream, DataProtocol::Tcp, host.clone(), session.src_addr)
                             .await
                         {
-                            Ok(Some(stream)) => {
+                            Ok(Some((stream, cancel_handle))) => {
                                 let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
                                     || {
                                         tracing::info!("UDP NAT lookup host failed {}", host);
@@ -145,7 +145,7 @@ impl TcpProxyNat {
                                     },
                                     |ip| SocketAddr::new(ip, dst_addr.port()),
                                 );
-                                self_clone.direct_transfer(stream, use_dst_addr).await;
+                                self_clone.direct_transfer(stream, use_dst_addr, cancel_handle).await;
                             }
                             Ok(None) => {}
                             Err(err) => {
@@ -166,7 +166,12 @@ impl TcpProxyNat {
         Ok(())
     }
 
-    async fn direct_transfer(self: &Arc<Self>, mut client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
+    async fn direct_transfer(
+        self: &Arc<Self>,
+        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
+        target: SocketAddr,
+        cancel_handle: CancellableTaskHandle,
+    ) {
         tracing::info!("Direct connection to {}", target);
 
         let mut server = match self.egress.connect_tcp(target).await {
@@ -177,8 +182,13 @@ impl TcpProxyNat {
             }
         };
 
-        if let Err(err) = tokio::io::copy_bidirectional(&mut client, &mut server).await {
-            tracing::warn!("Direct connection io error: {:?}, target: {}", err, target);
+        select! {
+            _ = cancel_handle.token.cancelled() => {},
+            result = tokio::io::copy_bidirectional(&mut client, &mut server) => {
+                if let Err(err) = result {
+                    tracing::warn!("Direct connection io error: {:?}, target: {}", err, target);
+                }
+            }
         }
     }
 
