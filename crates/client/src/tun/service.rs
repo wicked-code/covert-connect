@@ -3,11 +3,13 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
 };
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, time::sleep};
 use tun::DeviceWriter;
 
 use crate::{
-    egress::Egress, router::Router, tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat}
+    egress::Egress,
+    router::Router,
+    tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
 };
 use net_packet::{
     MAX_PACKET_SIZE,
@@ -16,6 +18,9 @@ use net_packet::{
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
+
+const WAIT_IF_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+const WAIT_IF_READY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
 
 #[derive(PartialEq)]
 enum ProcessResult {
@@ -115,9 +120,8 @@ impl TunService {
         let gateaway_v4 = Ipv4Addr::from(u32::from(address_v4) + 1);
 
         // TODO: ??? modify library
-        // - clone writer to be able to write from other tasks without lock
         // - use sudo networksetup -ordernetworkservices to set priority for IF on macos
-        // TODO: ??? setup dns
+        // - get MTU from tun
         let mut config = tun::Configuration::default();
         config
             .tun_name(tun_name)
@@ -138,7 +142,8 @@ impl TunService {
 
         let dev = tun::create_as_async(&config)?;
 
-        // TODO: ??? may be we need to wait for IF to be ready after creation...
+        // This method does't wait for tun to be fully up, but return address immediately
+        // but it returns all addresses include IPv6 address, so we can use it to get IPv6 address and gateway
         let net_if = NetworkInterface::show()?
             .into_iter()
             .find(|x| {
@@ -148,6 +153,27 @@ impl TunService {
                         .any(|addr| matches!(addr, network_interface::Addr::V4(ifaddr) if ifaddr.ip == address_v4))
             })
             .ok_or_else(|| anyhow!("tun interface not found"))?;
+
+        // wait IF fully up
+        let mut cur_iter_to_show = 0;
+        let instant = std::time::Instant::now();
+        loop {
+            let net_if = if_addrs::get_if_addrs()?
+                .into_iter()
+                .find_map(|x| if x.name == tun_name { Some(x) } else { None });
+            if let Some(iface) = net_if && iface.is_oper_up()
+            {
+                break;
+            }
+            if instant.elapsed() > WAIT_IF_READY_TIMEOUT {
+                return Err(anyhow!("timout waiting for tun interface"));
+            }
+            if instant.elapsed().as_secs() > cur_iter_to_show {
+                cur_iter_to_show += 1;
+                tracing::info!("waiting for tun interface to be ready {}s", cur_iter_to_show);
+            }
+            sleep(WAIT_IF_READY_INTERVAL).await;
+        }
 
         let address_v6 = net_if
             .addr

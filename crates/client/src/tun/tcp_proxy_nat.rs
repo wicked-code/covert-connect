@@ -144,11 +144,7 @@ impl TcpProxyNat {
         }
     }
 
-    async fn direct_transfer(
-        self: &Arc<Self>,
-        mut client: impl AsyncWriteExt + Unpin + AsyncRead,
-        target: SocketAddr,
-    ) {
+    async fn direct_transfer(self: &Arc<Self>, mut client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
         tracing::info!("Direct connection to {}", target);
 
         let mut server = match self.egress.connect_tcp(target).await {
@@ -171,12 +167,7 @@ impl TcpProxyNat {
         // so retry with a timeout on each attempt.
         let mut last_err = None;
         for attempt in 1..=MAX_BIND_ATTEMPTS {
-            match timeout(BIND_TIMEOUT, async {
-                sleep(BIND_TIMEOUT).await;
-                TcpListener::bind(default_address).await
-            })
-            .await
-            {
+            match timeout(BIND_TIMEOUT, async { TcpListener::bind(default_address).await }).await {
                 Ok(Ok(listener)) => {
                     let address = listener.local_addr()?;
                     tracing::info!("proxy server started: {:?}", address);
@@ -196,6 +187,7 @@ impl TcpProxyNat {
                     last_err = Some(anyhow!("bind to {} timed out", default_address));
                 }
             }
+            sleep(BIND_TIMEOUT).await;
         }
 
         Err(last_err.unwrap_or_else(|| anyhow!("failed to bind to {}", default_address)))
