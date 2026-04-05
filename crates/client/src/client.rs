@@ -143,7 +143,6 @@ impl Client {
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
         self.initialized.store(true, Ordering::Relaxed);
-        // TODO:??? make egress singleton and remove this initialization
         self.egress.init().await?;
         self.tun_service.serve(self.router.clone()).await
     }
