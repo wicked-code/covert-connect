@@ -1547,9 +1547,11 @@ impl SseDecode for crate::api::service::ClientStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_initialized = <bool>::sse_decode(deserializer);
+        let mut var_working = <bool>::sse_decode(deserializer);
         let mut var_servers = <Vec<crate::api::service::ServerInfo>>::sse_decode(deserializer);
         return crate::api::service::ClientStatus {
             initialized: var_initialized,
+            working: var_working,
             servers: var_servers,
         };
     }
@@ -1997,6 +1999,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::service::ClientStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.initialized.into_into_dart().into_dart(),
+            self.working.into_into_dart().into_dart(),
             self.servers.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2285,6 +2288,7 @@ impl SseEncode for crate::api::service::ClientStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.initialized, serializer);
+        <bool>::sse_encode(self.working, serializer);
         <Vec<crate::api::service::ServerInfo>>::sse_encode(self.servers, serializer);
     }
 }

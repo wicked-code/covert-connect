@@ -1578,11 +1578,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ClientStatus dco_decode_client_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return ClientStatus(
       initialized: dco_decode_bool(arr[0]),
-      servers: dco_decode_list_server_info(arr[1]),
+      working: dco_decode_bool(arr[1]),
+      servers: dco_decode_list_server_info(arr[2]),
     );
   }
 
@@ -1976,8 +1977,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ClientStatus sse_decode_client_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_initialized = sse_decode_bool(deserializer);
+    var var_working = sse_decode_bool(deserializer);
     var var_servers = sse_decode_list_server_info(deserializer);
-    return ClientStatus(initialized: var_initialized, servers: var_servers);
+    return ClientStatus(
+      initialized: var_initialized,
+      working: var_working,
+      servers: var_servers,
+    );
   }
 
   @protected
@@ -2438,6 +2444,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_client_status(ClientStatus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.initialized, serializer);
+    sse_encode_bool(self.working, serializer);
     sse_encode_list_server_info(self.servers, serializer);
   }
 

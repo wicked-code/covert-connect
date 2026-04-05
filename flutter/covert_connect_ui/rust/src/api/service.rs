@@ -25,6 +25,7 @@ pub struct ClientConfig {
 #[derive(Clone)]
 pub struct ClientStatus {
     pub initialized: bool,
+    pub working: bool,
     pub servers: Vec<ServerInfo>,
 }
 
@@ -143,6 +144,7 @@ impl ClientService {
 
         Ok(ClientStatus {
             initialized: client.is_initialized(),
+            working: client.is_working(),
             servers,
         })
     }

@@ -122,12 +122,18 @@ enum ClientState { smart, all, off }
 
 class ClientStatus {
   final bool initialized;
+  final bool working;
   final List<ServerInfo> servers;
 
-  const ClientStatus({required this.initialized, required this.servers});
+  const ClientStatus({
+    required this.initialized,
+    required this.working,
+    required this.servers,
+  });
 
   @override
-  int get hashCode => initialized.hashCode ^ servers.hashCode;
+  int get hashCode =>
+      initialized.hashCode ^ working.hashCode ^ servers.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -135,6 +141,7 @@ class ClientStatus {
       other is ClientStatus &&
           runtimeType == other.runtimeType &&
           initialized == other.initialized &&
+          working == other.working &&
           servers == other.servers;
 }
 

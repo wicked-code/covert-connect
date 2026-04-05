@@ -142,6 +142,10 @@ impl Client {
         self.initialized.load(Ordering::Relaxed)
     }
 
+    pub fn is_working(&self) -> bool {
+        self.working.load(Ordering::Relaxed)
+    }
+
     pub async fn get_ttfb(&self, host: &str, domain: &str) -> Result<usize> {
         self.router.get_ttfb(host, domain).await
     }

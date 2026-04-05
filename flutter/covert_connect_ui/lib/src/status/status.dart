@@ -118,6 +118,8 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;    
     final height = MediaQuery.of(context).size.height;
 
     if (_status == null || !_status!.initialized) {
@@ -135,7 +137,17 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
           SizedBox(height: 24),
           SizedBox(
             height: graphHeight,
-            child: TrafficGraph(data: _speedHistory, height: graphHeight),
+            child: Stack(
+              children: [
+                Opacity(opacity: _status!.working ? 1.0 : 0.15, child: TrafficGraph(data: _speedHistory, height: graphHeight)),
+                if (!_status!.working)
+                  Positioned.fill(
+                    child: Center(
+                      child: Text("Idle", style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.47), fontSize: 24)),
+                    ),
+                  ),
+              ],
+            ),
           ),
           SizedBox(height: 24),
         ],

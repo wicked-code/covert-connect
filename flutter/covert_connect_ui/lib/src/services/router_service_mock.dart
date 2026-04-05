@@ -49,7 +49,7 @@ class RouterServiceMock implements RouterServiceBase {
       _noValueCount--;
     }
 
-    return ClientStatus(initialized: true, servers: servers);
+    return ClientStatus(initialized: true, working: true, servers: servers);
   }
 
   @override
