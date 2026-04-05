@@ -21,7 +21,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 pub enum DataProtocol {
     Tcp,
     Udp,
-    Icmp, // TODO: ??? not supported yet
+    Icmp,
 }
 
 const MAX_GET_PROTOCOL_HEADER_PADDING: u16 = 4096;

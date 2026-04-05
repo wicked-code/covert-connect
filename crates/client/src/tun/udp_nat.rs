@@ -3,11 +3,19 @@ use cc_server::udp::udp_transfer;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
-use tokio::io::{AsyncRead, AsyncWriteExt};
+use tokio::{
+    io::{AsyncRead, AsyncWriteExt},
+    select,
+};
 use tun::DeviceWriter;
 
 use crate::{
-    egress::Egress, protocol::DataProtocol, router::Router, streams::udp_stream::{UdpStream, UdpStreamData}, tun::dns_mapper::DnsMapper
+    cancellable_task::CancellableTask,
+    egress::Egress,
+    protocol::DataProtocol,
+    router::Router,
+    streams::udp_stream::{UdpStream, UdpStreamData},
+    tun::dns_mapper::DnsMapper,
 };
 
 // TODO: move to settings
@@ -20,12 +28,14 @@ pub struct UdpNat {
     is_icmp: bool,
     dns_mapper: Arc<DnsMapper>,
     egress: Arc<Egress>,
+    session_closer: CancellableTask,
 }
 
 impl UdpNat {
     pub fn new(is_icmp: bool, dns_mapper: Arc<DnsMapper>, egress: Arc<Egress>) -> Arc<Self> {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
+            session_closer: CancellableTask::new("UdpNatSessionCloser"),
             router: Mutex::new(None),
             writer: Mutex::new(None),
             is_icmp,
@@ -34,12 +44,12 @@ impl UdpNat {
         })
     }
 
-    pub async fn init(self: &Arc<Self>, router: Arc<Router>, writer: DeviceWriter) -> Result<()> {
+    pub async fn start(self: &Arc<Self>, router: Arc<Router>, writer: DeviceWriter) -> Result<()> {
         *self.router.lock() = Some(router);
         *self.writer.lock() = Some(writer);
 
         let self_clone = self.clone();
-        tokio::spawn(async move {
+        self.session_closer.spawn(|token| async move {
             let mut interval = tokio::time::interval(SESSION_CLOSE_TIMEOUT);
             let mut delete_sessions: Vec<Arc<UdpStreamData>> = Vec::new();
             loop {
@@ -48,7 +58,10 @@ impl UdpNat {
                 }
                 delete_sessions.clear();
 
-                interval.tick().await;
+                select! {
+                    _ = interval.tick() => {}
+                    _ = token.cancelled() => break,
+                }
 
                 let mut sessions = self_clone.sessions.write();
                 sessions.retain(|_, session| {
@@ -63,6 +76,14 @@ impl UdpNat {
         });
 
         Ok(())
+    }
+
+    pub async fn stop(self: &Arc<Self>) {
+        self.session_closer.stop().await;
+
+        self.sessions.write().clear();
+        self.router.lock().take();
+        self.writer.lock().take();
     }
 
     pub fn send(self: &Arc<Self>, src_addr: SocketAddr, dst_addr: SocketAddr, payload: &[u8]) {

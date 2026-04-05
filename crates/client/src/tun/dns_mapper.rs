@@ -1,5 +1,5 @@
 use anyhow::Result;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use rustc_hash::FxHashMap;
@@ -10,8 +10,9 @@ use std::{
         atomic::{AtomicU32, Ordering},
     },
 };
-use tokio::{select, task::JoinHandle};
-use tokio_util::sync::CancellationToken;
+use tokio::select;
+
+use crate::cancellable_task::CancellableTask;
 
 const DEFAULT_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 const TTL_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
@@ -23,17 +24,12 @@ pub struct IpRecord {
     pub expire_time: std::time::Instant,
 }
 
-struct CleanerTask {
-    task: JoinHandle<()>,
-    token: CancellationToken,
-}
-
 pub struct DnsMapper {
     host_by_ip: RwLock<FxHashMap<Ipv4Addr, String>>,
     ip_by_host: RwLock<FxHashMap<String, IpRecord>>,
     base_ip: Ipv4Addr,
     address_index: AtomicU32,
-    cleaner_task: Mutex<Option<CleanerTask>>,
+    task: CancellableTask,
 }
 
 impl DnsMapper {
@@ -45,15 +41,12 @@ impl DnsMapper {
             // safe for use 198.18.0.0/15 (For use in benchmark tests of network interconnect devices)
             base_ip: Ipv4Addr::new(198, 18, 0, 0),
             address_index: AtomicU32::new(rng.gen_range(0..MAX_IP_RANGE)),
-            cleaner_task: Mutex::new(None),
+            task: CancellableTask::new("DnsMapper"),
         })
     }
 
     pub async fn stop(self: &Arc<Self>) {
-        if let Some(cleaner_task) = self.cleaner_task.lock().take() {
-            cleaner_task.token.cancel();
-            cleaner_task.task.await.ok();
-        }
+        self.task.stop().await;
 
         self.host_by_ip.write().clear();
         self.ip_by_host.write().clear();
@@ -61,9 +54,7 @@ impl DnsMapper {
 
     pub async fn start(self: &Arc<Self>) -> Result<()> {        
         let self_clone = self.clone();
-        let token = CancellationToken::new();
-        let task = tokio::spawn({
-            let token = token.clone();
+        self.task.spawn(|token| {
             async move {
                 let mut interval = tokio::time::interval(TTL_CHECK_INTERVAL);
                 loop {
@@ -95,7 +86,6 @@ impl DnsMapper {
             }
         });
 
-        *self.cleaner_task.lock() = Some(CleanerTask { task, token });
         Ok(())
     }
 

@@ -3,10 +3,18 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
 };
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, time::sleep};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    select,
+    sync::Mutex,
+    task::JoinSet,
+    time::sleep,
+};
+use tokio_util::sync::CancellationToken;
 use tun::DeviceWriter;
 
 use crate::{
+    cancellable_task::CancellableTask,
     egress::Egress,
     router::Router,
     tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
@@ -34,6 +42,9 @@ pub struct TunService {
     tcp_proxy_nat_v6: Arc<TcpProxyNat>,
     udp_nat: Arc<UdpNat>,
     icmp_nat: Arc<UdpNat>,
+    tun_loop_task: Arc<CancellableTask>,
+    ipv6_serve_task: Arc<CancellableTask>,
+    ipv4_serve_cancellation: Mutex<Option<CancellationToken>>,
 }
 
 impl TunService {
@@ -45,40 +56,83 @@ impl TunService {
             udp_nat: UdpNat::new(false, dns_mapper.clone(), egress.clone()),
             icmp_nat: UdpNat::new(true, dns_mapper.clone(), egress),
             dns_server: DnsServer::new(dns_mapper),
+            tun_loop_task: Arc::new(CancellableTask::new("TunServiceTunLoopTask")),
+            ipv6_serve_task: Arc::new(CancellableTask::new("TunServiceIpv6ServeTask")),
+            ipv4_serve_cancellation: Mutex::new(None),
         })
     }
 
-    pub async fn stop(&self) -> Result<()> {
-        // TODO: ??? stop all in parallel since some services may be started and some not
-        // TODO: ??? stop tun service gracefully
-        self.dns_server.stop().await?;
+    pub async fn stop(&self) {
+        // TODO: ??? stop all connections
 
-        // nat should also stop serve_proxy
-        // self.tcp_proxy_nat_v4.stop().await?;
+        // stop in parallel and wait for all to stop
+        let mut set = JoinSet::new();
+        set.spawn({
+            let task = self.tun_loop_task.clone();
+            async move { task.stop().await }
+        });
+        set.spawn({
+            let task = self.ipv6_serve_task.clone();
+            async move { task.stop().await }
+        });
+        set.spawn({
+            let server = self.dns_server.clone();
+            async move {
+                if let Err(err) = server.stop().await {
+                    tracing::error!("stop dns server error: {:?}", err);
+                }
+            }
+        });
+        set.spawn({
+            let nat = self.tcp_proxy_nat_v4.clone();
+            async move { nat.stop().await }
+        });
+        set.spawn({
+            let nat = self.tcp_proxy_nat_v6.clone();
+            async move { nat.stop().await }
+        });
+        set.spawn({
+            let nat = self.udp_nat.clone();
+            async move { nat.stop().await }
+        });
+        set.spawn({
+            let nat = self.icmp_nat.clone();
+            async move { nat.stop().await }
+        });
 
-        // nat should also stop serve_proxy
-        // self.tcp_proxy_nat_v6.stop().await?;
+        while let Some(res) = set.join_next().await {
+            if let Err(err) = res {
+                tracing::error!("shutdown error: {:?}", err);
+            }
+        }
 
-        // self.udp_nat.stop().await?;
-        // self.icmp_nat.stop().await?;
+        self.ipv4_serve_cancellation
+            .lock()
+            .await
+            .take()
+            .map(|token| token.cancel());
 
-        // Flush system DNS cache when stopping
-        flush_system_dns_cache().await
+        // Flush system DNS cache after stop
+        if let Err(err) = flush_system_dns_cache().await {
+            tracing::error!("flush system DNS cache error: {:?}", err);
+        }
     }
 
-    pub async fn serve(self: &Arc<Self>, router: Arc<Router>) -> Result<()> {
-        // TODO: ??? add stop and serve should run more than once!!!
-        // stop: should remove router and writer from udp_proxy_nat
+    pub async fn serve(
+        self: &Arc<Self>,
+        router: Arc<Router>,
+        on_started: impl FnOnce() + Send + 'static,
+    ) -> Result<()> {
         let (if_addr_v4, if_addr_v6, writer) = self.init_tun().await?;
 
-        self.tcp_proxy_nat_v4.init().await?;
-        self.tcp_proxy_nat_v6.init().await?;
-        self.udp_nat.init(router.clone(), writer.clone()).await?;
-        self.icmp_nat.init(router.clone(), writer).await?;
+        self.tcp_proxy_nat_v4.start().await?;
+        self.tcp_proxy_nat_v6.start().await?;
+        self.udp_nat.start(router.clone(), writer.clone()).await?;
+        self.icmp_nat.start(router.clone(), writer).await?;
 
         let self_clone = self.clone();
         let router_clone = router.clone();
-        tokio::spawn(async move {
+        self.ipv6_serve_task.spawn(|token| async move {
             let listener = match self_clone.tcp_proxy_nat_v6.bind_proxy(IpAddr::V6(if_addr_v6)).await {
                 Ok(listener) => listener,
                 Err(e) => {
@@ -89,7 +143,7 @@ impl TunService {
 
             if let Err(e) = self_clone
                 .tcp_proxy_nat_v6
-                .serve_proxy(listener, IpAddr::V6(if_addr_v6), router_clone)
+                .serve_proxy(listener, IpAddr::V6(if_addr_v6), router_clone, token)
                 .await
             {
                 tracing::warn!("IPv6 TCP proxy failed: {:?}", e);
@@ -101,15 +155,20 @@ impl TunService {
 
         tokio::spawn(async {
             // TODO: ??? delay for dns start?
-            // send/wait requests to dns server, continue after answer or timeout
+            // send actual request to our DNS and continue after answer or timeout (FLUSH_DNS_DELAY)
             flush_system_dns_cache()
                 .await
                 .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
                 .ok();
         });
 
+        let token = CancellationToken::new();
+        self.ipv4_serve_cancellation.lock().await.replace(token.clone());
+
+        on_started();
+
         self.tcp_proxy_nat_v4
-            .serve_proxy(listener, IpAddr::V4(if_addr_v4), router.clone())
+            .serve_proxy(listener, IpAddr::V4(if_addr_v4), router.clone(), token)
             .await
     }
 
@@ -161,7 +220,8 @@ impl TunService {
             let net_if = if_addrs::get_if_addrs()?
                 .into_iter()
                 .find_map(|x| if x.name == tun_name { Some(x) } else { None });
-            if let Some(iface) = net_if && iface.is_oper_up()
+            if let Some(iface) = net_if
+                && iface.is_oper_up()
             {
                 break;
             }
@@ -187,32 +247,35 @@ impl TunService {
 
         let (writer, mut reader) = dev.split()?;
 
-        // TODO: ??? probaly stop is needed to shutdown all gracefully...
         let self_clone = self.clone();
         let mut writer_clone = writer.clone();
-        tokio::task::spawn(async move {
+        self.tun_loop_task.spawn(|token| async move {
             // TODO: ??? get mtu from tun
             let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
             let mut modify_buf = vec![0u8; MAX_PACKET_SIZE];
             loop {
-                match reader.read(&mut read_buf).await {
-                    Ok(n) => {
-                        if n == 0 {
-                            break;
+                select! {
+                    _ = token.cancelled() => break,
+                    res = reader.read(&mut read_buf) => {
+                        match res {
+                            Ok(n) => {
+                                if n == 0 {
+                                    break;
+                                }
+                                modify_buf[..n].copy_from_slice(&read_buf[..n]);
+                                let mut packet = &mut modify_buf[..n];
+                                if self_clone
+                                    .process_packet(&mut packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
+                                    == ProcessResult::WriteBack
+                                {
+                                    writer_clone.write_all(&packet).await.ok();
+                                }
+                            }
+                            Err(err) => {
+                                tracing::error!("tun read error: {:?}", err);
+                                break;
+                            }
                         }
-                        modify_buf[..n].copy_from_slice(&read_buf[..n]);
-                        let mut packet = &mut modify_buf[..n];
-                        if self_clone
-                            .process_packet(&mut packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
-                            .await
-                            == ProcessResult::WriteBack
-                        {
-                            writer_clone.write_all(&packet).await.ok();
-                        }
-                    }
-                    Err(err) => {
-                        tracing::error!("tun read error: {:?}", err);
-                        break;
                     }
                 }
             }
@@ -221,7 +284,7 @@ impl TunService {
         Ok((address_v4, address_v6, writer))
     }
 
-    async fn process_packet(
+    fn process_packet(
         &self,
         packet: &mut [u8],
         address_v4: Ipv4Addr,

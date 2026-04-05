@@ -5,7 +5,7 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 use sys_process::{Protocol, process_path_by_local_addr};
@@ -24,16 +24,22 @@ use crate::{
 use crypto::config::ProtocolConfig;
 
 pub struct Router {
-    table: ArcSwap<RouterTable>,
     egress: Arc<Egress>,
+    no_direct: AtomicBool,
+    table: ArcSwap<RouterTable>,
 }
 
 impl Router {
     pub fn new(egress: Arc<Egress>) -> Arc<Self> {
         Arc::new(Router {
-            table: ArcSwap::new(RouterTable::new()),
             egress,
+            no_direct: AtomicBool::new(false),
+            table: ArcSwap::new(RouterTable::new()),
         })
+    }
+
+    pub fn set_no_direct(&self, no_direct: bool) {
+        self.no_direct.store(no_direct, Ordering::Relaxed);
     }
 
     pub fn update_table(&self, new_table: Arc<RouterTable>) {
@@ -198,18 +204,26 @@ impl Router {
 
         let servers = match route {
             RouteResult::Servers(servers) => servers,
-            RouteResult::Direct => return None, // direct route, no server
+            RouteResult::Direct => {
+                if self.no_direct.load(Ordering::Relaxed) {
+                    table.servers()
+                } else {
+                    return None;
+                }
+            } // direct route, no server
             RouteResult::NoRoute => table.servers(), // no route, try any server
         };
 
         if servers.is_empty() {
             return None;
-        }        
+        }
 
         let mut total_weight = 0_usize;
         let mut unweighted_count = 0_usize;
         for srv in servers.iter() {
-            if let Some(weight) = srv.weight && weight > 0 {
+            if let Some(weight) = srv.weight
+                && weight > 0
+            {
                 total_weight += weight as usize;
             } else {
                 unweighted_count += 1;
@@ -219,8 +233,10 @@ impl Router {
         let srv_count = servers.len();
         let avr_weight = if total_weight > 0 {
             total_weight / (srv_count - unweighted_count)
-        } else {
+        } else if unweighted_count > 0 {
             100 / unweighted_count
+        } else {
+            return None;
         };
 
         let rnd_val = rng.gen_range(0..avr_weight * srv_count);

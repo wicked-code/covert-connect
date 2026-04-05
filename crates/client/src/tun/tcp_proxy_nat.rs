@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
+use tokio_util::sync::CancellationToken;
 use std::{
     net::{IpAddr, SocketAddr},
     sync::{
@@ -12,10 +13,14 @@ use std::{
 use tokio::{
     io::{AsyncRead, AsyncWriteExt},
     net::TcpListener,
+    select,
     time::{sleep, timeout},
 };
 
-use crate::{egress::Egress, protocol::DataProtocol, router::Router, tun::dns_mapper::DnsMapper};
+use crate::{
+    cancellable_task::CancellableTask, egress::Egress, protocol::DataProtocol, router::Router,
+    tun::dns_mapper::DnsMapper,
+};
 
 const MIN_NAT_PORT: u16 = 10000;
 const MAX_NAT_PORT: u16 = 65535;
@@ -38,6 +43,7 @@ struct TcpProxyClosedSession {
 pub struct TcpProxyNat {
     sessions: RwLock<FxHashMap<u16, Arc<TcpProxySession>>>,
     closed_sessions: Mutex<Vec<TcpProxyClosedSession>>,
+    session_closer: CancellableTask,
     ports: RwLock<FxHashMap<SocketAddr, u16>>,
     port_index: AtomicU16,
     tcp_proxy_port: AtomicU16,
@@ -50,6 +56,7 @@ impl TcpProxyNat {
         Arc::new(Self {
             sessions: RwLock::new(FxHashMap::default()),
             closed_sessions: Mutex::new(Vec::new()),
+            session_closer: CancellableTask::new("TcpProxyNatSessionCloser"),
             ports: RwLock::new(FxHashMap::default()),
             port_index: AtomicU16::new(MIN_NAT_PORT),
             tcp_proxy_port: AtomicU16::new(0),
@@ -58,12 +65,15 @@ impl TcpProxyNat {
         })
     }
 
-    pub async fn init(self: &Arc<Self>) -> Result<()> {
+    pub async fn start(self: &Arc<Self>) -> Result<()> {
         let self_clone = self.clone();
         let mut interval = tokio::time::interval(SESSION_CLOSE_TIMEOUT);
-        tokio::spawn(async move {
+        self.session_closer.spawn(|token| async move {
             loop {
-                interval.tick().await;
+                select! {
+                    _ = interval.tick() => {}
+                    _ = token.cancelled() => break,
+                }
 
                 let mut delete_sessions = Vec::new();
                 let mut closed_sessions = self_clone.closed_sessions.lock();
@@ -86,14 +96,25 @@ impl TcpProxyNat {
         Ok(())
     }
 
+    pub async fn stop(self: &Arc<Self>) {
+        self.session_closer.stop().await;
+
+        self.sessions.write().clear();
+        self.ports.write().clear();
+    }
+
     pub async fn serve_proxy(
         self: &Arc<Self>,
         mut listener: TcpListener,
         if_addr: IpAddr,
         router: Arc<Router>,
+        token: CancellationToken,
     ) -> Result<()> {
         loop {
-            let result = listener.accept().await;
+            let result = tokio::select! {
+                res = listener.accept() => res,
+                _ = token.cancelled() => break,
+            };
             match result {
                 Ok((stream, client_addr)) => {
                     let self_clone = self.clone();
@@ -142,6 +163,7 @@ impl TcpProxyNat {
                 }
             }
         }
+        Ok(())
     }
 
     async fn direct_transfer(self: &Arc<Self>, mut client: impl AsyncWriteExt + Unpin + AsyncRead, target: SocketAddr) {
