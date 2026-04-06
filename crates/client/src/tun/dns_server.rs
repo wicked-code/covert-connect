@@ -80,8 +80,7 @@ impl DnsHandler {
         query: &LowerQuery,
         /*mut response_handle*/_: R,
     ) -> Result<ResponseInfo> {
-        // TODO: ???
-        // implment forwarding to upstream DNS server when query type is not A or AAAA
+        // TODO: ??? implment forwarding to upstream DNS server when query type is not A or AAAA
         // to make good quality we need Egress and Server selector here
         // if host should go direct we should use Egress
         // if specific server selected somehow use start_tunnel here

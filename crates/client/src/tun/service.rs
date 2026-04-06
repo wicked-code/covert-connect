@@ -63,8 +63,6 @@ impl TunService {
     }
 
     pub async fn stop(&self) {
-        // TODO: ??? stop all connections
-
         // stop in parallel and wait for all to stop
         let mut set = JoinSet::new();
         set.spawn({
@@ -501,14 +499,9 @@ impl TunService {
 }
 
 fn is_local_v4(addr: Ipv4Addr) -> bool {
-    // TODO: ??? use is_global() when it's stable, but multicast should be disabled
     addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() || addr.is_multicast()
 }
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
-    // TODO: ??? use is_global() when it's stable, but multicast should be disabled
-    addr.is_loopback()
-        || addr.is_unique_local()
-        || addr.is_unicast_link_local()
-        || addr.is_multicast()
+    addr.is_loopback() || addr.is_unique_local() || addr.is_unicast_link_local() || addr.is_multicast()
 }
