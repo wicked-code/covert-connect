@@ -1,4 +1,4 @@
-use crate::{config::AppConfig, udp::udp_transfer};
+use crate::{config::AppConfig, icmp::icmp_transfer, udp::udp_transfer};
 use anyhow::{Context, Result, anyhow};
 use bytes::{BufMut, BytesMut};
 use chrono::Utc;
@@ -218,9 +218,14 @@ async fn start_tunnel(
         let std_udp: std::net::UdpSocket = socket.into();
         let socket = UdpSocket::from_std(std_udp)?;
 
+        socket
+            .connect(addr)
+            .await
+            .with_context(|| format!("Failed to connect ICMP to {:?}", addr))?;
+
         tracing::info!("CONNECT (ICMP) from {socket_addr} to {host} ({addr})");
 
-        udp_transfer(&mut client, socket).await?;
+        icmp_transfer(&mut client, socket).await?;
     } else {
         let mut out_stream = match cfg.out_address {
             Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {

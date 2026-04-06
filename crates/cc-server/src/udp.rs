@@ -41,25 +41,30 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
     let udp_to_client = async move {
         let mut buf = vec![0u8; MAX_PACKET_SIZE + 21];
         loop {
-            let (n, addr) = out_socket.recv_from(&mut buf[2..]).await?;
-            let len = n + if addr.is_ipv4() { 7 } else { 19 };
-            buf[0] = ((len >> 8) & 0xff) as u8;
-            buf[1] = (len & 0xff) as u8;
+            let (n, addr) = out_socket.recv_from(&mut buf[21..]).await?;
             match addr {
                 SocketAddr::V4(addr) => {
-                    buf[2] = 4; // IPv4 flag
-                    buf[3] = (addr.port() >> 8) as u8;
-                    buf[4] = addr.port() as u8;
-                    buf[5..9].copy_from_slice(&addr.ip().octets());
+                    let len = n + 7;
+                    let wr_buff = &mut buf[12..n + 21];
+                    wr_buff[0] = ((len >> 8) & 0xff) as u8;
+                    wr_buff[1] = (len & 0xff) as u8;
+                    wr_buff[2] = 4; // IPv4 flag
+                    wr_buff[3] = (addr.port() >> 8) as u8;
+                    wr_buff[4] = addr.port() as u8;
+                    wr_buff[5..9].copy_from_slice(&addr.ip().octets());
+                    writer.write_all(&wr_buff).await?;
                 }
                 SocketAddr::V6(addr) => {
+                    let len = n + 19;
+                    buf[0] = ((len >> 8) & 0xff) as u8;
+                    buf[1] = (len & 0xff) as u8;
                     buf[2] = 6; // IPv6 flag
                     buf[3] = (addr.port() >> 8) as u8;
                     buf[4] = addr.port() as u8;
                     buf[5..21].copy_from_slice(&addr.ip().octets());
+                    writer.write_all(&buf[..len + 2]).await?;
                 }
             }
-            writer.write_all(&buf[..len + 2]).await?;
         }
     };
 
