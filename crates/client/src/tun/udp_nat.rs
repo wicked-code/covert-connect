@@ -108,14 +108,14 @@ impl UdpNat {
             async move {
                 let session = self_clone.sessions.read().get(&src_addr).cloned();
                 if let Some(session) = session {
-                    session.send_packet(payload);
+                    session.send_packet(payload, dst_addr);
                     return;
                 }
 
-                let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, self_clone.is_icmp);
+                let stream = UdpStream::new(writer.clone(), src_addr, self_clone.is_icmp);
                 let data = stream.data();
                 self_clone.sessions.write().insert(src_addr, data.clone());
-                data.send_packet(payload);
+                data.send_packet(payload, dst_addr);
 
                 let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
                 let host = host.map_or_else(
@@ -167,7 +167,7 @@ impl UdpNat {
     ) {
         tracing::info!("Direct connection (UDP) to {}", target);
 
-        let out_socket = match self.egress.connect_udp(target).await {
+        let out_socket = match self.egress.bind_udp().await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (UDP) to {} failed, err: {:?}", target, err);
@@ -193,7 +193,7 @@ impl UdpNat {
     ) {
         tracing::info!("Direct connection (ICMP) to {}", target);
 
-        let out_socket = match self.egress.connect_icmp(target).await {
+        let out_socket = match self.egress.bind_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (ICMP) to {} failed, err: {:?}", target, err);

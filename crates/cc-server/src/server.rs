@@ -191,11 +191,6 @@ async fn start_tunnel(
         .await
         .with_context(|| format!("Failed to bind UDP to {:?}", cfg.out_address))?;
 
-        socket
-            .connect(addr)
-            .await
-            .with_context(|| format!("Failed to connect UDP to {:?}", addr))?;
-
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
         udp_transfer(&mut client, socket).await?;
@@ -222,11 +217,6 @@ async fn start_tunnel(
 
         let std_udp: std::net::UdpSocket = socket.into();
         let socket = UdpSocket::from_std(std_udp)?;
-
-        socket
-            .connect(addr)
-            .await
-            .with_context(|| format!("Failed to connect ICMP to {:?}", addr))?;
 
         tracing::info!("CONNECT (ICMP) from {socket_addr} to {host} ({addr})");
 

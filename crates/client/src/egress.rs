@@ -126,15 +126,14 @@ impl Egress {
         socket.connect(target).await
     }
 
-    pub async fn connect_udp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
+    pub async fn bind_udp(&self) -> io::Result<UdpSocket> {
         let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
         let socket = UdpSocket::bind(outbound_address).await?;
 
-        socket.connect(target).await?;
         Ok(socket)
     }
 
-    pub async fn connect_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
+    pub async fn bind_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
         let (domain, protocol) = if target.is_ipv4() {
             (Domain::IPV4, Protocol::ICMPV4)
         } else {
@@ -149,7 +148,6 @@ impl Egress {
         let std_udp: std::net::UdpSocket = socket.into();
         let socket = UdpSocket::from_std(std_udp)?;
 
-        socket.connect(target).await?;
         Ok(socket)
     }
 
