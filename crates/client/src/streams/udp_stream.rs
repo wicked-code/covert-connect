@@ -122,12 +122,12 @@ impl<W: AsyncWrite + Clone + Unpin> AsyncRead for UdpStream<W> {
             if let Some(packet) = this.data.packets_to_send.lock().pop() {
                 this.read_state = ReadState::Read { pos: 0, packet };
             } else {
-                if this.data.done.lock().clone() {
+                if *this.data.done.lock() {
                     return Poll::Ready(Ok(()));
                 }
 
                 let mut waker = this.data.waker.lock();
-                if !waker.as_ref().map_or(false, |w| w.will_wake(cx.waker())) {
+                if !waker.as_ref().is_some_and(|w| w.will_wake(cx.waker())) {
                     *waker = Some(cx.waker().clone());
                 }
                 return Poll::Pending;
@@ -157,7 +157,7 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
         let this = self.get_mut();
         let data = &mut this.write_data;
 
-        data.extend_from_slice(&buf);
+        data.extend_from_slice(buf);
         if data.len() < 2 {
             return Poll::Ready(Ok(buf.len()));
         }
@@ -168,7 +168,7 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
             return Poll::Ready(Ok(buf.len()));
         }
 
-        let mut packet = &mut data[2..chunk_len];
+        let packet = &mut data[2..chunk_len];
         if this.is_icmp {
             // in case of ICMP payload is full L3 packet, because of raw socket
             let mut packet = packet.to_vec();
@@ -183,7 +183,7 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
                 Err(e) => tracing::warn!("Failed to parse ICMP packet: {:?}", e),
             }
         } else {
-            let (dst_addr, packet) = match address_from_buf(&mut packet) {
+            let (dst_addr, packet) = match address_from_buf(packet) {
                 Ok(result) => result,
                 Err(err) => {
                     tracing::error!("Failed to parse address from packet: {:?}", err);

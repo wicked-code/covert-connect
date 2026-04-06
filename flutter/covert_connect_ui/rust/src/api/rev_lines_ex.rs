@@ -5,8 +5,8 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, See
 
 static DEFAULT_SIZE: usize = 4096;
 
-static LF_BYTE: u8 = '\n' as u8;
-static CR_BYTE: u8 = '\r' as u8;
+static LF_BYTE: u8 = b'\n';
+static CR_BYTE: u8 = b'\r';
 
 /// Custom error types
 #[derive(Error, Debug)]
@@ -33,16 +33,16 @@ pub struct RevLines<R> {
 impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
     /// Create an async stream of strings from a `BufReader<R>`. Internal
     /// buffering for iteration will default to 4096 bytes at a time.
-    pub async fn new(
+    pub async fn new_stream(
         reader: BufReader<R>,
         pos: Option<u64>,
     ) -> Result<impl Stream<Item = Result<RevLine, Error>>, Error> {
-        RevLines::with_capacity(DEFAULT_SIZE, pos, reader).await
+        RevLines::stream_with_capacity(DEFAULT_SIZE, pos, reader).await
     }
 
     /// Create an async stream of strings from a `BufReader<R>`. Internal
     /// buffering for iteration will use `cap` bytes at a time.
-    pub async fn with_capacity(
+    pub async fn stream_with_capacity(
         cap: usize,
         pos: Option<u64>,
         mut reader: BufReader<R>,
@@ -56,16 +56,13 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
             .await?;
 
         let rev_lines = RevLines {
-            reader: reader,
+            reader,
             reader_pos: reader_size,
             buf_size: cap as u64,
         };
 
         let stream = stream::unfold(rev_lines, |mut rev_lines| async {
-            match rev_lines.next_line().await {
-                Some(line) => Some((line, rev_lines)),
-                None => None,
-            }
+            rev_lines.next_line().await.map(|line| (line, rev_lines))
         });
 
         Ok(stream)
@@ -89,7 +86,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
 
         'outer: loop {
             if self.reader_pos < 1 {
-                if result.len() > 0 {
+                if !result.is_empty() {
                     break;
                 }
 
@@ -102,7 +99,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
 
             match self.read_to_buffer(size).await {
                 Ok(buf) => {
-                    for (idx, ch) in (&buf).iter().enumerate().rev() {
+                    for (idx, ch) in (buf).iter().enumerate().rev() {
                         // Found a new line character to break on
                         if *ch == LF_BYTE {
                             let mut offset = idx as u64;
@@ -122,7 +119,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                                 Err(e) => return Some(Err(Error::Io(e))),
                             }
                         } else {
-                            result.push(ch.clone());
+                            result.push(*ch);
                         }
                     }
                 }

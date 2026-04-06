@@ -97,10 +97,10 @@ impl DnsMapper {
         }
 
         let mut index = self.address_index.fetch_add(1, Ordering::Relaxed) % MAX_IP_RANGE;
-        let mut ip = Ipv4Addr::from(u32::from(self.base_ip) + index as u32);
+        let mut ip = Ipv4Addr::from(u32::from(self.base_ip) + index);
         while self.host_by_ip.read().contains_key(&ip) {
             index = self.address_index.fetch_add(1, Ordering::Relaxed) % MAX_IP_RANGE;
-            ip = Ipv4Addr::from(u32::from(self.base_ip) + index as u32);
+            ip = Ipv4Addr::from(u32::from(self.base_ip) + index);
         }
 
         let record = IpRecord {

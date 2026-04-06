@@ -187,37 +187,34 @@ impl Router {
         let table = self.table.load();
         let mut route = table.servers_by_process(process_name);
 
-        match route {
-            RouteResult::NoRoute => {
-                // prepare domain filter
-                let mut domain = target_host.to_owned();
-                if let Some(port_pos) = target_host.rfind(':') {
-                    domain.truncate(port_pos);
-                }
-
-                let mut domain_variants = Vec::new();
-                let mut accumulated = String::with_capacity(domain.len());
-                let parts = domain.split('.').rev().enumerate();
-                for (i, part) in parts {
-                    accumulated.insert_str(0, part);
-                    if i > 0 {
-                        domain_variants.push(accumulated.clone());
-                    }
-                    accumulated.insert(0, '.');
-                }
-
-                // select server by domain
-                for domain in &domain_variants {
-                    // any server, try check domain
-
-                    route = table.servers_by_domain(domain);
-                    match route {
-                        RouteResult::NoRoute => {}
-                        _ => break,
-                    };
-                }
+        if let RouteResult::NoRoute = route {
+            // prepare domain filter
+            let mut domain = target_host.to_owned();
+            if let Some(port_pos) = target_host.rfind(':') {
+                domain.truncate(port_pos);
             }
-            _ => {} // already have route by process, try use it directly
+
+            let mut domain_variants = Vec::new();
+            let mut accumulated = String::with_capacity(domain.len());
+            let parts = domain.split('.').rev().enumerate();
+            for (i, part) in parts {
+                accumulated.insert_str(0, part);
+                if i > 0 {
+                    domain_variants.push(accumulated.clone());
+                }
+                accumulated.insert(0, '.');
+            }
+
+            // select server by domain
+            for domain in &domain_variants {
+                // any server, try check domain
+
+                route = table.servers_by_domain(domain);
+                match route {
+                    RouteResult::NoRoute => {}
+                    _ => break,
+                };
+            }
         }
 
         let servers = match route {

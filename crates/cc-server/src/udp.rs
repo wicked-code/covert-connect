@@ -32,7 +32,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
                         continue;
                     }
                 };
-                socket.send_to(&payload, addr).await?;
+                socket.send_to(payload, addr).await?;
             }
             Ok(())
         }
@@ -52,7 +52,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
                     wr_buff[3] = (addr.port() >> 8) as u8;
                     wr_buff[4] = addr.port() as u8;
                     wr_buff[5..9].copy_from_slice(&addr.ip().octets());
-                    writer.write_all(&wr_buff).await?;
+                    writer.write_all(wr_buff).await?;
                 }
                 SocketAddr::V6(addr) => {
                     let len = n + 19;
@@ -75,7 +75,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
 }
 
 pub fn address_from_buf(buf: &mut [u8]) -> Result<(SocketAddr, &mut [u8])> {
-    if buf.len() < 1 {
+    if buf.is_empty() {
         bail!("invalid packet length");
     }
     let addr_type = buf[0];

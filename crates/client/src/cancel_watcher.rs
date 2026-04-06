@@ -44,9 +44,8 @@ impl CancelWatcher {
 
     pub async fn wait_for_shutdown(&self, wait_limit: Duration) {
         let inner = self.inner.lock().take();
-        match inner {
-            Some(inner) => inner.wait_for_shutdown(wait_limit).await,
-            None => {}
+        if let Some(inner) = inner {
+            inner.wait_for_shutdown(wait_limit).await
         }
     }
 }

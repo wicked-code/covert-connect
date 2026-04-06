@@ -28,7 +28,7 @@ use sys_net::{find_outbound_ip, get_dns_by_if_addr};
 
 pub enum StreamType {
     TcpStream(TcpStream),
-    UpgradeStream(UpgradeStream<TlsStream<TcpStream>>),
+    UpgradeStream(Box<UpgradeStream<TlsStream<TcpStream>>>),
 }
 
 pub struct Egress {
@@ -68,7 +68,7 @@ impl Egress {
         task::spawn_blocking(move || {
             let mut notifier = if_addrs::IfChangeNotifier::new().unwrap();
             loop {
-                if let Ok(_) = notifier.wait(None) {
+                if notifier.wait(None).is_ok() {
                     let self_clone = self_clone.clone();
                     tokio::spawn(async move {
                         self_clone.update().await.ok();
@@ -107,7 +107,7 @@ impl Egress {
             let tls_conn = TlsConnector::from(self.tls_cfg.clone());
             let server = tls_conn.connect(domain, server).await?;
 
-            StreamType::UpgradeStream(UpgradeStream::from_stream(server, host, http_path))
+            StreamType::UpgradeStream(Box::new(UpgradeStream::from_stream(server, host, http_path)))
         } else {
             StreamType::TcpStream(server)
         })

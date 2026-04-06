@@ -46,7 +46,7 @@ pub async fn get_trace_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLi
     // it helps to read only new lines and merge them
 
     let file = tokio::fs::File::open(path).await?;
-    let rev_lines = RevLines::new(BufReader::new(file), start).await?;
+    let rev_lines = RevLines::new_stream(BufReader::new(file), start).await?;
     pin_mut!(rev_lines);
 
     let mut result = Vec::new();
@@ -89,7 +89,6 @@ pub fn init_trace_log() -> Result<Arc<WriterNotifier>> {
         .with(stdout_log.with_filter(hickory_filter.clone()))
         .with(app_log.with_filter(hickory_filter.clone()))
         .with(sender.with_filter(hickory_filter))
-
         .init();
 
     Ok(writer_notifier)
@@ -117,6 +116,12 @@ impl WriterNotifier {
     }
 }
 
+impl Default for WriterNotifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct WriterNotifierWrapper(Arc<WriterNotifier>);
 
 impl WriterNotifier {
@@ -126,7 +131,7 @@ impl WriterNotifier {
     ) -> Result<u64> {
         let id = self.next_id.load(Ordering::Relaxed);
         self.callbacks.write().await.push(Callback {
-            id: id,
+            id,
             callback: Box::new(callback),
         });
         self.next_id.fetch_add(1, Ordering::Relaxed);

@@ -104,11 +104,9 @@ impl TunService {
             }
         }
 
-        self.ipv4_serve_cancellation
-            .lock()
-            .await
-            .take()
-            .map(|token| token.cancel());
+        if let Some(token) = self.ipv4_serve_cancellation.lock().await.take() {
+            token.cancel()
+        }
 
         // Flush system DNS cache after stop
         if let Err(err) = flush_system_dns_cache().await {
@@ -270,12 +268,12 @@ impl TunService {
                                     break;
                                 }
                                 modify_buf[..n].copy_from_slice(&read_buf[..n]);
-                                let mut packet = &mut modify_buf[..n];
+                                let packet = &mut modify_buf[..n];
                                 if self_clone
-                                    .process_packet(&mut packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
+                                    .process_packet(packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
                                     == ProcessResult::WriteBack
                                 {
-                                    writer_clone.write_all(&packet).await.ok();
+                                    writer_clone.write_all(packet).await.ok();
                                 }
                             }
                             Err(err) => {

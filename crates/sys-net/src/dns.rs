@@ -4,22 +4,22 @@ use std::net::IpAddr;
 pub async fn flush_system_dns_cache() -> Result<()> {
     #[cfg(target_os = "windows")]
     {
-        return flush_dns_windows().await;
+        flush_dns_windows().await
     }
 
     #[cfg(target_os = "macos")]
     {
-        return flush_dns_macos().await;
+        flush_dns_macos().await
     }
 
     #[cfg(target_os = "linux")]
     {
-        return flush_dns_linux().await;
+        flush_dns_linux().await
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
-        tracing::warn!("DNS cache flush not implemented for this platform");
+        tracing::error!("DNS cache flush not implemented for this platform");
         Ok(())
     }
 }
@@ -27,22 +27,22 @@ pub async fn flush_system_dns_cache() -> Result<()> {
 pub async fn get_dns_by_if_addr(if_addr: IpAddr) -> Result<Vec<IpAddr>> {
     #[cfg(target_os = "windows")]
     {
-        return get_dns_windows(if_addr).await;
+        get_dns_windows(if_addr).await
     }
 
     #[cfg(target_os = "macos")]
     {
-        return get_dns_macos(if_addr).await;
+        get_dns_macos(if_addr).await
     }
 
     #[cfg(target_os = "linux")]
     {
-        return get_dns_linux(if_addr).await;
+        get_dns_linux(if_addr).await
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
-        tracing::warn!("DNS lookup not implemented for this platform");
+        tracing::error!("DNS lookup not implemented for this platform");
         Ok(Vec::new())
     }
 }
@@ -102,14 +102,14 @@ async fn get_dns_windows(if_addr: IpAddr) -> Result<Vec<IpAddr>> {
 
     let mut dns_servers = Vec::new();
 
-    if let Ok(output) = output {
-        if output.status.success() {
-            for token in String::from_utf8_lossy(&output.stdout).lines().map(str::trim) {
-                if let Ok(ip) = token.parse::<IpAddr>() {
-                    if !dns_servers.contains(&ip) {
-                        dns_servers.push(ip);
-                    }
-                }
+    if let Ok(output) = output
+        && output.status.success()
+    {
+        for token in String::from_utf8_lossy(&output.stdout).lines().map(str::trim) {
+            if let Ok(ip) = token.parse::<IpAddr>()
+                && !dns_servers.contains(&ip)
+            {
+                dns_servers.push(ip);
             }
         }
     }
@@ -142,9 +142,7 @@ async fn flush_dns_macos() -> Result<()> {
 #[cfg(target_os = "macos")]
 async fn get_dns_macos(if_addr: IpAddr) -> Result<Vec<IpAddr>> {
     // Find the interface name for the given IP using ifconfig
-    let output = tokio::process::Command::new("ifconfig")
-        .output()
-        .await;
+    let output = tokio::process::Command::new("ifconfig").output().await;
 
     if let Ok(output) = output {
         if output.status.success() {

@@ -80,10 +80,10 @@ impl ClientInfo {
     async fn remove_domain_from_servers(&self, domain: &str) -> Result<()> {
         let mut servers = self.servers.write().await;
         for srv in servers.iter_mut() {
-            if let Some(domains) = &mut srv.config.domains {
-                if let Some(idx) = domains.iter().position(|d| d == domain) {
-                    domains.remove(idx);
-                }
+            if let Some(domains) = &mut srv.config.domains
+                && let Some(idx) = domains.iter().position(|d| d == domain)
+            {
+                domains.remove(idx);
             }
         }
 
@@ -137,10 +137,10 @@ impl ClientInfo {
     async fn remove_app_from_servers(&self, app: &str) -> Result<()> {
         let mut servers = self.servers.write().await;
         for srv in servers.iter_mut() {
-            if let Some(apps) = &mut srv.config.apps {
-                if let Some(idx) = apps.iter().position(|d| d == app) {
-                    apps.remove(idx);
-                }
+            if let Some(apps) = &mut srv.config.apps
+                && let Some(idx) = apps.iter().position(|d| d == app)
+            {
+                apps.remove(idx);
             }
         }
 

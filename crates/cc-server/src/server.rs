@@ -35,11 +35,12 @@ async fn start_tunnel(
     upgrade_support: bool,
 ) -> Result<()> {
     let unauth_cooldown = cfg.unauth_cooldown.clone();
-    if upgrade_support && socket_addr.ip().is_loopback() {
-        if let Err(err) = process_http_upgrade(stream, url_path).await {
-            terminate_slowly(stream, unauth_cooldown).await;
-            return Err(err);
-        }
+    if upgrade_support
+        && socket_addr.ip().is_loopback()
+        && let Err(err) = process_http_upgrade(stream, url_path).await
+    {
+        terminate_slowly(stream, unauth_cooldown).await;
+        return Err(err);
     }
 
     let ProtocolConfig {
@@ -160,7 +161,7 @@ async fn start_tunnel(
 
     let is_udp = host.contains('!');
     let is_icmp = host.contains('~');
-    let host = host.replace('!', "").replace('~', "");
+    let host = host.replace(['!', '~'], "");
 
     // prefer ipv4
     let addr = lookup_host(&host)
@@ -182,11 +183,13 @@ async fn start_tunnel(
     if is_udp {
         let socket = UdpSocket::bind(match cfg.out_address {
             Some(out_addr) => SocketAddr::new(out_addr, 0),
-            None => if addr.is_ipv4() {
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
-            } else {
-                SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)
-            },
+            None => {
+                if addr.is_ipv4() {
+                    SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
+                } else {
+                    SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)
+                }
+            }
         })
         .await
         .with_context(|| format!("Failed to bind UDP to {:?}", cfg.out_address))?;

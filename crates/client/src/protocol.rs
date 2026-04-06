@@ -174,6 +174,7 @@ pub async fn get_server_protocol(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn process_tunnel(
     mut server: impl AsyncWriteExt + Unpin + AsyncRead,
     mut client: impl AsyncWriteExt + Unpin + AsyncRead,

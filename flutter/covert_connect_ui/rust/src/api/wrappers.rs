@@ -17,33 +17,33 @@ pub struct ServerConfig {
     pub protocol: ProtocolConfig,
 }
 
-impl Into<ClientServerConfig> for ServerConfig {
-    fn into(self) -> ClientServerConfig {
-        return ClientServerConfig {
-            caption: self.caption.clone(),
-            host: self.host.clone(),
-            weight: self.weight.clone(),
-            domains: self.domains.clone(),
-            apps: self.apps.clone(),
-            enabled: self.enabled,
-            protocol: self.protocol.into(),
+impl From<ServerConfig> for ClientServerConfig {
+    fn from(cfg: ServerConfig) -> ClientServerConfig {
+        ClientServerConfig {
+            caption: cfg.caption.clone(),
+            host: cfg.host.clone(),
+            weight: cfg.weight,
+            domains: cfg.domains.clone(),
+            apps: cfg.apps.clone(),
+            enabled: cfg.enabled,
+            protocol: cfg.protocol.into(),
             url_path: None,
             address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0u16),
-        };
+        }
     }
 }
 
 impl From<ClientServerConfig> for ServerConfig {
     fn from(cfg: ClientServerConfig) -> Self {
-        return ServerConfig {
+        ServerConfig {
             caption: cfg.caption.clone(),
             host: cfg.host.clone(),
-            weight: cfg.weight.clone(),
+            weight: cfg.weight,
             domains: cfg.domains.clone(),
             apps: cfg.apps.clone(),
             enabled: cfg.enabled,
             protocol: cfg.protocol.into(),
-        };
+        }
     }
 }
 
@@ -58,26 +58,26 @@ pub struct ProtocolConfig {
     pub encryption_limit: usize,
 }
 
-impl Into<CryptoProtocolConfig> for ProtocolConfig {
-    fn into(self) -> CryptoProtocolConfig {
-        return CryptoProtocolConfig {
-            key: self.key,
-            kdf: self.kdf,
-            cipher: self.cipher,
-            max_connect_delay: self.max_connect_delay,
+impl From<ProtocolConfig> for CryptoProtocolConfig {
+    fn from(cfg: ProtocolConfig) -> CryptoProtocolConfig {
+        CryptoProtocolConfig {
+            key: cfg.key,
+            kdf: cfg.kdf,
+            cipher: cfg.cipher,
+            max_connect_delay: cfg.max_connect_delay,
             header_padding: Range {
-                start: self.header_padding.start,
-                end: self.header_padding.end,
+                start: cfg.header_padding.start,
+                end: cfg.header_padding.end,
             },
-            data_padding: self.data_padding,
-            encryption_limit: self.encryption_limit,
-        };
+            data_padding: cfg.data_padding,
+            encryption_limit: cfg.encryption_limit,
+        }
     }
 }
 
 impl From<CryptoProtocolConfig> for ProtocolConfig {
     fn from(cfg: CryptoProtocolConfig) -> Self {
-        return ProtocolConfig {
+        ProtocolConfig {
             key: cfg.key,
             kdf: cfg.kdf,
             cipher: cfg.cipher,
@@ -88,7 +88,7 @@ impl From<CryptoProtocolConfig> for ProtocolConfig {
             },
             data_padding: cfg.data_padding,
             encryption_limit: cfg.encryption_limit,
-        };
+        }
     }
 }
 
