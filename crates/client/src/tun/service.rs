@@ -235,6 +235,15 @@ impl TunService {
             sleep(WAIT_IF_READY_INTERVAL).await;
         }
 
+        // remove Multicast
+        let handle = net_route::Handle::new()?;
+        let route = net_route::Route::new("224.0.0.0".parse().unwrap(), 4)
+            .with_ifindex(net_if.index)
+            .with_gateway(IpAddr::V4(address_v4));
+        if let Err(err) = handle.delete(&route).await {
+            tracing::warn!("delete multicast route error: {:?}", err);
+        }
+
         let address_v6 = net_if
             .addr
             .iter()
@@ -492,14 +501,14 @@ impl TunService {
 }
 
 fn is_local_v4(addr: Ipv4Addr) -> bool {
-    // TODO: ??? use is_global() when it's stable
-    addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private()
+    // TODO: ??? use is_global() when it's stable, but multicast should be disabled
+    addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() || addr.is_multicast()
 }
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
-    // TODO: ??? use is_global() when it's stable
+    // TODO: ??? use is_global() when it's stable, but multicast should be disabled
     addr.is_loopback()
         || addr.is_unique_local()
         || addr.is_unicast_link_local()
-        || (addr.is_multicast() && (addr.segments()[0] & 0x000f) != 14)
+        || addr.is_multicast()
 }

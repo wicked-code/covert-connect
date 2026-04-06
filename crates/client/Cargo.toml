@@ -43,6 +43,7 @@ tokio-util = "0.7.18"
 network-interface = "2.0.5"
 rustc-hash = "2.1.1"
 arc-swap = "1.9.0"
+net-route = "0.4.6"
 
 hickory-client = { version = "0.25", default-features = false }
 hickory-server = { version = "0.25", default-features = false }
