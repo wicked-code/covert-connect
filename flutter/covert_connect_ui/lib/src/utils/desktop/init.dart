@@ -28,9 +28,17 @@ Future<void> initDesktop() async {
       windowSize += Offset(0, appWindow.titleBarHeight);
     }
 
+    const kMinSize = Size(360, 540);
+    const kMaxSize = Size(480, 900);
+    if (windowSize.width < kMinSize.width || windowSize.height < kMinSize.height) {
+      windowSize = kMinSize;
+    } else if (windowSize.width > kMaxSize.width || windowSize.height > kMaxSize.height) {
+      windowSize = kMaxSize;
+    }
+    
     appWindow.size = windowSize;
-    appWindow.minSize = const Size(360, 540);
-    appWindow.maxSize = const Size(480, 900);
+    appWindow.minSize = kMinSize;
+    appWindow.maxSize = kMaxSize;
     appWindow.alignment = Alignment.center;
     if (windowState.position != null) {
       Offset position = windowState.position!;
