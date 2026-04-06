@@ -106,16 +106,17 @@ impl UdpNat {
             let payload = payload.to_vec();
             let self_clone = self.clone();
             async move {
+                let is_icmp = self_clone.is_icmp;
                 let session = self_clone.sessions.read().get(&src_addr).cloned();
                 if let Some(session) = session {
-                    session.send_packet(payload, dst_addr);
+                    session.send_packet(payload, dst_addr, is_icmp);
                     return;
                 }
 
-                let stream = UdpStream::new(writer.clone(), src_addr, self_clone.is_icmp);
+                let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, is_icmp);
                 let data = stream.data();
                 self_clone.sessions.write().insert(src_addr, data.clone());
-                data.send_packet(payload, dst_addr);
+                data.send_packet(payload, dst_addr, is_icmp);
 
                 let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
                 let host = host.map_or_else(
