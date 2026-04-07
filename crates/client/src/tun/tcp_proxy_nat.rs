@@ -137,12 +137,12 @@ impl TcpProxyNat {
                             Ok(Some((stream, cancel_handle))) => {
                                 let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
                                     || {
-                                        tracing::info!("UDP NAT lookup host failed {}", host);
+                                        tracing::info!("TCP NAT lookup host failed {}", host);
                                         dst_addr
                                     },
                                     |ip| SocketAddr::new(ip, dst_addr.port()),
                                 );
-                                self_clone.direct_transfer(stream, use_dst_addr, cancel_handle).await;
+                                self_clone.direct_transfer(stream, use_dst_addr, host, cancel_handle).await;
                             }
                             Ok(None) => {}
                             Err(err) => {
@@ -167,14 +167,15 @@ impl TcpProxyNat {
         self: &Arc<Self>,
         mut client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
+        host: String,
         cancel_handle: CancellableTaskHandle,
     ) {
-        tracing::info!("Direct connection to {}", target);
+        tracing::info!("Direct connection to {} ({})", target, host);
 
         let mut server = match self.egress.connect_tcp(target).await {
             Ok(stream) => stream,
             Err(err) => {
-                tracing::warn!("Direct connection to {} failed, err: {:?}", target, err);
+                tracing::warn!("Direct connection to {} ({}) failed, err: {:?}", target, host, err);
                 return;
             }
         };
@@ -183,7 +184,7 @@ impl TcpProxyNat {
             _ = cancel_handle.token.cancelled() => {},
             result = tokio::io::copy_bidirectional(&mut client, &mut server) => {
                 if let Err(err) = result {
-                    tracing::warn!("Direct connection io error: {:?}, target: {}", err, target);
+                    tracing::warn!("Direct connection io error: {:?}, target: {} ({})", err, target, host);
                 }
             }
         }
