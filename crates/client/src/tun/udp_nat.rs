@@ -119,14 +119,15 @@ impl UdpNat {
                 data.send_packet(payload, dst_addr, is_icmp);
 
                 let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
-                let host = host.map_or_else(|| dst_addr.to_string(), |h| format!("{h}:{}", dst_addr.port()));
+                let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
+                let endpoint = format!("{host}:{}", dst_addr.port());                
 
                 let data_protocol = if self_clone.is_icmp {
                     DataProtocol::Icmp
                 } else {
                     DataProtocol::Udp
                 };
-                match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
+                match router.start_tunnel(stream, data_protocol, endpoint, src_addr).await {
                     Ok(Some((stream, cancel_handle))) => {
                         let use_dst_addr = match self_clone.egress.lookup_host(&host).await {
                             Ok(Some(ip)) => SocketAddr::new(ip, dst_addr.port()),
