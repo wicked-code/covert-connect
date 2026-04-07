@@ -128,13 +128,17 @@ impl UdpNat {
                 };
                 match router.start_tunnel(stream, data_protocol, host.clone(), src_addr).await {
                     Ok(Some((stream, cancel_handle))) => {
-                        let use_dst_addr = self_clone.egress.lookup_host(&host).await.map_or_else(
-                            || {
-                                tracing::info!("UDP NAT lookup host failed {}", host);
-                                dst_addr
-                            },
-                            |ip| SocketAddr::new(ip, dst_addr.port()),
-                        );
+                        let use_dst_addr = match self_clone.egress.lookup_host(&host).await {
+                            Ok(Some(ip)) => SocketAddr::new(ip, dst_addr.port()),
+                            Ok(None) => {
+                                tracing::info!("UDP NAT lookup host returned no IP for {}", host);
+                                return;
+                            }
+                            Err(err) => {
+                                tracing::info!("UDP NAT lookup host {} failed: {:?}", host, err);
+                                return;
+                            }
+                        };                        
                         if self_clone.is_icmp {
                             self_clone
                                 .direct_transfer_icmp(stream, use_dst_addr, host, cancel_handle)

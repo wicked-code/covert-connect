@@ -1,11 +1,11 @@
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use hickory_proto::xfer::Protocol as DnsProtocol;
 use hickory_resolver::{
     Resolver,
     config::{NameServerConfig, ResolverConfig},
     name_server::TokioConnectionProvider,
 };
-use hickory_proto::xfer::Protocol as DnsProtocol;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -23,7 +23,7 @@ use tokio_rustls::{
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
-use crate::{streams::upgrade_stream::UpgradeStream};
+use crate::streams::upgrade_stream::UpgradeStream;
 use sys_net::{find_outbound_ip, get_dns_by_if_addr};
 
 pub enum StreamType {
@@ -151,8 +151,11 @@ impl Egress {
         Ok(socket)
     }
 
-    pub async fn lookup_host(&self, host: &str) -> Option<IpAddr> {
-        self.resolver.load().lookup_ip(host).await.ok().and_then(|lookup| lookup.iter().next())
+    pub async fn lookup_host(&self, host: &str) -> Result<Option<IpAddr>> {
+        let res = self.resolver.load().lookup_ip(host).await?;
+        // prefer ipv4
+        let ip = res.iter().reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc });
+        Ok(ip)
     }
 
     async fn update(self: &Arc<Self>) -> Result<()> {
@@ -168,26 +171,23 @@ impl Egress {
                 tracing::warn!("skipping invalid IF DNS server: {}", dns_ip);
                 continue;
             }
-            
+
             let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
             ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
-            config.add_name_server(ns);        
+            config.add_name_server(ns);
         }
 
         // fallback to public dns if we can't get dns from IF
         // TODO: ??? move to options, same as in outbound.rs
-        let dns_ips = [
-            "8.8.8.8".parse().unwrap(), 
-            "1.1.1.1".parse().unwrap(),
-        ];
+        let dns_ips = ["8.8.8.8".parse().unwrap(), "1.1.1.1".parse().unwrap()];
 
         for dns_ip in dns_ips {
             let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
             ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
             config.add_name_server(ns);
-        }        
+        }
 
         self.resolver.store(Arc::new(
             Resolver::builder_with_config(config, TokioConnectionProvider::default()).build(),
