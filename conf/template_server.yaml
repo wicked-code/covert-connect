@@ -1,11 +1,16 @@
 address: "0.0.0.0:8387"
 key: "" 
 
-# outbound address, if server has more than one ip
-# inbound and outbound connection can have different ip
-# can hides the link between inbound and outbound traffic
+# set outbound policy, if not set, the server will prefer ipv6 if available, otherwise ipv4
+# it's posible to set only ipv4 or ipv6. In this case if lookup can't find corresponding address familly the connection will be closed.
+# So it's recommended to set both ipv4 and ipv6 or neither of them.
+# The server will prefer ipv4 if prefer_v4 is true, otherwise ipv6.
+# Can hide the link between inbound and outbound traffic
 # if nginx is used as https proxy it should not listen this address 
-# out_address: Option<SocketAddr>,
+# egress: 
+#  ipv4: ""
+#  ipv6: ""
+#  prefer_v4: true
 
 # min a max waiting data time (ms) before close the connection
 # needed to prevent probe for header size

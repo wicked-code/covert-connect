@@ -3,10 +3,26 @@ use colored::*;
 use crypto::config::{ProtocolConfig, range_from_human_readable};
 use serde::Deserialize;
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
     ops::Range,
     path::Path,
 };
+
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Egress {
+    /// outbound IPv4 address
+    #[serde(default)]
+    pub ipv4: Option<Ipv4Addr>,
+
+    /// outbound IPv6 address
+    #[serde(default)]
+    pub ipv6: Option<Ipv6Addr>,
+
+    /// outbound address
+    #[serde(default = "default_true")]
+    pub prefer_v4: bool,
+}
 
 /// Main application config
 #[derive(Clone, Deserialize)]
@@ -15,8 +31,9 @@ pub struct AppConfig {
     /// server address
     pub address: SocketAddr,
 
-    /// outbound address
-    pub out_address: Option<IpAddr>,
+    /// outbound ip's config
+    #[serde(default = "default_egress")]
+    pub egress: Egress,
 
     /// protocol configuration
     #[serde(flatten)]
@@ -55,34 +72,33 @@ impl AppConfig {
     }
 
     fn check(self) -> Result<AppConfig> {
-        if let Some(out_addr) = self.out_address {
-            if self.address.ip().is_unspecified() {
-                anyhow::bail!(
-                    "{} listen to any available ip. \
-                    Please select specific ip in address option or 127.0.0.1 if https mode \
-                    (make sure nginx is not listen to {}) or remove out_address option.",
-                    self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold()
-                )
-            }
-
-            if self.address.is_ipv4() != out_addr.is_ipv4() {
-                anyhow::bail!(
-                    "{} listen address version (v4 or v6) should be the same as version of out_address {}",
-                    self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold()
-                )
-            }
-
-            if self.address.ip() == out_addr {
-                anyhow::bail!(
-                    "out_address {} should not be equal to address {}",
-                    self.address.ip().to_string().bold(),
-                    out_addr.to_string().bold()
-                )
-            }
+        if let Some(out_v4) = self.egress.ipv4 && let SocketAddr::V4(addr_v4) = self.address && out_v4 == *addr_v4.ip() {
+            anyhow::bail!(
+                "{} egress address should not be the same as listen address {}, set different egress address or remove egress",
+                out_v4.to_string().bold(),
+                self.address.ip().to_string().bold(),
+            )
         }
 
+        if let Some(out_v6) = self.egress.ipv6 && let SocketAddr::V6(addr_v6) = self.address && out_v6 == *addr_v6.ip() {
+            anyhow::bail!(
+                "{} egress address should not be the same as listen address {}, set different egress address or remove egress",
+                out_v6.to_string().bold(),
+                self.address.ip().to_string().bold(),
+            )
+        }
         Ok(self)
     }
+}
+
+fn default_egress() -> Egress {
+    Egress {
+        ipv4: None,
+        ipv6: None,
+        prefer_v4: true,
+    }
+}
+
+fn default_true() -> bool {
+    true
 }

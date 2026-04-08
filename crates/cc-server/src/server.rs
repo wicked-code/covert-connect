@@ -1,4 +1,3 @@
-use crate::{config::AppConfig, icmp::icmp_transfer, udp::udp_transfer};
 use anyhow::{Context, Result, anyhow};
 use bytes::{BufMut, BytesMut};
 use chrono::Utc;
@@ -15,7 +14,7 @@ use rand_chacha::ChaCha20Rng;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     mem,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ops::Range,
     str,
     time::Duration,
@@ -24,6 +23,12 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpSocket, TcpStream, UdpSocket, lookup_host},
     time::timeout,
+};
+
+use crate::{
+    config::{AppConfig, Egress},
+    icmp::icmp_transfer,
+    udp::udp_transfer,
 };
 
 async fn start_tunnel(
@@ -162,12 +167,7 @@ async fn start_tunnel(
     let is_udp = host.contains('!');
     let is_icmp = host.contains('~');
     let host = host.replace(['!', '~'], "");
-
-    // prefer ipv4
-    let addr = lookup_host(&host)
-        .await?
-        .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc })
-        .ok_or_else(|| anyhow!("host {host} notfound"))?;
+    let (addr, bind_addr) = lookup_host_and_bind(&host, &cfg.egress).await?;
 
     let (client_cipher, server_cipher) = Cipher::new_client_server(*cipher_type, *kdf, key, &salt)?;
 
@@ -181,8 +181,8 @@ async fn start_tunnel(
     );
 
     if is_udp {
-        let socket = UdpSocket::bind(match cfg.out_address {
-            Some(out_addr) => SocketAddr::new(out_addr, 0),
+        let bind_addr = match bind_addr {
+            Some(bind_addr) => bind_addr,
             None => {
                 if addr.is_ipv4() {
                     SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
@@ -190,33 +190,30 @@ async fn start_tunnel(
                     SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)
                 }
             }
-        })
-        .await
-        .with_context(|| format!("Failed to bind UDP to {:?}", cfg.out_address))?;
+        };
+
+        let socket = UdpSocket::bind(bind_addr)
+            .await
+            .with_context(|| format!("Failed to bind UDP to {:?}", bind_addr))?;
 
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
         udp_transfer(&mut client, socket).await?;
     } else if is_icmp {
-        let (domain, protocol, default_ip) = if addr.is_ipv4() {
-            (Domain::IPV4, Protocol::ICMPV4, IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        let (domain, protocol) = if addr.is_ipv4() {
+            (Domain::IPV4, Protocol::ICMPV4)
         } else {
-            (Domain::IPV6, Protocol::ICMPV6, IpAddr::V6(Ipv6Addr::UNSPECIFIED))
+            (Domain::IPV6, Protocol::ICMPV6)
         };
 
         let socket = Socket::new(domain, Type::RAW, Some(protocol))?;
         socket.set_nonblocking(true)?;
 
-        let outbound_address = SocketAddr::new(
-            match cfg.out_address {
-                Some(out_addr) => out_addr,
-                None => default_ip,
-            },
-            0,
-        );
-        socket
-            .bind(&outbound_address.into())
-            .with_context(|| format!("Failed to bind ICMP to {:?}", cfg.out_address))?;
+        if let Some(bind_addr) = bind_addr {
+            socket
+                .bind(&bind_addr.into())
+                .with_context(|| format!("Failed to bind ICMP to {:?}", bind_addr))?;
+        }
 
         let std_udp: std::net::UdpSocket = socket.into();
         let socket = UdpSocket::from_std(std_udp)?;
@@ -230,27 +227,23 @@ async fn start_tunnel(
 
         icmp_transfer(&mut client, socket).await?;
     } else {
-        let mut out_stream = match cfg.out_address {
-            Some(out_addr) if out_addr.is_ipv4() == addr.is_ipv4() => {
-                let socket = match out_addr {
-                    IpAddr::V4(_) => TcpSocket::new_v4()?,
-                    IpAddr::V6(_) => TcpSocket::new_v6()?,
-                };
-
-                socket
-                    .bind(SocketAddr::new(out_addr, 0))
-                    .with_context(|| format!("Failed to bind TCP to {:?}", out_addr))?;
-                socket
-                    .connect(addr)
-                    .await
-                    .with_context(|| format!("Failed to connect TCP to {:?}", addr))?
-            }
-            _ => TcpStream::connect(addr)
-                .await
-                .with_context(|| format!("Failed to connect socket to {:?}", addr))?,
+        let socket = match addr {
+            SocketAddr::V4(_) => TcpSocket::new_v4()?,
+            SocketAddr::V6(_) => TcpSocket::new_v6()?,
         };
 
-        tracing::info!("CONNECT from {socket_addr} to {host} ({addr})");
+        if let Some(bind_addr) = bind_addr {
+            socket
+                .bind(bind_addr)
+                .with_context(|| format!("Failed to bind TCP to {:?}", bind_addr))?;
+        }
+
+        let mut out_stream = socket
+            .connect(addr)
+            .await
+            .with_context(|| format!("Failed to connect TCP to {:?}", addr))?;
+
+        tracing::info!("CONNECT from {socket_addr} to {host} ({}) bind to {:?}", addr.ip(), bind_addr);
 
         tokio::io::copy_bidirectional(&mut client, &mut out_stream).await?;
     }
@@ -409,6 +402,37 @@ pub async fn serve(cfg: AppConfig, url_path: String, upgrade_support: bool) -> R
                 tracing::error!("{:?}", err);
             }
         });
+    }
+}
+
+async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr, Option<SocketAddr>)> {
+    let addr = lookup_host(&host)
+        .await?
+        .reduce(|acc, val| {
+            if (egress.prefer_v4 && acc.is_ipv6() && val.is_ipv4())
+                || (!egress.prefer_v4 && acc.is_ipv4() && val.is_ipv6())
+            {
+                val
+            } else {
+                acc
+            }
+        })
+        .ok_or_else(|| anyhow!("host {host} notfound"))?;
+
+    if egress.ipv4.is_none() && egress.ipv6.is_none() {
+        return Ok((addr, None));
+    }
+
+    if addr.is_ipv4() {
+        match egress.ipv4 {
+            Some(bind_v4) => Ok((addr, Some(SocketAddr::V4(SocketAddrV4::new(bind_v4, 0))))),
+            None => anyhow::bail!("no egress address for IPv4, but IPv6 egress is set, droping connection")
+        }
+    } else {
+        match egress.ipv6 {
+            Some(bind_v6) => Ok((addr, Some(SocketAddr::V6(SocketAddrV6::new(bind_v6, 0, 0, 0))))),
+            None => anyhow::bail!("no egress address for IPv6, but IPv4 egress is set, droping connection")
+        }
     }
 }
 
