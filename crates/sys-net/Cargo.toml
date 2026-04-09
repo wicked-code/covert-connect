@@ -10,10 +10,11 @@ authors.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tokio.workspace = true
-if-addrs = "0.15.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.2", features = ["Win32_Foundation"] }
+windows = { version = "0.62.2", features = [
+    "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock", "Win32_System_Diagnostics_Debug"
+] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"

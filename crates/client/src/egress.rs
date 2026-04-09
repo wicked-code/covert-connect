@@ -8,7 +8,7 @@ use hickory_resolver::{
 };
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
 };
 use tokio::{
@@ -23,8 +23,13 @@ use tokio_rustls::{
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
+
+const UPDATE_DELAY: std::time::Duration = std::time::Duration::from_secs(3);
+
 use crate::streams::upgrade_stream::UpgradeStream;
-use sys_net::{find_outbound_ip, get_dns_by_if_addr};
+use sys_net::find_default_if;
 
 pub enum StreamType {
     TcpStream(TcpStream),
@@ -32,7 +37,9 @@ pub enum StreamType {
 }
 
 pub struct Egress {
-    outbound_ip: ArcSwap<IpAddr>,
+    outbound_ipv4: ArcSwap<SocketAddr>,
+    outbound_ipv6: ArcSwap<SocketAddr>,
+    outbound_dns: ArcSwap<Vec<IpAddr>>,
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
 }
@@ -52,7 +59,9 @@ impl Egress {
         tls_cfg.enable_early_data = true;
         tls_cfg.resumption = tls_cfg.resumption.tls12_resumption(Tls12Resumption::SessionIdOnly);
         Arc::new(Self {
-            outbound_ip: ArcSwap::from_pointee(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+            outbound_ipv4: ArcSwap::from_pointee(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)),
+            outbound_ipv6: ArcSwap::from_pointee(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)),
+            outbound_dns: ArcSwap::from_pointee(Vec::new()),
             tls_cfg: Arc::new(tls_cfg),
             resolver: ArcSwap::from_pointee(
                 Resolver::builder_with_config(ResolverConfig::new(), TokioConnectionProvider::default()).build(),
@@ -66,13 +75,26 @@ impl Egress {
         let self_clone = self.clone();
         #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         task::spawn_blocking(move || {
+            let mut task_nandle: Option<task::JoinHandle<()>> = None;
             let mut notifier = if_addrs::IfChangeNotifier::new().unwrap();
             loop {
                 if notifier.wait(None).is_ok() {
+                    if let Some(handle) = task_nandle.take() {
+                        handle.abort();
+                    }
+
                     let self_clone = self_clone.clone();
-                    tokio::spawn(async move {
-                        self_clone.update().await.ok();
-                    });
+                    task_nandle = Some(tokio::spawn(async move {
+                        loop {
+                            tokio::time::sleep(UPDATE_DELAY).await;
+                            if let Err(err) = self_clone.update().await {
+                                tracing::error!("Failed to update egress after IF change: {:?}", err);
+                                tokio::time::sleep(UPDATE_DELAY).await;
+                            } else {
+                                break;
+                            }
+                        }
+                    }));
                 }
             }
         });
@@ -80,8 +102,10 @@ impl Egress {
         task::spawn(async move {
             loop {
                 // TODO: ??? it should be better way, but if_addrs::IfChangeNotifier Not available on iOS/macOS
-                delay(std::time::Duration::from_secs(60)).await;
-                self_clone.update().await.ok();
+                tokio::time::sleep(UPDATE_INTERVAL).await;
+                if let Err(err) = self_clone.update().await {
+                    tracing::error!("Failed to update egress after IF change: {:?}", err);
+                }
             }
         });
 
@@ -114,35 +138,38 @@ impl Egress {
     }
 
     pub async fn connect_tcp(&self, target: SocketAddr) -> io::Result<TcpStream> {
-        let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
-
-        // bind socket to outbound IF
-        let socket = match outbound_address {
-            SocketAddr::V4(_) => TcpSocket::new_v4()?,
-            SocketAddr::V6(_) => TcpSocket::new_v6()?,
-        };
-        socket.bind(outbound_address)?;
-
-        socket.connect(target).await
+        if target.is_ipv4() {
+            let socket = TcpSocket::new_v4()?;
+            // bind socket to outbound IF
+            socket.bind(**self.outbound_ipv4.load())?;
+            socket.connect(target).await
+        } else {
+            let socket = TcpSocket::new_v6()?;
+            // bind socket to outbound IF
+            socket.bind(**self.outbound_ipv6.load())?;
+            socket.connect(target).await
+        }
     }
 
-    pub async fn bind_udp(&self) -> io::Result<UdpSocket> {
-        let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
-        let socket = UdpSocket::bind(outbound_address).await?;
+    pub async fn bind_udp(&self, is_ipv6: bool) -> io::Result<UdpSocket> {
+        let outbound_address = if is_ipv6 {
+            **self.outbound_ipv6.load()
+        } else {
+            **self.outbound_ipv4.load()
+        };
 
-        Ok(socket)
+        Ok(UdpSocket::bind(outbound_address).await?)
     }
 
     pub async fn bind_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
-        let (domain, protocol) = if target.is_ipv4() {
-            (Domain::IPV4, Protocol::ICMPV4)
+        let (domain, protocol, outbound_address) = if target.is_ipv4() {
+            (Domain::IPV4, Protocol::ICMPV4, **self.outbound_ipv4.load())
         } else {
-            (Domain::IPV6, Protocol::ICMPV6)
+            (Domain::IPV6, Protocol::ICMPV6, **self.outbound_ipv6.load())
         };
         let socket = Socket::new(domain, Type::RAW, Some(protocol))?;
         socket.set_nonblocking(true)?;
 
-        let outbound_address = SocketAddr::new(**self.outbound_ip.load(), 0);
         socket.bind(&outbound_address.into())?;
 
         let std_udp: std::net::UdpSocket = socket.into();
@@ -154,27 +181,45 @@ impl Egress {
     pub async fn lookup_host(&self, host: &str) -> Result<Option<IpAddr>> {
         let res = self.resolver.load().lookup_ip(host).await?;
         // prefer ipv4
-        let ip = res.iter().reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc });
+        let ip = res
+            .iter()
+            .reduce(|acc, val| if acc.is_ipv6() && val.is_ipv4() { val } else { acc });
         Ok(ip)
     }
 
     async fn update(self: &Arc<Self>) -> Result<()> {
-        let outbound_ip = find_outbound_ip().await?;
-        self.outbound_ip.store(Arc::new(outbound_ip));
+        let net_if = find_default_if()?;
+        let net_if_changed =
+            net_if.ipv4 != self.outbound_ipv4.load().ip() || net_if.ipv6 != self.outbound_ipv6.load().ip();
 
+        if net_if_changed {
+            self.outbound_ipv4.store(Arc::new(SocketAddr::new(net_if.ipv4, 0)));
+            self.outbound_ipv6.store(Arc::new(SocketAddr::new(net_if.ipv6, 0)));
+        } else {
+            let prev_dns = self.outbound_dns.load().clone();
+            if prev_dns.len() == net_if.dns.len() && prev_dns.iter().all(|ip| net_if.dns.contains(ip)) {
+                return Ok(());
+            }
+        }
+
+        self.outbound_dns.store(Arc::new(net_if.dns.clone()));
+        self.update_resolver(net_if.dns, net_if.ipv4, net_if.ipv6).await?;
+
+        Ok(())
+    }
+
+    async fn update_resolver(self: &Arc<Self>, dns_list: Vec<IpAddr>, if_ipv4: IpAddr, if_ipv6: IpAddr) -> Result<()> {
         let mut config = ResolverConfig::new();
 
-        // try outbound IF dns first
-        let if_dns_ips = get_dns_by_if_addr(outbound_ip).await?;
-        for dns_ip in if_dns_ips {
-            if is_invalid_dns(dns_ip) {
+        for dns_ip in dns_list {
+            if is_invalid_address(dns_ip) {
                 tracing::warn!("skipping invalid IF DNS server: {}", dns_ip);
                 continue;
             }
 
             let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-            ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
+            ns.bind_addr = Some(SocketAddr::new(if dns_ip.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
             config.add_name_server(ns);
         }
 
@@ -185,7 +230,7 @@ impl Egress {
         for dns_ip in dns_ips {
             let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-            ns.bind_addr = Some(SocketAddr::new(outbound_ip, 0));
+            ns.bind_addr = Some(SocketAddr::new(if dns_ip.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
             config.add_name_server(ns);
         }
 
@@ -197,7 +242,7 @@ impl Egress {
     }
 }
 
-fn is_invalid_dns(ip: IpAddr) -> bool {
+fn is_invalid_address(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
             let octets = v4.octets();

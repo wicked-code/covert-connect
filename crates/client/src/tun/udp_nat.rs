@@ -171,7 +171,7 @@ impl UdpNat {
     ) {
         tracing::info!("Direct connection (UDP) to {} ({})", target, host);
 
-        let out_socket = match self.egress.bind_udp().await {
+        let out_socket = match self.egress.bind_udp(target.is_ipv6()).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!("Direct connection (UDP) to {} ({}) failed, err: {:?}", target, host, err);
