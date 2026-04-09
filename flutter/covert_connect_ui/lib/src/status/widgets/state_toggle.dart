@@ -6,7 +6,9 @@ import 'package:covert_connect/src/services/router_service.dart';
 import 'package:flutter/material.dart';
 
 class StateToggle extends StatefulWidget {
-  const StateToggle({super.key});
+  const StateToggle({super.key, this.onChanged});
+
+  final ValueChanged<ClientState>? onChanged;
 
   @override
   State<StateToggle> createState() => _StateToggleState();
@@ -22,6 +24,7 @@ class _StateToggleState extends State<StateToggle> {
 
   void _update() async {
     _state = await di<RouterServiceBase>().getState();
+    widget.onChanged?.call(_state!);
     if (mounted) setState(() {});
   }
 

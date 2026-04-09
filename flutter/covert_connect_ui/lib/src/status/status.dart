@@ -11,6 +11,7 @@ import 'package:covert_connect/src/status/widgets/traffic_graph.dart';
 import 'package:covert_connect/src/widgets/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:ntp/ntp.dart';
+import 'package:shimmer/shimmer.dart';
 
 const kMaxSyncOffsetMs = 5 * 1000; // 5 seconds
 const kCheckSyncInterval = Duration(minutes: 60);
@@ -27,6 +28,7 @@ class StatusPage extends StatefulWidget {
 class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMixin {
   late Timer _timer;
   ClientStatus? _status;
+  ClientState? _state;
 
   TrafficSample? _prevSample;
   final _speedHistory = List.generate(
@@ -119,8 +121,9 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;    
+    final colorScheme = theme.colorScheme;
     final height = MediaQuery.of(context).size.height;
+    final dark = theme.brightness == Brightness.dark;
 
     if (_status == null || !_status!.initialized) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -130,7 +133,9 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
     return Scaffold(
       body: Column(
         children: [
-          StateToggle(),
+          StateToggle(onChanged: (state) => setState(() {
+            _state = state;
+          })),
           Flexible(
             child: ServerList(servers: _status!.servers, updateServers: _updateServers),
           ),
@@ -139,11 +144,23 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
             height: graphHeight,
             child: Stack(
               children: [
-                Opacity(opacity: _status!.working ? 1.0 : 0.15, child: TrafficGraph(data: _speedHistory, height: graphHeight)),
+                Opacity(
+                  opacity: !_status!.working ? 0.15 : 1.0,
+                  child: TrafficGraph(data: _speedHistory, height: graphHeight),
+                ),
                 if (!_status!.working)
                   Positioned.fill(
                     child: Center(
-                      child: Text("Idle", style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.47), fontSize: 24)),
+                      child: Shimmer.fromColors(
+                        enabled: _state != ClientState.off,
+                        direction: ShimmerDirection.ltr,
+                        baseColor: theme.colorScheme.onSurface.withValues(alpha: dark ? 0.3 : 0.7),
+                        highlightColor: dark ? theme.colorScheme.onSurface : Colors.white,
+                        child: Text(
+                          "Idle",
+                          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.47), fontSize: 24),
+                        ),
+                      ),
                     ),
                   ),
               ],
