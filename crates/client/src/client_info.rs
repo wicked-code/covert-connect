@@ -394,4 +394,131 @@ mod tests {
             encryption_limit: usize::MAX,
         }
     }
+
+    #[tokio::test]
+    async fn test_del_server() {
+        let info = ClientInfo::new();
+        add_server(&info, "server1").await;
+        add_server(&info, "server2").await;
+        assert_eq!(info.get_servers().await.len(), 2);
+
+        let remaining = info.del_server("server1").await.unwrap();
+        assert_eq!(remaining, 1);
+        assert_eq!(info.get_servers().await[0].config.host, "server2");
+
+        let remaining = info.del_server("server2").await.unwrap();
+        assert_eq!(remaining, 0);
+
+        assert!(info.del_server("nonexistent").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_enabled() {
+        let info = ClientInfo::new();
+        add_server(&info, "server1").await;
+        assert!(info.get_servers().await[0].config.enabled);
+
+        info.set_enabled("server1", false).await.unwrap();
+        assert!(!info.get_servers().await[0].config.enabled);
+
+        info.set_enabled("server1", true).await.unwrap();
+        assert!(info.get_servers().await[0].config.enabled);
+
+        assert!(info.set_enabled("nonexistent", false).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_server() {
+        let info = ClientInfo::new();
+        add_server(&info, "server1").await;
+
+        let new_config = ServerConfig {
+            caption: Some("Updated".to_string()),
+            host: "server1-new".to_string(),
+            domains: Some(vec!["example.com".to_string()]),
+            apps: None,
+            weight: Some(5),
+            enabled: false,
+            address: SocketAddr::from(([10, 0, 0, 1], 8443)),
+            protocol: new_protocol_config(),
+            url_path: None,
+        };
+        info.update_server("server1", new_config).await.unwrap();
+
+        let servers = info.get_servers().await;
+        assert_eq!(servers[0].config.host, "server1-new");
+        assert_eq!(servers[0].config.caption, Some("Updated".to_string()));
+        assert!(!servers[0].config.enabled);
+
+        assert!(info.update_server("nonexistent", ServerConfig {
+            caption: None,
+            host: "x".to_string(),
+            domains: None,
+            apps: None,
+            weight: None,
+            enabled: true,
+            address: SocketAddr::from(([127, 0, 0, 1], 443)),
+            protocol: new_protocol_config(),
+            url_path: None,
+        }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_error_set_app_nonexistent_host() {
+        let info = ClientInfo::new();
+        assert!(info.set_app("app1".to_string(), "nonexistent".to_string()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_error_set_domain_nonexistent_host() {
+        let info = ClientInfo::new();
+        assert!(info.set_domain("test.com".to_string(), "nonexistent".to_string()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_nonexistent_app_and_domain() {
+        let info = ClientInfo::new();
+        assert!(info.remove_app("nope").await.is_err());
+        assert!(info.remove_domain("nope.com").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_move_domain_between_servers() {
+        let info = ClientInfo::new();
+        add_server(&info, "server1").await;
+        add_server(&info, "server2").await;
+
+        info.set_domain("test.com".to_string(), "server1".to_string()).await.unwrap();
+        assert_eq!(get_server_domains(&info, "server1").await.unwrap(), vec!["test.com".to_string()]);
+
+        // Move domain from server1 to server2
+        info.set_domain("test.com".to_string(), "server2".to_string()).await.unwrap();
+        assert_eq!(get_server_domains(&info, "server1").await.unwrap(), Vec::<String>::new()); // removed from server1
+        assert_eq!(get_server_domains(&info, "server2").await.unwrap(), vec!["test.com".to_string()]);
+
+        // Move domain from server2 to direct
+        info.set_domain("test.com".to_string(), "".to_string()).await.unwrap();
+        assert_eq!(get_server_domains(&info, "server2").await.unwrap(), Vec::<String>::new());
+        assert_eq!(info.get_direct_domains().await, vec!["test.com".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn test_move_app_between_servers() {
+        let info = ClientInfo::new();
+        add_server(&info, "server1").await;
+        add_server(&info, "server2").await;
+
+        info.set_app("myapp".to_string(), "server1".to_string()).await.unwrap();
+        assert_eq!(get_server_apps(&info, "server1").await.unwrap(), vec!["myapp".to_string()]);
+
+        // Move app from server1 to server2
+        info.set_app("myapp".to_string(), "server2".to_string()).await.unwrap();
+        assert_eq!(get_server_apps(&info, "server1").await.unwrap(), Vec::<String>::new());
+        assert_eq!(get_server_apps(&info, "server2").await.unwrap(), vec!["myapp".to_string()]);
+
+        // Move app from server2 to direct
+        info.set_app("myapp".to_string(), "".to_string()).await.unwrap();
+        assert_eq!(get_server_apps(&info, "server2").await.unwrap(), Vec::<String>::new());
+        assert_eq!(info.get_direct_apps().await, vec!["myapp".to_string()]);
+    }
 }
