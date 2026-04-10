@@ -18,8 +18,11 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask, egress::Egress, protocol::DataProtocol,
-    router::Router, tun::dns_mapper::DnsMapper,
+    egress::Egress,
+    protocol::DataProtocol,
+    router::Router,
+    tun::dns_mapper::DnsMapper,
+    utils::{cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask},
 };
 
 const MIN_NAT_PORT: u16 = 10000;
@@ -147,7 +150,9 @@ impl TcpProxyNat {
                                         return;
                                     }
                                 };
-                                self_clone.direct_transfer(stream, use_dst_addr, host, cancel_handle).await;
+                                self_clone
+                                    .direct_transfer(stream, use_dst_addr, host, cancel_handle)
+                                    .await;
                             }
                             Ok(None) => {}
                             Err(err) => {

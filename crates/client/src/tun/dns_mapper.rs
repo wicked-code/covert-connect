@@ -12,7 +12,7 @@ use std::{
 };
 use tokio::select;
 
-use crate::cancellable_task::CancellableTask;
+use crate::utils::cancellable_task::CancellableTask;
 
 const DEFAULT_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 const TTL_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
@@ -52,7 +52,7 @@ impl DnsMapper {
         self.ip_by_host.write().clear();
     }
 
-    pub async fn start(self: &Arc<Self>) -> Result<()> {        
+    pub async fn start(self: &Arc<Self>) -> Result<()> {
         let self_clone = self.clone();
         self.task.spawn(|token| {
             async move {

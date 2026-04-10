@@ -14,10 +14,10 @@ use tokio_util::sync::CancellationToken;
 use tun::DeviceWriter;
 
 use crate::{
-    cancellable_task::CancellableTask,
     egress::Egress,
     router::Router,
     tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
+    utils::cancellable_task::CancellableTask,
 };
 use net_packet::{
     MAX_PACKET_SIZE,

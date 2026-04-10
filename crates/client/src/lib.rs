@@ -1,8 +1,7 @@
 pub mod client;
 pub mod config;
+mod utils;
 
-mod cancel_watcher;
-mod cancellable_task;
 mod client_info;
 mod egress;
 mod protocol;

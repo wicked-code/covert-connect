@@ -18,12 +18,12 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 use crate::{
-    cancel_watcher::{CancelWatcher, CancellableTaskHandle},
     config::ServerConnectConfig,
     egress::{Egress, StreamType},
     protocol::{self, DataProtocol},
     router_table::{RouteResult, RouterTable, ServerContext},
     streams::ttfb_stream::TtfbStream,
+    utils::cancel_watcher::{CancelWatcher, CancellableTaskHandle},
 };
 use crypto::config::ProtocolConfig;
 

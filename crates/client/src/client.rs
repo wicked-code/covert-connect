@@ -223,8 +223,6 @@ impl Client {
     }
 
     async fn update_router(&self) {
-        // TODO: ??? register notification in egress and on egress update update router
-        // but update egress only if previous ip is not valid anymore!!!
         for srv in self.info.get_servers().await.iter() {
             self.ensure_config_initialized(srv).await;
         }

@@ -10,13 +10,12 @@ use tokio::{
 use tun::DeviceWriter;
 
 use crate::{
-    cancel_watcher::CancellableTaskHandle,
-    cancellable_task::CancellableTask,
     egress::Egress,
     protocol::DataProtocol,
     router::Router,
     streams::udp_stream::{UdpStream, UdpStreamData},
     tun::dns_mapper::DnsMapper,
+    utils::{cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask},
 };
 
 // TODO: move to settings
@@ -120,7 +119,7 @@ impl UdpNat {
 
                 let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
                 let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
-                let endpoint = format!("{host}:{}", dst_addr.port());                
+                let endpoint = format!("{host}:{}", dst_addr.port());
 
                 let data_protocol = if self_clone.is_icmp {
                     DataProtocol::Icmp
@@ -139,13 +138,15 @@ impl UdpNat {
                                 tracing::info!("UDP NAT lookup host {} failed: {:?}", host, err);
                                 return;
                             }
-                        };                        
+                        };
                         if self_clone.is_icmp {
                             self_clone
                                 .direct_transfer_icmp(stream, use_dst_addr, host, cancel_handle)
                                 .await;
                         } else {
-                            self_clone.direct_transfer(stream, use_dst_addr, host, cancel_handle).await;
+                            self_clone
+                                .direct_transfer(stream, use_dst_addr, host, cancel_handle)
+                                .await;
                         }
                     }
                     Ok(None) => {}
@@ -174,7 +175,12 @@ impl UdpNat {
         let out_socket = match self.egress.bind_udp(target.is_ipv6()).await {
             Ok(socket) => socket,
             Err(err) => {
-                tracing::warn!("Direct connection (UDP) to {} ({}) failed, err: {:?}", target, host, err);
+                tracing::warn!(
+                    "Direct connection (UDP) to {} ({}) failed, err: {:?}",
+                    target,
+                    host,
+                    err
+                );
                 return;
             }
         };
@@ -201,7 +207,12 @@ impl UdpNat {
         let out_socket = match self.egress.bind_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
-                tracing::warn!("Direct connection (ICMP) to {} ({}) failed, err: {:?}", target, host, err);
+                tracing::warn!(
+                    "Direct connection (ICMP) to {} ({}) failed, err: {:?}",
+                    target,
+                    host,
+                    err
+                );
                 return;
             }
         };
