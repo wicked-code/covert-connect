@@ -59,6 +59,10 @@ impl Client {
         })
     }
 
+    pub async fn initialize(&self) -> Result<()> {
+        self.egress.init().await
+    }
+
     pub async fn get_direct_apps(&self) -> Vec<String> {
         self.info.get_direct_apps().await
     }
@@ -181,9 +185,6 @@ impl Client {
     }
 
     pub async fn serve(self: &Arc<Self>) -> Result<()> {
-        self.egress.init().await?;
-        self.update_router().await;
-
         let mut error_retry_interval_sec = DEFAULT_ERROR_RETRY_INTERVAL_SEC;
         loop {
             let state = *self.state.read().await;

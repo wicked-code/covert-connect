@@ -80,6 +80,7 @@ impl ClientService {
         }
 
         let client_instance = Client::new(client_state);
+        client_instance.initialize().await?;
         self.client
             .set(client_instance.clone())
             .map_err(|_| anyhow!("client already initialized"))?;
