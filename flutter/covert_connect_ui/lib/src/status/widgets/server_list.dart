@@ -75,7 +75,8 @@ class _ServerListState extends State<ServerList> {
     final headerTextStyle = GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700);
     final cellTextStyle = GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w400);
 
-    String getServerIpPort(ServerInfo server) => "${server.ip}:${server.port}";
+    String getServerIpPort(ServerInfo server) =>
+        server.ip != null && server.port != null ? "${server.ip}:${server.port}" : "-";
 
     String getServerHost(ServerInfo server) {
       if (server.config.caption?.isNotEmpty ?? false) {

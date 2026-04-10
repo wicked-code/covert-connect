@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use std::sync::{Arc, atomic::AtomicU64};
 use tokio::sync::RwLock;
 
-use crate::config::ServerConfig;
+use crate::{config::ServerConfig, egress::Egress, server_connection_info::ServerConnectInfo};
 
 #[derive(Default)]
 pub struct ServerState {
@@ -16,6 +16,7 @@ pub struct ServerState {
 pub struct ServerInfo {
     pub config: ServerConfig,
     pub state: Arc<ServerState>,
+    pub connect_info: Option<ServerConnectInfo>,
 }
 
 pub struct ClientInfo {
@@ -161,11 +162,32 @@ impl ClientInfo {
         if deleted { Ok(()) } else { Err(anyhow!("App not found")) }
     }
 
-    pub async fn add_server(&self, config: ServerConfig) {
+    pub async fn add_server(&self, config: ServerConfig, egress: &Arc<Egress>) {
+        let connect_info = self.new_connection_info(&config, &egress).await;
         self.servers.write().await.push(ServerInfo {
             config,
             state: Default::default(),
+            connect_info,
         });
+    }
+
+    pub async fn update_connection_info(&self, egress: &Arc<Egress>) {
+        let mut servers = self.servers.write().await;
+        for srv in servers.iter_mut() {
+            if srv.connect_info.is_none() {
+                srv.connect_info = self.new_connection_info(&srv.config, egress).await;
+            }
+        }
+    }
+
+    async fn new_connection_info(&self, config: &ServerConfig, egress: &Arc<Egress>) -> Option<ServerConnectInfo> {
+        match ServerConnectInfo::new(&config.host, &config.protocol.key, egress).await {
+            Ok(info) => Some(info),
+            Err(err) => {
+                tracing::error!("{:?}", err);
+                None
+            }
+        }
     }
 
     pub async fn del_server(&self, host: &str) -> Result<usize> {
@@ -189,10 +211,12 @@ impl ClientInfo {
         }
     }
 
-    pub async fn update_server(&self, orig_host: &str, config: ServerConfig) -> Result<()> {
+    pub async fn update_server(&self, orig_host: &str, config: ServerConfig, egress: &Arc<Egress>) -> Result<()> {
+        let connection_info = self.new_connection_info(&config, egress).await;
         let mut wr_servers = self.servers.write().await;
-        if let Some(idx) = wr_servers.iter().position(|s| s.config.host == orig_host) {
-            (*wr_servers)[idx].config = config;
+        if let Some(ref mut item) = wr_servers.iter_mut().find(|s| s.config.host == orig_host) {
+            item.config = config;
+            item.connect_info = connection_info;
             Ok(())
         } else {
             Err(anyhow!("server not found"))
@@ -206,8 +230,6 @@ impl ClientInfo {
 
 #[cfg(test)]
 mod tests {
-    use std::net::SocketAddr;
-
     use crypto::{cipher::CipherType, config::ProtocolConfig, kdf::Kdf};
 
     use super::*;
@@ -369,17 +391,18 @@ mod tests {
     }
 
     async fn add_server(info: &ClientInfo, host: &str) {
-        info.add_server(ServerConfig {
-            caption: None,
-            host: host.to_string(),
-            domains: None,
-            apps: None,
-            weight: None,
-            enabled: true,
-            address: SocketAddr::from(([127, 0, 0, 1], 443)),
-            protocol: new_protocol_config(),
-            url_path: None,
-        })
+        info.add_server(
+            ServerConfig {
+                caption: None,
+                host: host.to_string(),
+                domains: None,
+                apps: None,
+                weight: None,
+                enabled: true,
+                protocol: new_protocol_config(),
+            },
+            &Egress::new(),
+        )
         .await
     }
 
@@ -439,40 +462,52 @@ mod tests {
             apps: None,
             weight: Some(5),
             enabled: false,
-            address: SocketAddr::from(([10, 0, 0, 1], 8443)),
             protocol: new_protocol_config(),
-            url_path: None,
         };
-        info.update_server("server1", new_config).await.unwrap();
+        info.update_server("server1", new_config, &Egress::new()).await.unwrap();
 
         let servers = info.get_servers().await;
         assert_eq!(servers[0].config.host, "server1-new");
         assert_eq!(servers[0].config.caption, Some("Updated".to_string()));
         assert!(!servers[0].config.enabled);
 
-        assert!(info.update_server("nonexistent", ServerConfig {
-            caption: None,
-            host: "x".to_string(),
-            domains: None,
-            apps: None,
-            weight: None,
-            enabled: true,
-            address: SocketAddr::from(([127, 0, 0, 1], 443)),
-            protocol: new_protocol_config(),
-            url_path: None,
-        }).await.is_err());
+        assert!(
+            info.update_server(
+                "nonexistent",
+                ServerConfig {
+                    caption: None,
+                    host: "x".to_string(),
+                    domains: None,
+                    apps: None,
+                    weight: None,
+                    enabled: true,
+                    protocol: new_protocol_config(),
+                },
+                &Egress::new(),
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]
     async fn test_error_set_app_nonexistent_host() {
         let info = ClientInfo::new();
-        assert!(info.set_app("app1".to_string(), "nonexistent".to_string()).await.is_err());
+        assert!(
+            info.set_app("app1".to_string(), "nonexistent".to_string())
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
     async fn test_error_set_domain_nonexistent_host() {
         let info = ClientInfo::new();
-        assert!(info.set_domain("test.com".to_string(), "nonexistent".to_string()).await.is_err());
+        assert!(
+            info.set_domain("test.com".to_string(), "nonexistent".to_string())
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -488,17 +523,33 @@ mod tests {
         add_server(&info, "server1").await;
         add_server(&info, "server2").await;
 
-        info.set_domain("test.com".to_string(), "server1".to_string()).await.unwrap();
-        assert_eq!(get_server_domains(&info, "server1").await.unwrap(), vec!["test.com".to_string()]);
+        info.set_domain("test.com".to_string(), "server1".to_string())
+            .await
+            .unwrap();
+        assert_eq!(
+            get_server_domains(&info, "server1").await.unwrap(),
+            vec!["test.com".to_string()]
+        );
 
         // Move domain from server1 to server2
-        info.set_domain("test.com".to_string(), "server2".to_string()).await.unwrap();
-        assert_eq!(get_server_domains(&info, "server1").await.unwrap(), Vec::<String>::new()); // removed from server1
-        assert_eq!(get_server_domains(&info, "server2").await.unwrap(), vec!["test.com".to_string()]);
+        info.set_domain("test.com".to_string(), "server2".to_string())
+            .await
+            .unwrap();
+        assert_eq!(
+            get_server_domains(&info, "server1").await.unwrap(),
+            Vec::<String>::new()
+        ); // removed from server1
+        assert_eq!(
+            get_server_domains(&info, "server2").await.unwrap(),
+            vec!["test.com".to_string()]
+        );
 
         // Move domain from server2 to direct
         info.set_domain("test.com".to_string(), "".to_string()).await.unwrap();
-        assert_eq!(get_server_domains(&info, "server2").await.unwrap(), Vec::<String>::new());
+        assert_eq!(
+            get_server_domains(&info, "server2").await.unwrap(),
+            Vec::<String>::new()
+        );
         assert_eq!(info.get_direct_domains().await, vec!["test.com".to_string()]);
     }
 
@@ -509,12 +560,18 @@ mod tests {
         add_server(&info, "server2").await;
 
         info.set_app("myapp".to_string(), "server1".to_string()).await.unwrap();
-        assert_eq!(get_server_apps(&info, "server1").await.unwrap(), vec!["myapp".to_string()]);
+        assert_eq!(
+            get_server_apps(&info, "server1").await.unwrap(),
+            vec!["myapp".to_string()]
+        );
 
         // Move app from server1 to server2
         info.set_app("myapp".to_string(), "server2".to_string()).await.unwrap();
         assert_eq!(get_server_apps(&info, "server1").await.unwrap(), Vec::<String>::new());
-        assert_eq!(get_server_apps(&info, "server2").await.unwrap(), vec!["myapp".to_string()]);
+        assert_eq!(
+            get_server_apps(&info, "server2").await.unwrap(),
+            vec!["myapp".to_string()]
+        );
 
         // Move app from server2 to direct
         info.set_app("myapp".to_string(), "".to_string()).await.unwrap();

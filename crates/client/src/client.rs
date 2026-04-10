@@ -15,7 +15,7 @@ use tokio::{
 
 use crate::{
     client_info::{ClientInfo, ServerInfo},
-    config::{ServerConfig, default_server_address},
+    config::ServerConfig,
     egress::Egress,
     router::Router,
     router_table::RouterTable,
@@ -106,7 +106,7 @@ impl Client {
     }
 
     pub async fn add_server(&self, config: ServerConfig) {
-        self.info.add_server(config).await;
+        self.info.add_server(config, &self.egress).await;
         self.update_router().await;
     }
 
@@ -129,7 +129,7 @@ impl Client {
     }
 
     pub async fn update_server(&self, orig_host: &str, config: ServerConfig) -> Result<()> {
-        self.info.update_server(orig_host, config).await?;
+        self.info.update_server(orig_host, config, &self.egress).await?;
         self.update_router().await;
         Ok(())
     }
@@ -223,22 +223,7 @@ impl Client {
     }
 
     async fn update_router(&self) {
-        for srv in self.info.get_servers().await.iter() {
-            self.ensure_config_initialized(srv).await;
-        }
+        self.info.update_connection_info(&self.egress).await;
         self.router.update_table(RouterTable::from(self.info.clone()).await);
-    }
-
-    async fn ensure_config_initialized(&self, srv: &ServerInfo) {
-        if srv.config.address != default_server_address() {
-            return;
-        }
-
-        let mut new_config = srv.config.clone();
-        if let Err(err) = new_config.init().await {
-            tracing::error!("init config error: {:?}", err);
-        } else {
-            self.info.update_server(&srv.config.host, new_config).await.ok();
-        }
     }
 }

@@ -1,5 +1,4 @@
 use flutter_rust_bridge::frb;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::Range;
 
 pub use client::config::ServerConfig as ClientServerConfig;
@@ -27,8 +26,6 @@ impl From<ServerConfig> for ClientServerConfig {
             apps: cfg.apps.clone(),
             enabled: cfg.enabled,
             protocol: cfg.protocol.into(),
-            url_path: None,
-            address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0u16),
         }
     }
 }

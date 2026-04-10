@@ -148,14 +148,14 @@ class ClientStatus {
 class ServerInfo {
   final ServerState state;
   final ServerConfig config;
-  final String ip;
-  final int port;
+  final String? ip;
+  final int? port;
 
   const ServerInfo({
     required this.state,
     required this.config,
-    required this.ip,
-    required this.port,
+    this.ip,
+    this.port,
   });
 
   @override

@@ -27,12 +27,4 @@ impl AppConfig {
             .try_deserialize()
             .map_err(|err| anyhow!("deserialize config error: {}", err))
     }
-
-    pub async fn init(mut self) -> Result<AppConfig> {
-        for srv in &mut self.servers {
-            srv.init().await?;
-        }
-
-        Ok(self)
-    }
 }

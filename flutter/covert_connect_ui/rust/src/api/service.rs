@@ -4,7 +4,6 @@ use std::env;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
 
-use client::config::ServerConfig as ClientServerConfig;
 use client::client::Client;
 
 pub use client::client::ClientState;
@@ -33,8 +32,8 @@ pub struct ClientStatus {
 pub struct ServerInfo {
     pub state: ServerState,
     pub config: ServerConfig,
-    pub ip: String,
-    pub port: u16,
+    pub ip: Option<String>,
+    pub port: Option<u16>,
 }
 
 #[derive(Clone)]
@@ -90,12 +89,7 @@ impl ClientService {
             client_instance.add_direct_domains(&cfg.direct_domains).await;
 
             for srv in cfg.servers {
-                let mut cfg: ClientServerConfig = srv.into();
-                cfg.init()
-                    .await
-                    .inspect_err(|e| tracing::error!("config: {:?}", e))
-                    .ok();
-                client_instance.add_server(cfg).await;
+                client_instance.add_server(srv.into()).await;
             }
 
             if let Err(err) = client_instance.serve().await {
@@ -137,8 +131,8 @@ impl ClientService {
                     success_count: s.state.success_count.load(Ordering::Relaxed),
                 },
                 config: s.config.clone().into(),
-                ip: s.config.address.ip().to_string(),
-                port: s.config.address.port(),
+                ip: s.connect_info.as_ref().map(|info| info.address.ip().to_string()),
+                port: s.connect_info.as_ref().map(|info| info.address.port()),
             })
             .collect();
 
@@ -179,22 +173,12 @@ impl ClientService {
     }
 
     pub async fn add_server(&self, config: ServerConfig) -> Result<()> {
-        let mut cfg: ClientServerConfig = config.into();
-        cfg.init()
-            .await
-            .inspect_err(|e| tracing::error!("config init: {:?}", e))
-            .ok();
-        self.get_client()?.add_server(cfg).await;
+        self.get_client()?.add_server(config.into()).await;
         Ok(())
     }
 
     pub async fn update_server(&self, orig_host: String, new_config: ServerConfig) -> Result<()> {
-        let mut cfg: ClientServerConfig = new_config.into();
-        cfg.init()
-            .await
-            .inspect_err(|e| tracing::error!("config init: {:?}", e))
-            .ok();
-        self.get_client()?.update_server(&orig_host, cfg).await
+        self.get_client()?.update_server(&orig_host, new_config.into()).await
     }
 
     pub async fn delete_server(&self, host: String) -> Result<()> {

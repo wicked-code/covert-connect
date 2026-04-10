@@ -1,8 +1,14 @@
 use crypto::config::ProtocolConfig;
 use rustc_hash::FxHashMap;
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 
-use crate::client_info::{ClientInfo, ServerInfo, ServerState};
+use crate::{
+    client_info::{ClientInfo, ServerInfo, ServerState},
+    server_connection_info::ServerConnectInfo,
+};
 
 pub enum RouteResult {
     Direct,
@@ -49,7 +55,7 @@ impl RouterTable {
         //
         let mut servers = Vec::new();
         for srv in info.get_servers().await.iter() {
-            if !srv.config.enabled {
+            if !srv.config.enabled || srv.connect_info.is_none() {
                 continue;
             }
 
@@ -107,11 +113,19 @@ impl RouterTable {
 
 impl From<&ServerInfo> for ServerContext {
     fn from(srv: &ServerInfo) -> Self {
+        let connect_info = match srv.connect_info {
+            Some(ref info) => info,
+            None => &ServerConnectInfo {
+                address: SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
+                url_path: None,
+            },
+        };
+
         ServerContext {
             host: srv.config.host.clone(),
-            address: srv.config.address,
+            address: connect_info.address,
             protocol: srv.config.protocol.clone(),
-            url_path: srv.config.url_path.clone(),
+            url_path: connect_info.url_path.clone(),
             state: srv.state.clone(),
             weight: srv.config.weight,
         }

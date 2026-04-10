@@ -18,10 +18,10 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 use crate::{
-    config::ServerConnectConfig,
     egress::{Egress, StreamType},
     protocol::{self, DataProtocol},
     router_table::{RouteResult, RouterTable, ServerContext},
+    server_connection_info::ServerConnectInfo,
     streams::ttfb_stream::TtfbStream,
     utils::cancel_watcher::{CancelWatcher, CancellableTaskHandle},
 };
@@ -63,11 +63,11 @@ impl Router {
     }
 
     pub async fn get_server_protocol(&self, host: &str, key: &str) -> Result<ProtocolConfig> {
-        let conn_cfg = ServerConnectConfig::new(host, key).await?;
+        let conn_cfg = ServerConnectInfo::new(host, key, &self.egress).await?;
 
         match self
             .egress
-            .connect_with_upgrade(conn_cfg.address, &conn_cfg.host, &conn_cfg.url_path)
+            .connect_with_upgrade(conn_cfg.address, host, &conn_cfg.url_path)
             .await?
         {
             StreamType::TcpStream(stream) => protocol::get_server_protocol(stream, key).await,

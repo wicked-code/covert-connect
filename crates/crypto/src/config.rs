@@ -3,6 +3,8 @@ use std::ops::Range;
 
 use super::{cipher::CipherType, kdf::Kdf};
 
+const MIN_ENCRYPTION_LIMIT: usize = 512;
+
 #[derive(Clone, Copy, PartialEq, Deserialize, Serialize, Debug)]
 #[serde(remote = "Self")]
 pub struct DataPadding {
@@ -43,6 +45,7 @@ pub struct ProtocolConfig {
     /// encryption limit
     /// default is usize::MAX (encrypt all data)
     #[serde(default = "defaut_encryption_limit")]
+    #[serde(deserialize_with = "deserialize_encryption_limit")]
     pub encryption_limit: usize,
 }
 
@@ -131,5 +134,21 @@ impl Serialize for DataPadding {
         S: Serializer,
     {
         Self::serialize(self, serializer)
+    }
+}
+
+fn deserialize_encryption_limit<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: usize = usize::deserialize(deserializer)?;
+
+    if value < MIN_ENCRYPTION_LIMIT {
+        Err(Error::custom(format!(
+            "Encryption limit is too low. Minimum value is {}",
+            MIN_ENCRYPTION_LIMIT
+        )))
+    } else {
+        Ok(value)
     }
 }

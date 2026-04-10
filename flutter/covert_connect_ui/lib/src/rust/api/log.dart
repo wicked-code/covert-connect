@@ -18,6 +18,9 @@ Future<ArcWriterNotifier> initTraceLog() =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WriterNotifier>>
 abstract class WriterNotifier implements RustOpaqueInterface {
+  static Future<WriterNotifier> default_() =>
+      RustLib.instance.api.crateApiLogWriterNotifierDefault();
+
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<WriterNotifier> newInstance() =>
       RustLib.instance.api.crateApiLogWriterNotifierNew();

@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     }
 
     let args: Cli = Cli::parse();
-    let cfg = AppConfig::new(args.config)?.init().await?;
+    let cfg = AppConfig::new(args.config)?;
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 

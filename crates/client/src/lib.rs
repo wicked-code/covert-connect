@@ -7,5 +7,6 @@ mod egress;
 mod protocol;
 mod router;
 mod router_table;
+mod server_connection_info;
 mod streams;
 mod tun;

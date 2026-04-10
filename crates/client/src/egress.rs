@@ -180,6 +180,7 @@ impl Egress {
 
     pub async fn lookup_host(&self, host: &str) -> Result<Option<IpAddr>> {
         let res = self.resolver.load().lookup_ip(host).await?;
+        // TODO: ??? move to options or check if IPv6 enabled somehow
         // prefer ipv4
         let ip = res
             .iter()

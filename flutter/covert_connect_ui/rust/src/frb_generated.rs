@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1890605520;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1113129290;
 
 // Section: executor
 
@@ -1183,6 +1183,33 @@ fn wire__crate__api__service__ClientService_update_server_impl(
         },
     )
 }
+fn wire__crate__api__log__WriterNotifier_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "WriterNotifier_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(crate::api::log::WriterNotifier::default())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__log__WriterNotifier_new_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1690,6 +1717,17 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u16>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1772,8 +1810,8 @@ impl SseDecode for crate::api::service::ServerInfo {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_state = <crate::api::service::ServerState>::sse_decode(deserializer);
         let mut var_config = <crate::api::wrappers::ServerConfig>::sse_decode(deserializer);
-        let mut var_ip = <String>::sse_decode(deserializer);
-        let mut var_port = <u16>::sse_decode(deserializer);
+        let mut var_ip = <Option<String>>::sse_decode(deserializer);
+        let mut var_port = <Option<u16>>::sse_decode(deserializer);
         return crate::api::service::ServerInfo {
             state: var_state,
             config: var_config,
@@ -1873,11 +1911,12 @@ fn pde_ffi_dispatcher_primary_impl(
         24 => wire__crate__api__service__ClientService_stop_impl(port, ptr, rust_vec_len, data_len),
         25 => wire__crate__api__service__ClientService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
         26 => wire__crate__api__service__ClientService_update_server_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__log__WriterNotifier_default_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2407,6 +2446,16 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u16>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2468,8 +2517,8 @@ impl SseEncode for crate::api::service::ServerInfo {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::service::ServerState>::sse_encode(self.state, serializer);
         <crate::api::wrappers::ServerConfig>::sse_encode(self.config, serializer);
-        <String>::sse_encode(self.ip, serializer);
-        <u16>::sse_encode(self.port, serializer);
+        <Option<String>>::sse_encode(self.ip, serializer);
+        <Option<u16>>::sse_encode(self.port, serializer);
     }
 }
 
