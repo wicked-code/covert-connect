@@ -84,7 +84,7 @@ impl Client {
     }
 
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
-        self.info.remove_domain(domain).await?;
+        self.info.remove_domain(&domain).await?;
         self.update_router().await;
         Ok(())
     }
@@ -96,7 +96,7 @@ impl Client {
     }
 
     pub async fn remove_app(&self, app: String) -> Result<()> {
-        self.info.remove_app(app).await?;
+        self.info.remove_app(&app).await?;
         self.update_router().await;
         Ok(())
     }
