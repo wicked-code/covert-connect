@@ -1,5 +1,8 @@
 use anyhow::{Result, anyhow};
-use cc_server::{icmp::icmp_transfer, udp::{AddressOrHost, udp_transfer}};
+use cc_server::{
+    icmp::icmp_transfer,
+    udp::{AddressOrHost, udp_transfer},
+};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
@@ -115,14 +118,22 @@ impl UdpNat {
                 };
 
                 if let Some(session) = session {
-                    session.send_packet(payload, dst_address_or_host, is_icmp);
+                    if is_icmp {
+                        session.send_icmp_packet(payload);
+                    } else {
+                        session.send_udp_packet(payload, dst_address_or_host);
+                    }
                     return;
                 }
 
                 let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, is_icmp);
                 let data = stream.data();
                 self_clone.sessions.write().insert(src_addr, data.clone());
-                data.send_packet(payload, dst_address_or_host, is_icmp);
+                if is_icmp {
+                    data.send_icmp_packet(payload);
+                } else {
+                    data.send_udp_packet(payload, dst_address_or_host);
+                }
 
                 let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
                 let endpoint = format!("{host}:{}", dst_addr.port());
