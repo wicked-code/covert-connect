@@ -1,5 +1,5 @@
-use anyhow::Result;
-use cc_server::udp::udp_transfer;
+use anyhow::{Result, anyhow};
+use cc_server::{icmp::icmp_transfer, udp::{AddressOrHost, udp_transfer}};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
@@ -107,17 +107,23 @@ impl UdpNat {
             async move {
                 let is_icmp = self_clone.is_icmp;
                 let session = self_clone.sessions.read().get(&src_addr).cloned();
+
+                let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
+                let dst_address_or_host = match host {
+                    Some(ref host) => AddressOrHost::HostAndPort(format!("{}:{}", host, dst_addr.port())),
+                    None => AddressOrHost::Address(dst_addr),
+                };
+
                 if let Some(session) = session {
-                    session.send_packet(payload, dst_addr, is_icmp);
+                    session.send_packet(payload, dst_address_or_host, is_icmp);
                     return;
                 }
 
                 let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, is_icmp);
                 let data = stream.data();
                 self_clone.sessions.write().insert(src_addr, data.clone());
-                data.send_packet(payload, dst_addr, is_icmp);
+                data.send_packet(payload, dst_address_or_host, is_icmp);
 
-                let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
                 let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
                 let endpoint = format!("{host}:{}", dst_addr.port());
 
@@ -185,9 +191,16 @@ impl UdpNat {
             }
         };
 
+        let egress_clone = self.egress.clone();
         select! {
             _ = cancel_handle.token.cancelled() => {},
-            result = udp_transfer(client, out_socket) => {
+            result = udp_transfer(client, out_socket, async move |host_and_port| {
+                let (host, port) = host_and_port.split_once(':').ok_or_else(|| anyhow!("invalid host:port format: {}", host_and_port))?;
+                let port: u16 = port.parse().map_err(|_| anyhow!("invalid port: {}", port))?;
+                let address = egress_clone.lookup_host(host).await?.ok_or_else(|| anyhow!("lookup failed for {}", host))?;
+
+                Ok(SocketAddr::new(address, port))
+            }) => {
                 if let Err(err) = result {
                     tracing::warn!("Direct connection (UDP) io error: {:?}, target: {} ({})", err, target, host);
                 }
@@ -219,7 +232,7 @@ impl UdpNat {
 
         select! {
             _ = cancel_handle.token.cancelled() => {},
-            result = udp_transfer(client, out_socket) => {
+            result = icmp_transfer(client, out_socket) => {
                 if let Err(err) = result {
                     tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {} ({})", err, target, host);
                 }

@@ -198,7 +198,11 @@ async fn start_tunnel(
 
         tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
 
-        udp_transfer(&mut client, socket).await?;
+        let prefer_v4 = cfg.egress.prefer_v4;
+        udp_transfer(&mut client, socket, async move |host_and_port: &str| {
+            lookup_host_single(host_and_port, prefer_v4).await
+        })
+        .await?;
     } else if is_icmp {
         let (domain, protocol) = if addr.is_ipv4() {
             (Domain::IPV4, Protocol::ICMPV4)
@@ -243,7 +247,11 @@ async fn start_tunnel(
             .await
             .with_context(|| format!("Failed to connect TCP to {:?}", addr))?;
 
-        tracing::info!("CONNECT from {socket_addr} to {host} ({}) bind to {:?}", addr.ip(), bind_addr);
+        tracing::info!(
+            "CONNECT from {socket_addr} to {host} ({}) bind to {:?}",
+            addr.ip(),
+            bind_addr
+        );
 
         tokio::io::copy_bidirectional(&mut client, &mut out_stream).await?;
     }
@@ -405,19 +413,21 @@ pub async fn serve(cfg: AppConfig, url_path: String, upgrade_support: bool) -> R
     }
 }
 
-async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr, Option<SocketAddr>)> {
-    let addr = lookup_host(&host)
+async fn lookup_host_single(host: &str, prefer_v4: bool) -> Result<SocketAddr> {
+    lookup_host(&host)
         .await?
         .reduce(|acc, val| {
-            if (egress.prefer_v4 && acc.is_ipv6() && val.is_ipv4())
-                || (!egress.prefer_v4 && acc.is_ipv4() && val.is_ipv6())
-            {
+            if (prefer_v4 && acc.is_ipv6() && val.is_ipv4()) || (!prefer_v4 && acc.is_ipv4() && val.is_ipv6()) {
                 val
             } else {
                 acc
             }
         })
-        .ok_or_else(|| anyhow!("host {host} notfound"))?;
+        .ok_or_else(|| anyhow!("host {host} notfound"))
+}
+
+async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr, Option<SocketAddr>)> {
+    let addr = lookup_host_single(&host, egress.prefer_v4).await?;
 
     if egress.ipv4.is_none() && egress.ipv6.is_none() {
         return Ok((addr, None));
@@ -426,12 +436,12 @@ async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr
     if addr.is_ipv4() {
         match egress.ipv4 {
             Some(bind_v4) => Ok((addr, Some(SocketAddr::V4(SocketAddrV4::new(bind_v4, 0))))),
-            None => anyhow::bail!("no egress address for IPv4, but IPv6 egress is set, droping connection")
+            None => anyhow::bail!("no egress address for IPv4, but IPv6 egress is set, droping connection"),
         }
     } else {
         match egress.ipv6 {
             Some(bind_v6) => Ok((addr, Some(SocketAddr::V6(SocketAddrV6::new(bind_v6, 0, 0, 0))))),
-            None => anyhow::bail!("no egress address for IPv6, but IPv4 egress is set, droping connection")
+            None => anyhow::bail!("no egress address for IPv6, but IPv4 egress is set, droping connection"),
         }
     }
 }

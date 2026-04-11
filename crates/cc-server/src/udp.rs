@@ -1,5 +1,7 @@
-
-use std::{net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr}, sync::Arc};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
+};
 
 use anyhow::{Result, bail};
 use net_packet::MAX_PACKET_SIZE;
@@ -8,7 +10,11 @@ use tokio::{
     net::UdpSocket,
 };
 
-pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socket: UdpSocket) -> Result<()> {
+pub async fn udp_transfer(
+    client: impl AsyncRead + AsyncWrite + Unpin,
+    out_socket: UdpSocket,
+    lookup: impl AsyncFn(&str) -> Result<SocketAddr>,
+) -> Result<()> {
     let (mut reader, mut writer) = tokio::io::split(client);
     let out_socket = Arc::new(out_socket);
 
@@ -19,13 +25,15 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
             loop {
                 // Read length header — clean EOF on first byte means transfer done
                 let n = reader.read(&mut buf[..2]).await?;
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 if n < 2 {
                     reader.read_exact(&mut buf[1..2]).await?;
                 }
                 let len = ((buf[0] as usize) << 8) + buf[1] as usize;
                 reader.read_exact(&mut buf[..len]).await?;
-                let (addr, payload) = match address_from_buf(&mut buf[..len]) {
+                let (addr, payload) = match address_from_buf_with_lookup(&mut buf[..len], &lookup).await {
                     Ok(result) => result,
                     Err(err) => {
                         tracing::error!("{:?}", err);
@@ -48,7 +56,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
                     let wr_buff = &mut buf[12..n + 21];
                     wr_buff[0] = ((len >> 8) & 0xff) as u8;
                     wr_buff[1] = (len & 0xff) as u8;
-                    wr_buff[2] = 4; // IPv4 flag
+                    wr_buff[2] = 0; // IPv4 flag
                     wr_buff[3] = (addr.port() >> 8) as u8;
                     wr_buff[4] = addr.port() as u8;
                     wr_buff[5..9].copy_from_slice(&addr.ip().octets());
@@ -58,7 +66,7 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
                     let len = n + 19;
                     buf[0] = ((len >> 8) & 0xff) as u8;
                     buf[1] = (len & 0xff) as u8;
-                    buf[2] = 6; // IPv6 flag
+                    buf[2] = 1; // IPv6 flag
                     buf[3] = (addr.port() >> 8) as u8;
                     buf[4] = addr.port() as u8;
                     buf[5..21].copy_from_slice(&addr.ip().octets());
@@ -74,37 +82,68 @@ pub async fn udp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socke
     }
 }
 
-pub fn address_from_buf(buf: &mut [u8]) -> Result<(SocketAddr, &mut [u8])> {
+pub async fn address_from_buf_with_lookup<'a>(
+    buf: &'a mut [u8],
+    lookup: &impl AsyncFn(&str) -> Result<SocketAddr>,
+) -> Result<(SocketAddr, &'a mut [u8])> {
+    let (address, payload) = address_from_buf(buf)?;
+    match address {
+        AddressOrHost::Address(addr) => Ok((addr, payload)),
+        AddressOrHost::HostAndPort(host_and_port) => {
+            let addr = lookup(&host_and_port).await?;
+            Ok((addr, payload))
+        }
+    }
+}
+
+pub enum AddressOrHost {
+    Address(SocketAddr),
+    HostAndPort(String),
+}
+
+pub fn address_from_buf(buf: &mut [u8]) -> Result<(AddressOrHost, &mut [u8])> {
     if buf.is_empty() {
         bail!("invalid packet length");
     }
     let addr_type = buf[0];
     let buf = &mut buf[1..];
     match addr_type {
-        4 => {
+        // IPv4 flag
+        0 => {
             if buf.len() < 6 {
                 bail!("invalid IPv4 packet length: {}", buf.len());
             }
-            Ok((SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::new(buf[2], buf[3], buf[4], buf[5])),
-                ((buf[0] as u16) << 8) | (buf[1] as u16),
-            ),
-            &mut buf[6..] // skip 4-byte dest address + 2-byte dest port
+            Ok((
+                AddressOrHost::Address(SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(buf[2], buf[3], buf[4], buf[5])),
+                    ((buf[0] as u16) << 8) | (buf[1] as u16),
+                )),
+                &mut buf[6..], // skip 4-byte dest address + 2-byte dest port
             ))
-        }, // IPv4
-        6 => {
+        }
+        // IPv6 flag
+        1 => {
             if buf.len() < 18 {
                 bail!("invalid IPv6 packet length: {}", buf.len());
             }
-                    let mut addr = [0u8; 16];
-                    addr.copy_from_slice(&buf[2..18]);
-                    Ok((SocketAddr::new(
-                        IpAddr::V6(Ipv6Addr::from(addr)),
-                        ((buf[0] as u16) << 8) | (buf[1] as u16),
-                    ),
-                    &mut buf[18..] // skip 16-byte dest address + 2-byte dest port
-                ))
-        }, // IPv6
-        _ => bail!("invalid address type: {}", addr_type),
+            let mut addr = [0u8; 16];
+            addr.copy_from_slice(&buf[2..18]);
+            Ok((
+                AddressOrHost::Address(SocketAddr::new(
+                    IpAddr::V6(Ipv6Addr::from(addr)),
+                    ((buf[0] as u16) << 8) | (buf[1] as u16),
+                )),
+                &mut buf[18..], // skip 16-byte dest address + 2-byte dest port
+            ))
+        }
+        // host and port string
+        _ => {
+            let addr_len = (addr_type - 1) as usize;
+            if buf.len() <= addr_len {
+                bail!("invalid domain packet length: {}", buf.len());
+            }
+            let domain = std::str::from_utf8(&mut buf[..addr_len])?.to_string();
+            Ok((AddressOrHost::HostAndPort(domain), &mut buf[addr_len..]))
+        }
     }
 }

@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow, bail};
-use cc_server::udp::address_from_buf;
+use cc_server::udp::{AddressOrHost, address_from_buf};
 use net_packet::{
     ip::{IpHeader, IpPacket, NextHeader},
     ip_protocols,
@@ -48,31 +48,55 @@ impl UdpStreamData {
         }
     }
 
-    pub fn send_packet(&self, mut packet: Vec<u8>, dst_addr: SocketAddr, is_icmp: bool) {
-        // insert packet length in big-endian format
-        let address_len = if is_icmp {
-            0
-        } else {
-            if dst_addr.is_ipv4() { 7 } else { 19 }
-        };
-        let len = packet.len() + address_len;
-        let mut prefix = Vec::with_capacity(address_len + 2);
-        prefix.push(((len >> 8) & 0xff) as u8);
-        prefix.push((len & 0xff) as u8);
-        if !is_icmp {
-            match dst_addr {
-                SocketAddr::V4(addr) => {
-                    prefix.push(4); // IPv4 flag
-                    prefix.push((addr.port() >> 8) as u8);
-                    prefix.push(addr.port() as u8);
-                    prefix.extend_from_slice(&addr.ip().octets());
+    pub fn send_packet(&self, mut packet: Vec<u8>, dst_addr: AddressOrHost, is_icmp: bool) {
+        let mut prefix: Vec<u8>;
+        match dst_addr {
+            AddressOrHost::Address(dst_addr) => {
+                // insert packet length in big-endian format
+                let address_len = if is_icmp {
+                    0
+                } else {
+                    if dst_addr.is_ipv4() { 7 } else { 19 }
+                };
+                let len = packet.len() + address_len;
+                prefix = Vec::with_capacity(address_len + 2);
+                prefix.push(((len >> 8) & 0xff) as u8);
+                prefix.push((len & 0xff) as u8);
+                if !is_icmp {
+                    match dst_addr {
+                        SocketAddr::V4(addr) => {
+                            prefix.push(0); // IPv4 flag
+                            prefix.push((addr.port() >> 8) as u8);
+                            prefix.push(addr.port() as u8);
+                            prefix.extend_from_slice(&addr.ip().octets());
+                        }
+                        SocketAddr::V6(addr) => {
+                            prefix.push(1); // IPv6 flag
+                            prefix.push((addr.port() >> 8) as u8);
+                            prefix.push(addr.port() as u8);
+                            prefix.extend_from_slice(&addr.ip().octets());
+                        }
+                    }
                 }
-                SocketAddr::V6(addr) => {
-                    prefix.push(6); // IPv6 flag
-                    prefix.push((addr.port() >> 8) as u8);
-                    prefix.push(addr.port() as u8);
-                    prefix.extend_from_slice(&addr.ip().octets());
+            }
+            AddressOrHost::HostAndPort(host_and_port) => {
+                if is_icmp {
+                    tracing::error!("ICMP packets cannot be sent to hostnames: {}", host_and_port);
+                    return;
                 }
+
+                let address_len = host_and_port.len() + 1; // +1 for host and port string flag
+                prefix = Vec::with_capacity(address_len + 2);
+                if host_and_port.len() == 0 {
+                    tracing::error!("Host and port string cannot be empty");
+                    return;
+                }
+
+                let len = packet.len() + address_len;
+                prefix.push(((len >> 8) & 0xff) as u8);
+                prefix.push((len & 0xff) as u8);
+                prefix.push((host_and_port.len() + 1) as u8); // host and port string flag
+                prefix.extend_from_slice(host_and_port.as_bytes());
             }
         }
         packet.splice(0..0, prefix);
@@ -192,11 +216,18 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
                 }
             };
 
-            // swap src and dst, because it's NAT, and packet is from dst to src
-            match IpPacket::build(ip_protocols::UDP, dst_addr, this.src_addr, packet) {
-                Ok(packet) => Self::send_packet(this.writer.clone(), packet),
-                Err(e) => tracing::warn!("Failed to build IP packet: {:?}", e),
-            }
+            match dst_addr {
+                AddressOrHost::Address(dst_addr) => {
+                    // swap src and dst, because it's NAT, and packet is from dst to src
+                    match IpPacket::build(ip_protocols::UDP, dst_addr, this.src_addr, packet) {
+                        Ok(packet) => Self::send_packet(this.writer.clone(), packet),
+                        Err(e) => tracing::warn!("Failed to build IP packet: {:?}", e),
+                    }
+                }
+                AddressOrHost::HostAndPort(value) => {
+                    tracing::error!("Domain addresses are not supported in UDP stream: {}", value);
+                }
+            };
         }
         data.drain(..chunk_len);
 
@@ -329,6 +360,10 @@ mod tests {
         "127.0.0.1:1234".parse().unwrap()
     }
 
+    fn test_addr_or_host() -> AddressOrHost {
+        AddressOrHost::Address(test_addr())
+    }
+
     fn test_addr2() -> SocketAddr {
         "127.0.0.2:1235".parse().unwrap()
     }
@@ -356,13 +391,13 @@ mod tests {
         let mut body = Vec::new();
         match dst_addr {
             SocketAddr::V4(addr) => {
-                body.push(4);
+                body.push(0);
                 body.push((addr.port() >> 8) as u8);
                 body.push(addr.port() as u8);
                 body.extend_from_slice(&addr.ip().octets());
             }
             SocketAddr::V6(addr) => {
-                body.push(6);
+                body.push(1);
                 body.push((addr.port() >> 8) as u8);
                 body.push(addr.port() as u8);
                 body.extend_from_slice(&addr.ip().octets());
@@ -391,7 +426,7 @@ mod tests {
         // Spawn a task that sends a packet after a short delay
         tokio::spawn(async move {
             sleep(Duration::from_millis(50)).await;
-            data.send_packet(vec![0xAA, 0xBB], test_addr(), false);
+            data.send_packet(vec![0xAA, 0xBB], test_addr_or_host(), false);
         });
 
         // This read will initially pend, then wake up when the packet arrives
@@ -401,7 +436,7 @@ mod tests {
         assert_eq!(n, 11);
         assert_eq!(
             &buf[..n],
-            &[0x00, 0x09, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0xAA, 0xBB]
+            &[0x00, 0x09, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0xAA, 0xBB]
         );
     }
 
@@ -420,7 +455,7 @@ mod tests {
             let data = data.clone();
             tokio::spawn(async move {
                 sleep(Duration::from_millis(5 * i)).await;
-                data.send_packet(vec![i as u8], test_addr(), false);
+                data.send_packet(vec![i as u8], test_addr_or_host(), false);
             });
         }
 
@@ -482,7 +517,7 @@ mod tests {
     #[tokio::test]
     async fn poll_read_returns_data_when_packet_available() {
         let mut stream = new_stream();
-        stream.data.send_packet(vec![0x01, 0x02, 0x03], test_addr(), false);
+        stream.data.send_packet(vec![0x01, 0x02, 0x03], test_addr_or_host(), false);
 
         let mut buf = vec![0u8; 64];
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
@@ -490,7 +525,7 @@ mod tests {
         assert_eq!(n, 12);
         assert_eq!(
             &buf[..n],
-            &[0x00, 0x0A, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03]
+            &[0x00, 0x0A, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03]
         );
     }
 
@@ -500,14 +535,14 @@ mod tests {
         let mut stream = new_stream();
         stream
             .data
-            .send_packet(vec![0xAA, 0xBB, 0xCC, 0xDD], test_addr(), false);
+            .send_packet(vec![0xAA, 0xBB, 0xCC, 0xDD], test_addr_or_host(), false);
         // 4-byte payload + 9-byte metadata prefix = 13 bytes
 
         // Read with 3-byte buffer
         let mut buf = vec![0u8; 3];
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
         assert_eq!(n, 3);
-        assert_eq!(&buf[..n], &[0x00, 0x0B, 0x04]);
+        assert_eq!(&buf[..n], &[0x00, 0x0B, 0x00]);
 
         // Continue reading the rest
         let mut buf = vec![0u8; 64];
@@ -520,8 +555,8 @@ mod tests {
     #[tokio::test]
     async fn poll_read_multiple_packets_sequential() {
         let mut stream = new_stream();
-        stream.data.send_packet(vec![0x11], test_addr(), false);
-        stream.data.send_packet(vec![0x22], test_addr(), false);
+        stream.data.send_packet(vec![0x11], test_addr_or_host(), false);
+        stream.data.send_packet(vec![0x22], test_addr_or_host(), false);
 
         let mut buf = vec![0u8; 64];
 
@@ -539,14 +574,14 @@ mod tests {
     #[tokio::test]
     async fn poll_read_drains_packets_before_eof() {
         let mut stream = new_stream();
-        stream.data.send_packet(vec![0x42], test_addr(), false);
+        stream.data.send_packet(vec![0x42], test_addr_or_host(), false);
         stream.data.done();
 
         let mut buf = vec![0u8; 64];
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
         // 1-byte payload + 9-byte metadata prefix
         assert_eq!(n, 10);
-        assert_eq!(&buf[..n], &[0x00, 0x08, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0x42]);
+        assert_eq!(&buf[..n], &[0x00, 0x08, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0x42]);
 
         // Now EOF
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
@@ -675,11 +710,11 @@ mod tests {
     #[test]
     fn send_packet_prepends_big_endian_length() {
         let data = UdpStreamData::new();
-        data.send_packet(vec![0xAA, 0xBB, 0xCC], test_addr(), false);
+        data.send_packet(vec![0xAA, 0xBB, 0xCC], test_addr_or_host(), false);
         let packets = data.packets_to_send.lock();
         assert_eq!(
             packets[0],
-            vec![0x00, 0x0A, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0xAA, 0xBB, 0xCC]
+            vec![0x00, 0x0A, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0xAA, 0xBB, 0xCC]
         );
     }
 
@@ -687,12 +722,12 @@ mod tests {
     fn send_packet_large_length() {
         let data = UdpStreamData::new();
         let payload = vec![0x42; 300];
-        data.send_packet(payload.clone(), test_addr(), false);
+        data.send_packet(payload.clone(), test_addr_or_host(), false);
         let packets = data.packets_to_send.lock();
         // 300-byte payload with IPv4 prefix: len = 300 + 7 = 307 = 0x0133
         assert_eq!(
             &packets[0][..9],
-            &[0x01, 0x33, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01]
+            &[0x01, 0x33, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01]
         );
         assert_eq!(&packets[0][9..], &payload[..]);
     }
@@ -700,10 +735,10 @@ mod tests {
     #[test]
     fn send_packet_empty_payload() {
         let data = UdpStreamData::new();
-        data.send_packet(vec![], test_addr(), false);
+        data.send_packet(vec![], test_addr_or_host(), false);
         let packets = data.packets_to_send.lock();
         // empty payload with IPv4 prefix: len = 7
-        assert_eq!(packets[0], vec![0x00, 0x07, 0x04, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01]);
+        assert_eq!(packets[0], vec![0x00, 0x07, 0x00, 0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01]);
     }
 
     #[test]
@@ -719,13 +754,13 @@ mod tests {
         let data = UdpStreamData::new();
         let t1 = data.last_active();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        data.send_packet(vec![1], test_addr(), false);
+        data.send_packet(vec![1], test_addr_or_host(), false);
         assert!(data.last_active() > t1);
     }
 
     #[test]
     fn send_packet_no_waker_no_panic() {
         let data = UdpStreamData::new();
-        data.send_packet(vec![1], test_addr(), false);
+        data.send_packet(vec![1], test_addr_or_host(), false);
     }
 }
