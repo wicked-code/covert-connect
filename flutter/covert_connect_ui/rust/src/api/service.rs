@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use auto_launch::{AutoLaunch, AutoLaunchBuilder};
+use auto_launch::{AutoLaunch, AutoLaunchBuilder, MacOSLaunchMode};
 use std::env;
 use std::sync::{atomic::Ordering, Arc, OnceLock};
 use tokio::net::lookup_host;
@@ -274,7 +274,7 @@ impl ProxyService {
         let auto = AutoLaunchBuilder::new()
             .set_app_name(&format!("covert-connect-{}", env!("CARGO_PKG_VERSION")))
             .set_app_path(path_str)
-            .set_use_launch_agent(true)
+            .set_macos_launch_mode(MacOSLaunchMode::LaunchAgent)
             .build()?;
         Ok(auto)
     }

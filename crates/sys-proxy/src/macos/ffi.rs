@@ -20,14 +20,14 @@ pub enum nw_path_monitor {}
 pub type nw_path_monitor_t = *mut nw_path_monitor;
 
 #[link(name = "System", kind = "dylib")]
-extern {
+unsafe extern "C" {
     static _dispatch_queue_attr_concurrent: dispatch_object_s;
 
     pub fn dispatch_queue_create(label: *const c_char, attr: dispatch_queue_attr_t) -> dispatch_queue_t;
 }
 
 #[link(name = "Network", kind = "framework")]
-extern {
+unsafe extern "C" {
      pub fn nw_path_monitor_create() -> nw_path_monitor_t;
 
     // Obj-c signature:

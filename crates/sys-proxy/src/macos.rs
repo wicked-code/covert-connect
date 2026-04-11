@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow, bail};
 use parking_lot::Mutex;
 use std::{ffi::OsStr, mem, net::IpAddr, process::Command, str::FromStr, sync::Arc};
 
@@ -55,9 +55,18 @@ impl SystemProxy {
 
 impl SytemProxyInner {
     fn set_pac(&self, auto_config_url: &str) -> Result<()> {
+        let mut set_count = 0;
         let services = get_services(true)?;
         for service in services {
-            networksetup_with_check([SET_PAC, &service, auto_config_url])?;
+            if let Err(err) = networksetup_with_check([SET_PAC, &service, auto_config_url]) {
+                tracing::warn!("netsetup PAC failed for {}, err: {:?}", service, err);
+            } else {
+                set_count += 1;
+            }
+        }
+
+        if set_count == 0 {
+            bail!("Unable to set PACK");
         }
 
         let new_state = ProxyState::Pac(auto_config_url.to_owned());
@@ -78,9 +87,18 @@ impl SytemProxyInner {
             anyhow::bail!("set_proxy: invalid address");
         }
 
+        let mut set_count = 0;
         let services = get_services(true)?;
         for service in services {
-            networksetup_with_check([SET_HTTPS, &service, domain, port, STATE_OFF])?;
+            if let Err(err) = networksetup_with_check([SET_HTTPS, &service, domain, port, STATE_OFF]) {
+                tracing::warn!("netsetup Proxy failed for {}, err: {:?}", service, err);
+            } else {
+                set_count += 1;
+            }
+        }
+
+        if set_count == 0 {
+            bail!("Unable to set Proxy");
         }
 
         let new_state = ProxyState::Proxy(address.to_owned());
@@ -118,17 +136,22 @@ impl SytemProxyInner {
 }
 
 fn restore(state: ProxyState) -> Result<()> {
+    let mut set_count = 0;
     let services = get_services(false)?;
     for service in &services {
-        match state {
-            ProxyState::Off => {}
-            ProxyState::Pac(_) => {
-                networksetup_with_check([SET_PAC_STATE, service, STATE_OFF])?;
-            }
-            ProxyState::Proxy(_) => {
-                networksetup_with_check([SET_HTTPS_STATE, service, STATE_OFF])?;
-            }
+        if let Err(err) = match state {
+            ProxyState::Off => Ok(()),
+            ProxyState::Pac(_) => networksetup_with_check([SET_PAC_STATE, service, STATE_OFF]),
+            ProxyState::Proxy(_) => networksetup_with_check([SET_HTTPS_STATE, service, STATE_OFF]),
+        } {
+            tracing::warn!("netsetup Reset failed for {}, err: {:?}", service, err);
+        } else {
+            set_count += 1;
         }
+    }
+
+    if set_count == 0 {
+        bail!("Unable to restore");
     }
 
     Ok(())
@@ -155,7 +178,7 @@ where
 fn get_services(active_only: bool) -> Result<Vec<String>> {
     let output = String::from_utf8(networksetup().args([LIST_SERVICES]).output()?.stdout)?;
 
-    let services = output.lines().map(|l| l.to_owned());
+    let services = output.lines().map(|l| l.to_owned()).filter(|s| !s.starts_with("An asterisk"));
     let services = if active_only {
         services.filter(|service| is_service_active(service)).collect()
     } else {
@@ -166,12 +189,20 @@ fn get_services(active_only: bool) -> Result<Vec<String>> {
 }
 
 fn is_service_active(service: &str) -> bool {
+    if service.contains('*') {
+        return false;
+    }
+
     let output = get_info(service);
     if output.is_err() {
-        return true;
+        return false;
     }
 
     let output = output.unwrap();
+    if output.contains("Error") || output.contains("error") {
+        return false;
+    }
+
     let lines = output.lines();
     for line in lines {
         if !line.contains("IP address") {
