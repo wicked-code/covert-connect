@@ -196,7 +196,7 @@ async fn start_tunnel(
             .await
             .with_context(|| format!("Failed to bind UDP to {:?}", bind_addr))?;
 
-        tracing::info!("CONNECT (UDP) from {socket_addr} to {addr}");
+        tracing::info!("CONNECT (UDP) from {socket_addr} to {host} ({addr})");
 
         let prefer_v4 = cfg.egress.prefer_v4;
         udp_transfer(&mut client, socket, async move |host_and_port: &str| {
