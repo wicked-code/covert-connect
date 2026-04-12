@@ -1,8 +1,5 @@
 use anyhow::{Result, anyhow};
-use cc_server::{
-    icmp::icmp_transfer,
-    udp::{AddressOrHost, udp_transfer},
-};
+use cc_server::{icmp::icmp_transfer, udp::udp_transfer};
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
@@ -16,7 +13,7 @@ use crate::{
     egress::Egress,
     protocol::DataProtocol,
     router::Router,
-    streams::udp_stream::{UdpStream, UdpStreamData},
+    streams::udp_stream::{AddressOrHostWithOrig, UdpStream, UdpStreamData},
     tun::dns_mapper::DnsMapper,
     utils::{cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask},
 };
@@ -113,8 +110,8 @@ impl UdpNat {
 
                 let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
                 let dst_address_or_host = match host {
-                    Some(ref host) => AddressOrHost::HostAndPort(format!("{}:{}", host, dst_addr.port())),
-                    None => AddressOrHost::Address(dst_addr),
+                    Some(ref host) => AddressOrHostWithOrig::new(host.clone(), dst_addr),
+                    None => AddressOrHostWithOrig::Address(dst_addr),
                 };
 
                 if let Some(session) = session {

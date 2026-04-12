@@ -5,6 +5,7 @@ use net_packet::{
     ip_protocols,
 };
 use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 use std::{
     io,
     net::{IpAddr, SocketAddr},
@@ -15,11 +16,22 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
+pub struct HostWithOrigAddr {
+    host: String,
+    addr_orig: SocketAddr,
+}
+
+pub enum AddressOrHostWithOrig {
+    Address(SocketAddr),
+    Host(HostWithOrigAddr),
+}
+
 pub struct UdpStreamData {
     packets_to_send: Mutex<Vec<Vec<u8>>>,
     waker: Mutex<Option<Waker>>,
     done: Mutex<bool>,
     last_active: Mutex<std::time::Instant>,
+    host_addr_map: Mutex<FxHashMap<String, SocketAddr>>,
 }
 
 pub struct UdpStream<W: AsyncWrite + Clone> {
@@ -38,6 +50,12 @@ enum ReadState {
     Wait,
 }
 
+impl AddressOrHostWithOrig {
+    pub fn new(host: String, addr_orig: SocketAddr) -> Self {
+        AddressOrHostWithOrig::Host(HostWithOrigAddr { host, addr_orig })
+    }
+}
+
 impl UdpStreamData {
     pub fn new() -> Self {
         Self {
@@ -45,6 +63,7 @@ impl UdpStreamData {
             waker: Mutex::new(None),
             done: Mutex::new(false),
             last_active: Mutex::new(std::time::Instant::now()),
+            host_addr_map: Mutex::new(FxHashMap::default()),
         }
     }
 
@@ -56,44 +75,53 @@ impl UdpStreamData {
         self.send_packet(packet, prefix);
     }
 
-    pub fn send_udp_packet(&self, packet: Vec<u8>, dst_addr: AddressOrHost) {
+    pub fn send_udp_packet(&self, packet: Vec<u8>, dst_addr: AddressOrHostWithOrig) {
+        fn push_len_flag_port(buf: &mut Vec<u8>, len: usize, flag: u8, port: u16) {
+            buf.push(((len >> 8) & 0xff) as u8);
+            buf.push((len & 0xff) as u8);
+            buf.push(flag);
+            buf.push((port >> 8) as u8);
+            buf.push((port & 0xff) as u8);
+        }
+
         let mut prefix: Vec<u8>;
         match dst_addr {
-            AddressOrHost::Address(dst_addr) => {
+            AddressOrHostWithOrig::Address(dst_addr) => {
                 // insert packet length in big-endian format
                 let address_len = if dst_addr.is_ipv4() { 7 } else { 19 };
                 let len = packet.len() + address_len;
                 prefix = Vec::with_capacity(address_len + 2);
-                prefix.push(((len >> 8) & 0xff) as u8);
-                prefix.push((len & 0xff) as u8);
                 match dst_addr {
                     SocketAddr::V4(addr) => {
-                        prefix.push(0); // IPv4 flag
-                        prefix.push((addr.port() >> 8) as u8);
-                        prefix.push(addr.port() as u8);
+                        push_len_flag_port(&mut prefix, len, 0 /* IPv4 flag */, addr.port());
                         prefix.extend_from_slice(&addr.ip().octets());
                     }
                     SocketAddr::V6(addr) => {
-                        prefix.push(1); // IPv6 flag
-                        prefix.push((addr.port() >> 8) as u8);
-                        prefix.push(addr.port() as u8);
+                        push_len_flag_port(&mut prefix, len, 1 /* IPv6 flag */, addr.port());
                         prefix.extend_from_slice(&addr.ip().octets());
                     }
                 }
             }
-            AddressOrHost::HostAndPort(host_and_port) => {
-                let address_len = host_and_port.len() + 1; // +1 for host and port string flag
-                prefix = Vec::with_capacity(address_len + 2);
-                if host_and_port.len() == 0 {
+            AddressOrHostWithOrig::Host(value) => {
+                self.host_addr_map
+                    .lock()
+                    .insert(format!("{}:{}", value.host, value.addr_orig.port()), value.addr_orig);
+
+                let host_len = value.host.len();
+                if host_len == 0 {
                     tracing::error!("Host and port string cannot be empty");
                     return;
                 }
+                if host_len > 254 {
+                    tracing::error!("UDP stream, Host too long: {}, max is 254", host_len);
+                    return;
+                }
 
+                let address_len = host_len + 1 + 2; // + 1 byte flag, + 2 bytes port
+                prefix = Vec::with_capacity(address_len + 2);
                 let len = packet.len() + address_len;
-                prefix.push(((len >> 8) & 0xff) as u8);
-                prefix.push((len & 0xff) as u8);
-                prefix.push((host_and_port.len() + 1) as u8); // host and port string flag
-                prefix.extend_from_slice(host_and_port.as_bytes());
+                push_len_flag_port(&mut prefix, len, (host_len + 1) as u8, value.addr_orig.port());
+                prefix.extend_from_slice(value.host.as_bytes());
             }
         }
         self.send_packet(packet, prefix);
@@ -226,7 +254,22 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
                     }
                 }
                 AddressOrHost::HostAndPort(value) => {
-                    tracing::error!("Domain addresses are not supported in UDP stream: {}", value);
+                    let host_and_port = value.to_string();
+                    let addr = this.data.host_addr_map.lock().get(&host_and_port).copied();
+                    match addr {
+                        Some(addr) => {
+                            // swap src and dst, because it's NAT, and packet is from dst to src
+                            match IpPacket::build(ip_protocols::UDP, addr, this.src_addr, packet) {
+                                Ok(packet) => Self::send_packet(this.writer.clone(), packet),
+                                Err(e) => tracing::warn!("Failed to build IP packet: {:?}", e),
+                            }
+                        }
+                        None => tracing::error!(
+                            "UDP address from host not found for {}, orig dest: {}",
+                            host_and_port,
+                            this.dst_addr
+                        ),
+                    }
                 }
             };
         }
@@ -361,8 +404,8 @@ mod tests {
         "127.0.0.1:1234".parse().unwrap()
     }
 
-    fn test_addr_or_host() -> AddressOrHost {
-        AddressOrHost::Address(test_addr())
+    fn test_addr_or_host() -> AddressOrHostWithOrig {
+        AddressOrHostWithOrig::Address(test_addr())
     }
 
     fn test_addr2() -> SocketAddr {
@@ -518,9 +561,7 @@ mod tests {
     #[tokio::test]
     async fn poll_read_returns_data_when_packet_available() {
         let mut stream = new_stream();
-        stream
-            .data
-            .send_udp_packet(vec![0x01, 0x02, 0x03], test_addr_or_host());
+        stream.data.send_udp_packet(vec![0x01, 0x02, 0x03], test_addr_or_host());
 
         let mut buf = vec![0u8; 64];
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();

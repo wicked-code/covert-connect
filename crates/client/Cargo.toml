@@ -24,6 +24,7 @@ parking_lot.workspace = true
 const_format.workspace = true
 num_enum.workspace = true
 socket2.workspace = true
+rustc-hash.workspace = true
 
 tokio-rustls.workspace = true
 webpki-roots.workspace = true
@@ -41,7 +42,6 @@ tun = {git = "https://github.com/wicked-code/rust-tun", features = ["async"]}
 futures-util = "0.3.32"
 tokio-util = "0.7.18"
 network-interface = "2.0.5"
-rustc-hash = "2.1.1"
 arc-swap = "1.9.0"
 net-route = "0.4.6"
 
