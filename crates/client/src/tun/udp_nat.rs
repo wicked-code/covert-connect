@@ -225,7 +225,7 @@ impl UdpNat {
     ) {
         tracing::info!("Direct connection (ICMP) to {} ({})", target, host);
 
-        let out_socket = match self.egress.bind_icmp(target).await {
+        let out_socket = match self.egress.connect_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!(
