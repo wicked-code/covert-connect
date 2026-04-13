@@ -13,6 +13,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
+    time::{Duration, Instant},
     vec,
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
@@ -31,7 +32,7 @@ pub struct UdpStreamData {
     packets_to_send: Mutex<Vec<Vec<u8>>>,
     waker: Mutex<Option<Waker>>,
     done: Mutex<bool>,
-    last_active: Mutex<std::time::Instant>,
+    last_active: Mutex<Instant>,
     host_addr_map: Mutex<FxHashMap<String, SocketAddr>>,
 }
 
@@ -63,7 +64,7 @@ impl UdpStreamData {
             packets_to_send: Mutex::new(Vec::new()),
             waker: Mutex::new(None),
             done: Mutex::new(false),
-            last_active: Mutex::new(std::time::Instant::now()),
+            last_active: Mutex::new(Instant::now()),
             host_addr_map: Mutex::new(FxHashMap::default()),
         }
     }
@@ -130,7 +131,6 @@ impl UdpStreamData {
 
     fn send_packet(&self, mut packet: Vec<u8>, prefix: Vec<u8>) {
         packet.splice(0..0, prefix);
-        *self.last_active.lock() = std::time::Instant::now();
         self.packets_to_send.lock().push(packet);
         let waker = self.waker.lock();
         if let Some(waker) = &*waker {
@@ -146,8 +146,12 @@ impl UdpStreamData {
         }
     }
 
-    pub fn last_active(&self) -> std::time::Instant {
+    pub fn last_active(&self) -> Instant {
         *self.last_active.lock()
+    }
+
+    pub fn last_active_expire(&self, expire_duration: Duration) {
+        *self.last_active.lock() = Instant::now() - expire_duration;
     }
 }
 
@@ -210,6 +214,10 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
     fn poll_write(self: Pin<&mut Self>, _cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, io::Error>> {
         let this = self.get_mut();
         let data = &mut this.write_data;
+
+        if buf.len() > 0 {
+            *this.data.last_active.lock() = std::time::Instant::now();
+        }
 
         data.extend_from_slice(buf);
         if data.len() < 2 {
@@ -297,7 +305,7 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> UdpStream<W> {
 
 pub fn icmp_to_icmp(packet: &mut [u8], src_addr: SocketAddr, dst_addr: SocketAddr) -> Result<Vec<u8>> {
     let replay_type = if src_addr.is_ipv4() { 0 } else { 129 };
-    
+
     // in case of ICMP payload is full L3 packet, because of raw socket
     let next_header = match IpPacket::try_from(packet) {
         Ok(ip) => ip.next_header,

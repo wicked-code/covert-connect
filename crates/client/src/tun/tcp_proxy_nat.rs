@@ -30,7 +30,7 @@ const MAX_NAT_PORT: u16 = 65535;
 const BIND_TIMEOUT: Duration = Duration::from_millis(1000);
 const MAX_BIND_ATTEMPTS: u32 = 15;
 
-const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 pub struct TcpProxySession {
     pub src_addr: SocketAddr,

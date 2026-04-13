@@ -20,6 +20,7 @@ use crate::{
 
 // TODO: move to settings
 const SESSION_CLOSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+const SESSION_CLOSE_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
 
 pub struct UdpNat {
     sessions: RwLock<FxHashMap<SocketAddr, Arc<UdpStreamData>>>,
@@ -50,7 +51,7 @@ impl UdpNat {
 
         let self_clone = self.clone();
         self.session_closer.spawn(|token| async move {
-            let mut interval = tokio::time::interval(SESSION_CLOSE_TIMEOUT);
+            let mut interval = tokio::time::interval(SESSION_CLOSE_CHECK_INTERVAL);
             let mut delete_sessions: Vec<Arc<UdpStreamData>> = Vec::new();
             loop {
                 for session in &delete_sessions {
@@ -173,6 +174,8 @@ impl UdpNat {
                         );
                     }
                 }
+
+                data.last_active_expire(SESSION_CLOSE_TIMEOUT);
             }
         });
     }
