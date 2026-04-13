@@ -2,14 +2,14 @@ use std::net::{IpAddr, SocketAddr};
 
 use crate::{
     hopbyhop::HopByHopHeader,
-    icmpv4::Icmpv4Header,
-    icmpv6::Icmpv6Header,
+    icmpv4::{ICMPV4_HEADER_LEN, Icmpv4Header},
+    icmpv6::{ICMPV6_HEADER_LEN, Icmpv6Header},
     igmp::IgmpHeader,
-    ip_protocols,
+    ip_protocols::{self},
     ipv4::{IPV4_MIN_HEADER_LEN, Ipv4Header},
     ipv6::{IPV6_HEADER_LEN, Ipv6Header},
     tcp::TcpHeader,
-    udp::{UdpHeader, UDP_HEADER_LEN},
+    udp::{UDP_HEADER_LEN, UdpHeader},
 };
 use anyhow::{Result, bail};
 
@@ -68,8 +68,12 @@ impl<'a> IpPacket<'a> {
             let mut header = Ipv4Header::new(&mut packet)?;
             header.set_version(4);
             header.set_ihl((IPV4_MIN_HEADER_LEN / 4) as u8);
-            if let IpAddr::V4(addr) = src_addr.ip() { header.set_src_addr(addr); }
-            if let IpAddr::V4(addr) = dst_addr.ip() { header.set_dst_addr(addr); }
+            if let IpAddr::V4(addr) = src_addr.ip() {
+                header.set_src_addr(addr);
+            }
+            if let IpAddr::V4(addr) = dst_addr.ip() {
+                header.set_dst_addr(addr);
+            }
             header.set_ttl(DEFAULT_TTL);
             header.set_protocol(protocol);
         } else {
@@ -77,8 +81,12 @@ impl<'a> IpPacket<'a> {
             let mut header = Ipv6Header::new(&mut packet)?;
             header.set_version(6);
             header.set_hop_limit(DEFAULT_TTL);
-            if let IpAddr::V6(addr) = src_addr.ip() { header.set_src_addr(addr); }
-            if let IpAddr::V6(addr) = dst_addr.ip() { header.set_dst_addr(addr); }
+            if let IpAddr::V6(addr) = src_addr.ip() {
+                header.set_src_addr(addr);
+            }
+            if let IpAddr::V6(addr) = dst_addr.ip() {
+                header.set_dst_addr(addr);
+            }
             header.set_next_header(protocol);
         }
 
@@ -103,6 +111,26 @@ impl<'a> IpPacket<'a> {
                     }
                 }
             }
+            ip_protocols::ICMP => {
+                packet.extend_from_slice(payload);
+                let mut icmp = Icmpv4Header::new(&mut packet[ip_len..])?;
+                icmp.compute_checksum(payload.len());
+            }
+            ip_protocols::ICMPV6 => {
+                let src_v6 = if let IpAddr::V6(addr) = src_addr.ip() {
+                    addr
+                } else {
+                    bail!("Expected IPv6 source address.")
+                };
+                let dst_v6 = if let IpAddr::V6(addr) = dst_addr.ip() {
+                    addr
+                } else {
+                    bail!("Expected IPv6 destination address.")
+                };
+                packet.extend_from_slice(payload);
+                let mut icmp = Icmpv6Header::new(&mut packet[ip_len..])?;
+                icmp.compute_checksum(src_v6, dst_v6, payload.len());
+            }
             _ => bail!("Unsupported IP protocol to create {}", protocol),
         }
 
@@ -118,6 +146,46 @@ impl<'a> IpPacket<'a> {
         }
 
         Ok(packet)
+    }
+
+    /// Builds a new IP packet and returns the completed buffer.
+    /// Use `IpPacket::from(&mut buf)` afterwards if you need to modify fields.
+    #[inline]
+    pub fn build_icmp(
+        code: u8,
+        tp: u8,
+        rh: u32,
+        src_addr: SocketAddr,
+        dst_addr: SocketAddr,
+        payload: &[u8],
+    ) -> Result<Vec<u8>> {
+        if src_addr.is_ipv4() != dst_addr.is_ipv4() {
+            bail!("Source and destination IP version mismatch.");
+        }
+
+        if src_addr.is_ipv4() {
+            let mut data = Vec::with_capacity(ICMPV4_HEADER_LEN + payload.len());
+            data.resize(ICMPV4_HEADER_LEN, 0);
+            data.extend_from_slice(payload);
+            let mut icmp = Icmpv4Header::new(&mut data)?;
+
+            icmp.set_type(tp);
+            icmp.set_code(code);
+            icmp.set_rest_of_header(rh);
+
+            IpPacket::build(ip_protocols::ICMP, src_addr, dst_addr, &data)
+        } else {
+            let mut data = Vec::with_capacity(ICMPV6_HEADER_LEN + payload.len());
+            data.resize(ICMPV6_HEADER_LEN, 0);
+            data.extend_from_slice(payload);
+            let mut icmp = Icmpv6Header::new(&mut data)?;
+
+            icmp.set_type(tp);
+            icmp.set_code(code);
+            icmp.set_rest_of_header(rh);
+
+            IpPacket::build(ip_protocols::ICMPV6, src_addr, dst_addr, &data)
+        }
     }
 
     /// Creates a new `IpPacket` by parsing an existing buffer.

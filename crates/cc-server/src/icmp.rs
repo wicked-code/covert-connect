@@ -10,6 +10,7 @@ use tokio::{
 pub async fn icmp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_socket: UdpSocket) -> Result<()> {
     let (mut reader, mut writer) = tokio::io::split(client);
     let out_socket = Arc::new(out_socket);
+    let is_v6 = out_socket.local_addr()?.is_ipv6();
 
     let client_to_icmp = {
         let socket = out_socket.clone();
@@ -26,6 +27,14 @@ pub async fn icmp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_sock
                 }
                 let len = ((buf[0] as usize) << 8) + buf[1] as usize;
                 reader.read_exact(&mut buf[..len]).await?;
+
+                // correct ICMP packet code (we support only Echo Request)
+                if buf[0] == 8 && is_v6 {
+                    buf[0] = 128;
+                }
+                if buf[0] == 128 && !is_v6 {
+                    buf[0] = 8;
+                }
                 socket.send(&buf[..len]).await?;
             }
             Ok(())

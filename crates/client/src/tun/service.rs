@@ -463,6 +463,11 @@ impl TunService {
         if is_local_v4(ipv4.dst_addr()) {
             return;
         }
+        // suport only Echo Request
+        // other type may cause some unexpected behavior or security issue
+        if icmp.icmp_type() != 8 {
+            return;
+        }
 
         self.icmp_nat.send(
             SocketAddr::new(IpAddr::V4(ipv4.src_addr()), 0),
@@ -477,6 +482,10 @@ impl TunService {
         icmp: &mut net_packet::icmpv6::Icmpv6Header,
     ) {
         if is_local_v6(ipv6.dst_addr()) {
+            return;
+        }
+        // suport only Echo Request
+        if icmp.icmp_type() != 128 {
             return;
         }
 

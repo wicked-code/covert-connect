@@ -1,14 +1,15 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context as AnyhowContext, Result, bail};
 use cc_server::udp::{AddressOrHost, address_from_buf};
 use net_packet::{
-    ip::{IpHeader, IpPacket, NextHeader},
+    icmpv6::Icmpv6Header,
+    ip::{IpPacket, NextHeader},
     ip_protocols,
 };
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use std::{
     io,
-    net::{IpAddr, SocketAddr},
+    net::SocketAddr,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
@@ -221,19 +222,12 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
             return Poll::Ready(Ok(buf.len()));
         }
 
-        let packet = &mut data[2..chunk_len];
+        let mut packet = &mut data[2..chunk_len];
         if this.is_icmp {
-            // in case of ICMP payload is full L3 packet, because of raw socket
-            let mut packet = packet.to_vec();
-            match IpPacket::try_from(&mut packet) {
-                Ok(ip) => {
-                    // swap src and dst, because it's NAT, and packet is from dst to src
-                    match correct_icmp_packet(ip, this.dst_addr, this.src_addr) {
-                        Ok(_) => Self::send_packet(this.writer.clone(), packet),
-                        Err(e) => tracing::warn!("Failed to correct ICMP packet: {:?}", e),
-                    }
-                }
-                Err(e) => tracing::warn!("Failed to parse ICMP packet: {:?}", e),
+            // swap src and dst, because it's NAT, and packet is from dst to src
+            match icmp_to_icmp(&mut packet, this.dst_addr, this.src_addr) {
+                Ok(packet) => Self::send_packet(this.writer.clone(), packet),
+                Err(e) => tracing::warn!("Failed to build IP packet (ICMP): {:?}", e),
             }
         } else {
             let (dst_addr, packet) = match address_from_buf(packet) {
@@ -301,50 +295,59 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> UdpStream<W> {
     }
 }
 
-fn correct_icmp_packet(ip: IpPacket, src_addr: SocketAddr, dst_addr: SocketAddr) -> Result<()> {
-    match ip.header {
-        IpHeader::V4(mut header) => {
-            let IpAddr::V4(src_addr) = src_addr.ip() else {
-                bail!("Correct icmp: src_addr is not IPv4");
-            };
-            let IpAddr::V4(dst_addr) = dst_addr.ip() else {
-                bail!("Correct icmp: dst_addr is not IPv4");
-            };
-            header.set_src_addr(src_addr);
-            header.set_dst_addr(dst_addr);
-            header.compute_checksum();
-
-            let message_len = (header.total_length() as usize)
-                .checked_sub(header.header_len())
-                .ok_or_else(|| anyhow!("Malformed IPv4: total_length < header_len"))?;
-            match ip.next_header {
-                NextHeader::Icmpv4(mut icmp_v4) => {
-                    icmp_v4.compute_checksum(message_len);
+pub fn icmp_to_icmp(packet: &mut [u8], src_addr: SocketAddr, dst_addr: SocketAddr) -> Result<Vec<u8>> {
+    let replay_type = if src_addr.is_ipv4() { 0 } else { 129 };
+    
+    // in case of ICMP payload is full L3 packet, because of raw socket
+    let next_header = match IpPacket::try_from(packet) {
+        Ok(ip) => ip.next_header,
+        Err(ip_error) => {
+            // IPv4 raw socket recv ICMP with IP header, but IPv6 raw socket recv ICMP without IP header
+            match Icmpv6Header::new(packet) {
+                Ok(icmp) => {
+                    if icmp.icmp_type() == 128 || icmp.icmp_type() == 129 {
+                        NextHeader::Icmpv6(icmp)
+                    } else {
+                        bail!("Unsupported protocol in ICMP packet, not ICMPv6 Echo Request/Reply");
+                    }
                 }
-                _ => bail!("Unsupported protocol in ICMP packet"),
+                Err(icmp_error) => bail!(
+                    "Failed to parse IP packet or ICMPv6 header, {:?}, {:?}",
+                    ip_error,
+                    icmp_error
+                ),
             }
         }
-        IpHeader::V6(mut header) => {
-            let IpAddr::V6(src_addr) = src_addr.ip() else {
-                bail!("Correct icmp: src_addr is not IPv6");
-            };
-            let IpAddr::V6(dst_addr) = dst_addr.ip() else {
-                bail!("Correct icmp: dst_addr is not IPv6");
-            };
-            header.set_src_addr(src_addr);
-            header.set_dst_addr(dst_addr);
-
-            let message_len = header.payload_length() as usize;
-            match ip.next_header {
-                NextHeader::Icmpv6(mut icmp_v6) => {
-                    icmp_v6.compute_checksum(src_addr, dst_addr, message_len);
-                }
-                _ => bail!("Unsupported protocol in ICMP packet"),
-            }
+    };
+    match next_header {
+        // suport only Echo Reply, other type may cause some unexpected behavior or security issue
+        NextHeader::Icmpv4(icmp) if icmp.icmp_type() == 0 => {
+            // swap src and dst, because it's NAT, and packet is from dst to src
+            IpPacket::build_icmp(
+                icmp.code(),
+                replay_type,
+                icmp.rest_of_header(),
+                src_addr,
+                dst_addr,
+                icmp.payload(),
+            )
+            .with_context(|| "ICMP build packet")
         }
+        // suport only Echo Reply, other type may cause some unexpected behavior or security issue
+        NextHeader::Icmpv6(icmp) if icmp.icmp_type() == 129 => {
+            // swap src and dst, because it's NAT, and packet is from dst to src
+            IpPacket::build_icmp(
+                icmp.code(),
+                replay_type,
+                icmp.rest_of_header(),
+                src_addr,
+                dst_addr,
+                icmp.payload(),
+            )
+            .with_context(|| "ICMP build packet")
+        }
+        _ => bail!("Unsupported protocol in ICMP packet"),
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
