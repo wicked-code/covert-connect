@@ -87,7 +87,7 @@ async fn start_tunnel(
 
         // header should be written in one call
         terminate_slowly(stream, unauth_cooldown).await;
-        anyhow::bail!("wrong header packet size");
+        anyhow::bail!("wrong header packet size, from {socket_addr}");
     }
 
     let mut header = data.split_to(main_header_len);
@@ -121,7 +121,7 @@ async fn start_tunnel(
             }
 
             terminate_slowly(stream, unauth_cooldown).await;
-            anyhow::bail!("decrypt header failed");
+            anyhow::bail!("decrypt header failed, from {socket_addr}");
         }
     }
 
@@ -143,7 +143,7 @@ async fn start_tunnel(
     if readed + rest_readed < rest_header_size {
         // header should be written in one call
         terminate_slowly(stream, unauth_cooldown).await;
-        anyhow::bail!("wrong header packet size");
+        anyhow::bail!("wrong header packet size, from {socket_addr}");
     }
 
     // decrypt host
@@ -152,7 +152,7 @@ async fn start_tunnel(
     header_cipher.inc_nonce(padding);
     if !header_cipher.decrypt(&mut host_data) {
         terminate_slowly(stream, unauth_cooldown).await;
-        anyhow::bail!("decrypt host failed");
+        anyhow::bail!("decrypt host failed, from {socket_addr}");
     }
 
     //
@@ -160,7 +160,7 @@ async fn start_tunnel(
         Ok(host) => host,
         Err(err) => {
             terminate_slowly(stream, unauth_cooldown).await;
-            anyhow::bail!(err.to_owned());
+            anyhow::bail!("invalid host, from {socket_addr}: {:?}", err);
         }
     };
 
