@@ -58,7 +58,8 @@ impl DnsHandler {
 
                 let ip_record = self
                     .dns_mapper
-                    .resolve(query.name().to_string().as_str().trim_end_matches('.'));
+                    .resolve(query.name().to_string().as_str().trim_end_matches('.'))
+                    .await;
 
                 let records = [Record::from_rdata(
                     Name::from(query.name().clone()),
@@ -78,7 +79,7 @@ impl DnsHandler {
     async fn forward_to_upstream<R: ResponseHandler>(
         &self,
         query: &LowerQuery,
-        /*mut response_handle*/_: R,
+        /*mut response_handle*/ _: R,
     ) -> Result<ResponseInfo> {
         // TODO: ??? implment forwarding to upstream DNS server when query type is not A or AAAA
         // to make good quality we need Egress and Server selector here
@@ -114,18 +115,16 @@ impl DnsServer {
     }
 
     pub async fn stop(self: &Arc<Self>) -> Result<()> {
-        self.dns_mapper.stop().await;
         let server = self.server.lock().take();
         if let Some(mut server) = server {
             server.shutdown_gracefully().await?;
         }
 
+        self.dns_mapper.clear().await;
         Ok(())
     }
 
     pub async fn start(self: &Arc<Self>, addr: Ipv4Addr) -> Result<()> {
-        self.dns_mapper.start().await?;
-
         let handler = DnsHandler {
             dns_mapper: self.dns_mapper.clone(),
         };

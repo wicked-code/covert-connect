@@ -109,7 +109,15 @@ impl UdpNat {
                 let is_icmp = self_clone.is_icmp;
                 let session = self_clone.sessions.read().get(&src_addr).cloned();
 
-                let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
+                let host = match self_clone.dns_mapper.host_by_ip(dst_addr.ip()).await {
+                    Ok(value) => value,
+                    Err(err) => {
+                        tracing::warn!("UDP NAT lookup host for {} failed: {:?}", dst_addr.ip(), err);
+                        // TODO: ??? implement host not reachable response to client?
+                        return;
+                    }
+                };
+
                 let dst_address_or_host = match host {
                     Some(ref host) => AddressOrHostWithOrig::new(host.clone(), dst_addr),
                     None => AddressOrHostWithOrig::Address(dst_addr),

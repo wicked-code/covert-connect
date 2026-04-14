@@ -1,130 +1,153 @@
-use anyhow::Result;
-use parking_lot::RwLock;
+use anyhow::{Result, bail};
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use rustc_hash::FxHashMap;
 use std::{
     net::{IpAddr, Ipv4Addr},
     sync::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
+    time::{Duration, Instant},
 };
-use tokio::select;
+use tokio::sync::Mutex;
 
-use crate::utils::cancellable_task::CancellableTask;
+use crate::tun::dns_lru::DnsLRU;
 
-const DEFAULT_TTL: std::time::Duration = std::time::Duration::from_secs(300);
-const TTL_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
+const DEFAULT_TTL: Duration = Duration::from_secs(300);
 const MAX_IP_RANGE: u32 = 131072;
+const DNS_LRU_MAX_CAPACITY: usize = 4096;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct IpRecord {
     pub ip: Ipv4Addr,
-    pub expire_time: std::time::Instant,
+    pub expire_time: Instant,
 }
 
 pub struct DnsMapper {
-    host_by_ip: RwLock<FxHashMap<Ipv4Addr, String>>,
-    ip_by_host: RwLock<FxHashMap<String, IpRecord>>,
+    dns_lru: Mutex<DnsLRU>,
     base_ip: Ipv4Addr,
     address_index: AtomicU32,
-    task: CancellableTask,
+    default_ttl: Duration,
+}
+
+impl IpRecord {
+    pub fn new(ip: Ipv4Addr, ttl: Duration) -> Self {
+        Self {
+            ip,
+            expire_time: Instant::now() + ttl,
+        }
+    }
 }
 
 impl DnsMapper {
     pub fn new() -> Arc<Self> {
         let mut rng = ChaCha20Rng::from_entropy();
         Arc::new(Self {
-            host_by_ip: RwLock::new(FxHashMap::default()),
-            ip_by_host: RwLock::new(FxHashMap::default()),
+            dns_lru: Mutex::new(DnsLRU::new(DNS_LRU_MAX_CAPACITY)),
             // safe for use 198.18.0.0/15 (For use in benchmark tests of network interconnect devices)
             base_ip: Ipv4Addr::new(198, 18, 0, 0),
             address_index: AtomicU32::new(rng.gen_range(0..MAX_IP_RANGE)),
-            task: CancellableTask::new("DnsMapper"),
+            default_ttl: DEFAULT_TTL,
         })
     }
 
-    pub async fn stop(self: &Arc<Self>) {
-        self.task.stop().await;
-
-        self.host_by_ip.write().clear();
-        self.ip_by_host.write().clear();
+    pub async fn clear(&self) {
+        self.dns_lru.lock().await.clear();
     }
 
-    pub async fn start(self: &Arc<Self>) -> Result<()> {
-        let self_clone = self.clone();
-        self.task.spawn(|token| {
-            async move {
-                let mut interval = tokio::time::interval(TTL_CHECK_INTERVAL);
-                loop {
-                    let mut delete_records = Vec::new();
-                    {
-                        let mut ip_by_host_wr = self_clone.ip_by_host.write();
-                        ip_by_host_wr.retain(|_, record| {
-                            // TODO: ??? increase actual expire time ?
-                            if record.expire_time <= std::time::Instant::now() {
-                                delete_records.push(record.ip);
-                                false
-                            } else {
-                                true
-                            }
-                        });
-                    }
-
-                    select! {
-                        _ = interval.tick() => {}
-                        _ = token.cancelled() => break,
-                    }
-
-                    let mut host_by_ip_wr = self_clone.host_by_ip.write();
-                    for ip in delete_records {
-                        host_by_ip_wr.remove(&ip);
-                    }
-                    drop(host_by_ip_wr);
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    pub fn resolve(&self, host: &str) -> IpRecord {
-        let mut ip_by_host_wr = self.ip_by_host.write();
-        if let Some(record) = ip_by_host_wr.get_mut(host) {
-            record.expire_time = std::time::Instant::now() + DEFAULT_TTL;
-            return *record;
+    pub async fn resolve(&self, host: &str) -> IpRecord {
+        let host = host.to_string();
+        if let Some(ip) = self.dns_lru.lock().await.ip_by_host_and_update(&host) {
+            return IpRecord::new(ip, self.default_ttl);
         }
 
         let mut index = self.address_index.fetch_add(1, Ordering::Relaxed) % MAX_IP_RANGE;
         let mut ip = Ipv4Addr::from(u32::from(self.base_ip) + index);
-        while self.host_by_ip.read().contains_key(&ip) {
+        while self.dns_lru.lock().await.ip_exists(&ip) {
             index = self.address_index.fetch_add(1, Ordering::Relaxed) % MAX_IP_RANGE;
             ip = Ipv4Addr::from(u32::from(self.base_ip) + index);
         }
 
-        let record = IpRecord {
-            ip,
-            expire_time: std::time::Instant::now() + DEFAULT_TTL,
-        };
-        ip_by_host_wr.insert(host.to_string(), record);
-        drop(ip_by_host_wr);
-
-        self.host_by_ip.write().insert(ip, host.to_string());
-        record
+        self.dns_lru.lock().await.insert(host, ip);
+        IpRecord::new(ip, self.default_ttl)
     }
 
-    pub fn host_by_ip(&self, ip: IpAddr) -> Option<String> {
-        match ip {
-            IpAddr::V4(ipv4) => self.host_by_ip.read().get(&ipv4).cloned().or_else(|| {
+    pub async fn host_by_ip(&self, ip: IpAddr) -> Result<Option<String>> {
+        if let IpAddr::V4(ipv4) = ip {
+            let host = self.dns_lru.lock().await.host_by_ip_and_update(&ipv4);
+            if host.is_none() {
                 if (u32::from(ipv4) >= u32::from(self.base_ip))
                     && (u32::from(ipv4) < u32::from(self.base_ip) + MAX_IP_RANGE)
                 {
-                    tracing::error!("ip {} is not mapped to any host, maybe expired", ipv4);
+                    bail!("ip {} is not mapped to any host, maybe expired", ipv4);
                 }
-                None
-            }),
-            IpAddr::V6(_) => None,
+            }
+
+            Ok(host)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        net::{IpAddr, Ipv4Addr},
+        sync::{atomic::Ordering},
+    };
+
+    #[tokio::test]
+    async fn ports_overflow() {
+        let mapper = super::DnsMapper::new();
+        let frequent_used_host = "frequent_used.example.com";
+        let frequent_used_host2 = "frequent_used2.example.com";
+
+        let start_index = mapper.address_index.load(Ordering::Relaxed);
+        let ip_from_index = |i: u32| -> IpAddr {
+            let idx = (start_index + i) % super::MAX_IP_RANGE;
+            IpAddr::V4(Ipv4Addr::from(u32::from(mapper.base_ip) + idx))
+        };
+
+        let check_resolve = |host: &str, i: u32| {
+            let mapper_clone = mapper.clone();
+            let ip = ip_from_index(i);
+            let host = host.to_string();
+            async move {
+                let record = mapper_clone.resolve(&host).await;
+                assert_eq!(record.ip, ip);
+                assert_eq!(
+                    mapper_clone.host_by_ip(IpAddr::V4(record.ip)).await.unwrap().unwrap(),
+                    host
+                );
+            }
+        };
+
+        let check_host_by_ip = |i: u32, host: &str| {
+            let mapper_clone = mapper.clone();
+            let ip = ip_from_index(i);
+            let host = host.to_string();
+            async move {
+                assert_eq!(mapper_clone.host_by_ip(ip).await.unwrap().unwrap(), host);
+            }
+        };
+
+        let mut ip_idx = 2;
+        for i in 0..super::MAX_IP_RANGE * 2 {
+            if i % 100 == 0 {
+                check_resolve(frequent_used_host, 0).await;
+                check_resolve(frequent_used_host2, 1).await;
+            }
+            if ip_idx > 0 && (ip_idx % super::MAX_IP_RANGE) == 0 {
+                ip_idx += 2;
+            }
+
+            let host = format!("host{}.example.com", i);
+            check_resolve(&host, ip_idx).await;
+            ip_idx += 1;
+
+            check_host_by_ip(0, &frequent_used_host).await;
+            check_host_by_ip(1, &frequent_used_host2).await;
         }
     }
 }

@@ -130,7 +130,14 @@ impl TcpProxyNat {
                         };
 
                         let dst_addr = session.dst_addr;
-                        let host = self_clone.dns_mapper.host_by_ip(dst_addr.ip());
+                        let host = match self_clone.dns_mapper.host_by_ip(dst_addr.ip()).await {
+                            Ok(value) => value,
+                            Err(err) => {
+                                tracing::warn!("TCP NAT lookup host for {} failed: {:?}", dst_addr.ip(), err);
+                                // TODO: ??? implement host not reachable response to client?
+                                return;
+                            }
+                        };
                         let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
                         let endpoint = format!("{host}:{}", dst_addr.port());
 
