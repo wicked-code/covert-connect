@@ -99,8 +99,8 @@ impl ClientInfo {
     }
 
     pub async fn remove_domain(&self, domain: &str) -> Result<()> {
-        let mut deleted = self.remove_direct_domain(&domain).await;
-        deleted |= self.remove_domain_from_servers(&domain).await;
+        let mut deleted = self.remove_direct_domain(domain).await;
+        deleted |= self.remove_domain_from_servers(domain).await;
         if deleted {
             Ok(())
         } else {
@@ -157,13 +157,13 @@ impl ClientInfo {
     }
 
     pub async fn remove_app(&self, app: &str) -> Result<()> {
-        let mut deleted = self.remove_app_internal(&app).await;
-        deleted |= self.remove_app_from_servers(&app).await;
+        let mut deleted = self.remove_app_internal(app).await;
+        deleted |= self.remove_app_from_servers(app).await;
         if deleted { Ok(()) } else { Err(anyhow!("App not found")) }
     }
 
     pub async fn add_server(&self, config: ServerConfig, egress: &Arc<Egress>) {
-        let connect_info = self.new_connection_info(&config, &egress).await;
+        let connect_info = self.new_connection_info(&config, egress).await;
         self.servers.write().await.push(ServerInfo {
             config,
             state: Default::default(),

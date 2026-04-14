@@ -1,6 +1,7 @@
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use std::{
+    fmt,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
 };
@@ -67,14 +68,14 @@ pub async fn udp_transfer(
             let end = MAX_HOST_AND_PORT_LEN + n;
             let host = addr_host_map.lock().get(&addr).cloned();
 
-            fn write_len_flag_port<'a>(
-                buf: &'a mut [u8],
+            fn write_len_flag_port(
+                buf: &mut [u8],
                 n: usize,
                 prefix_len: usize,
                 flag: u8,
                 port: u16,
                 end: usize,
-            ) -> &'a mut [u8] {
+            ) -> &mut [u8] {
                 let len = n + prefix_len;
                 let offset = MAX_HOST_AND_PORT_LEN - (prefix_len + 2);
                 let wr_buff = &mut buf[offset..end];
@@ -87,7 +88,7 @@ pub async fn udp_transfer(
             }
 
             if let Some(host) = host {
-                if host.len() == 0 {
+                if host.is_empty() {
                     tracing::error!("zero len host in address map for {:?}", addr);
                     continue;
                 }
@@ -134,7 +135,7 @@ pub async fn address_from_buf_with_lookup<'a>(
             let host_and_port = value.to_string();
             let addr = host_addr_map.lock().get(&host_and_port).copied();
             match addr {
-                Some(addr) => return Ok((addr, payload)),
+                Some(addr) => Ok((addr, payload)),
                 None => {
                     let addr = lookup(&host_and_port).await?;
                     host_addr_map.lock().insert(host_and_port.clone(), addr);
@@ -151,9 +152,9 @@ pub struct HostAndPort {
     pub port: u16,
 }
 
-impl HostAndPort {
-    pub fn to_string(&self) -> String {
-        format!("{}:{}", self.host, self.port)
+impl fmt::Display for HostAndPort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.host, self.port)
     }
 }
 
@@ -212,8 +213,8 @@ pub fn address_from_buf(buf: &mut [u8]) -> Result<(AddressOrHost, &mut [u8])> {
             if buf.len() < host_and_port_len {
                 bail!("invalid domain packet length: {}", buf.len());
             }
-            let port = read_port(&buf);
-            let domain = std::str::from_utf8(&mut buf[2..host_and_port_len])?.to_string();
+            let port = read_port(buf);
+            let domain = std::str::from_utf8(&buf[2..host_and_port_len])?.to_string();
             Ok((AddressOrHost::new(domain, port), &mut buf[host_and_port_len..]))
         }
     }

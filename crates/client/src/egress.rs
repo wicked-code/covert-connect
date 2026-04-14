@@ -158,7 +158,7 @@ impl Egress {
             **self.outbound_ipv4.load()
         };
 
-        Ok(UdpSocket::bind(outbound_address).await?)
+        UdpSocket::bind(outbound_address).await
     }
 
     pub async fn connect_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {

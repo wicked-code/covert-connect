@@ -427,7 +427,7 @@ async fn lookup_host_single(host: &str, prefer_v4: bool) -> Result<SocketAddr> {
 }
 
 async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr, Option<SocketAddr>)> {
-    let addr = lookup_host_single(&host, egress.prefer_v4).await?;
+    let addr = lookup_host_single(host, egress.prefer_v4).await?;
 
     if egress.ipv4.is_none() && egress.ipv6.is_none() {
         return Ok((addr, None));

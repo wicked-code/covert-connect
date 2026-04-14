@@ -75,12 +75,11 @@ impl DnsMapper {
     pub async fn host_by_ip(&self, ip: IpAddr) -> Result<Option<String>> {
         if let IpAddr::V4(ipv4) = ip {
             let host = self.dns_lru.lock().await.host_by_ip_and_update(&ipv4);
-            if host.is_none() {
-                if (u32::from(ipv4) >= u32::from(self.base_ip))
-                    && (u32::from(ipv4) < u32::from(self.base_ip) + MAX_IP_RANGE)
-                {
-                    bail!("ip {} is not mapped to any host, maybe expired", ipv4);
-                }
+            if host.is_none()
+                && (u32::from(ipv4) >= u32::from(self.base_ip))
+                && (u32::from(ipv4) < u32::from(self.base_ip) + MAX_IP_RANGE)
+            {
+                bail!("ip {} is not mapped to any host, maybe expired", ipv4);
             }
 
             Ok(host)
@@ -94,7 +93,7 @@ impl DnsMapper {
 mod tests {
     use std::{
         net::{IpAddr, Ipv4Addr},
-        sync::{atomic::Ordering},
+        sync::atomic::Ordering,
     };
 
     #[tokio::test]

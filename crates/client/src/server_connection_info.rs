@@ -24,19 +24,16 @@ impl ServerConnectInfo {
             }
         } else {
             let mut port = HTTPS_PORT;
-            match host.rfind(':') {
-                Some(pos) => {
-                    if &host[pos..] != HTTPS_PORT_STR {
-                        match host[pos + 1..].parse::<u16>() {
-                            Ok(p) => port = p,
-                            Err(err) => {
-                                return Err(anyhow!("invalid port in host {}, {}", host, err));
-                            }
+            if let Some(pos) = host.rfind(':') {
+                if &host[pos..] != HTTPS_PORT_STR {
+                    match host[pos + 1..].parse::<u16>() {
+                        Ok(p) => port = p,
+                        Err(err) => {
+                            return Err(anyhow!("invalid port in host {}, {}", host, err));
                         }
                     }
-                    host.truncate(pos);
                 }
-                None => {}
+                host.truncate(pos);
             };
 
             let address = egress

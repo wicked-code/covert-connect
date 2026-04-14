@@ -71,10 +71,7 @@ impl UdpStreamData {
 
     pub fn send_icmp_packet(&self, packet: Vec<u8>) {
         let len = packet.len();
-        let mut prefix = Vec::with_capacity(2);
-        prefix.push(((len >> 8) & 0xff) as u8);
-        prefix.push((len & 0xff) as u8);
-        self.send_packet(packet, prefix);
+        self.send_packet(packet, vec![((len >> 8) & 0xff) as u8, (len & 0xff) as u8]);
     }
 
     pub fn send_udp_packet(&self, packet: Vec<u8>, dst_addr: AddressOrHostWithOrig) {
@@ -215,7 +212,7 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
         let this = self.get_mut();
         let data = &mut this.write_data;
 
-        if buf.len() > 0 {
+        if !buf.is_empty() {
             *this.data.last_active.lock() = std::time::Instant::now();
         }
 
@@ -230,10 +227,10 @@ impl<W: AsyncWrite + Clone + Unpin + Send + 'static> AsyncWrite for UdpStream<W>
             return Poll::Ready(Ok(buf.len()));
         }
 
-        let mut packet = &mut data[2..chunk_len];
+        let packet = &mut data[2..chunk_len];
         if this.is_icmp {
             // swap src and dst, because it's NAT, and packet is from dst to src
-            match icmp_to_icmp(&mut packet, this.dst_addr, this.src_addr) {
+            match icmp_to_icmp(packet, this.dst_addr, this.src_addr) {
                 Ok(packet) => Self::send_packet(this.writer.clone(), packet),
                 Err(e) => tracing::warn!("Failed to build IP packet (ICMP): {:?}", e),
             }
