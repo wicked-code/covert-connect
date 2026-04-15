@@ -169,9 +169,8 @@ impl TunService {
     }
 
     async fn init_tun(self: &Arc<Self>) -> Result<(Ipv4Addr, Ipv6Addr, DeviceWriter)> {
-        // TODO: ??? check adapters to select available ip for if
         let tun_name = "cc_tun";
-        let address_v4 = Ipv4Addr::new(172, 23, 0, 1);
+        let address_v4 = find_if_address()?;
         let gateaway_v4 = Ipv4Addr::from(u32::from(address_v4) + 1);
 
         // TODO: ??? modify library
@@ -510,4 +509,34 @@ fn is_local_v4(addr: Ipv4Addr) -> bool {
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
     addr.is_loopback() || addr.is_unique_local() || addr.is_unicast_link_local() || addr.is_multicast()
+}
+
+fn find_if_address() -> Result<Ipv4Addr> {
+    let net_ifs = NetworkInterface::show()?;
+    let address_by_index = |i: u8| -> Option<Ipv4Addr> {
+        let addr = Ipv4Addr::new(172, i, 0, 1);
+        let found = net_ifs.iter().any(|i| {
+            i.addr
+                .iter()
+                .any(|a| matches!(a, network_interface::Addr::V4(ifaddr) if ifaddr.ip == addr))
+        });
+        (!found).then_some(addr)
+    };
+
+    if let Some(ipv4) = address_by_index(23) {
+        return Ok(ipv4);
+    }
+
+    for i in 24..31 {
+        if let Some(ipv4) = address_by_index(i) {
+            return Ok(ipv4);
+        }
+    }
+    for i in 16..24 {
+        if let Some(ipv4) = address_by_index(i) {
+            return Ok(ipv4);
+        }
+    }
+
+    Err(anyhow!("no available address for tun interface found"))
 }
