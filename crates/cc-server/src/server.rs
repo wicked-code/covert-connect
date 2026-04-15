@@ -8,7 +8,7 @@ use crypto::{
     kdf::Kdf,
     stream::EncryptedStream,
 };
-use net_packet::MAX_PACKET_SIZE;
+use net_packet::MTU_DEFAULT;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -344,7 +344,7 @@ pub async fn try_special_request(
     );
 
     // prepare data
-    let mut response = BytesMut::with_capacity(MAX_PACKET_SIZE);
+    let mut response = BytesMut::with_capacity(MTU_DEFAULT);
 
     // header
     response.put_u16(padding_begin);

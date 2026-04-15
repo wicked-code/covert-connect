@@ -20,7 +20,7 @@ use crate::{
     utils::cancellable_task::CancellableTask,
 };
 use net_packet::{
-    MAX_PACKET_SIZE,
+    IP_BUFFER_SIZE,
     ip::{IpHeader, IpPacket, NextHeader},
 };
 
@@ -176,13 +176,13 @@ impl TunService {
 
         // TODO: ??? modify library
         // - use sudo networksetup -ordernetworkservices to set priority for IF on macos
-        // - get MTU from tun
         let mut config = tun::Configuration::default();
         config
             .tun_name(tun_name)
             .address(address_v4)
             .netmask((255, 255, 255, 240))
             .destination(gateaway_v4)
+            .mtu(1500)
             .platform_config(|config| {
                 config.dns_servers(&[IpAddr::V4(address_v4)]);
             })
@@ -255,9 +255,8 @@ impl TunService {
         let self_clone = self.clone();
         let mut writer_clone = writer.clone();
         self.tun_loop_task.spawn(|token| async move {
-            // TODO: ??? get mtu from tun
-            let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
-            let mut modify_buf = vec![0u8; MAX_PACKET_SIZE];
+            let mut read_buf = vec![0u8; IP_BUFFER_SIZE];
+            let mut modify_buf = vec![0u8; IP_BUFFER_SIZE];
             loop {
                 select! {
                     _ = token.cancelled() => break,

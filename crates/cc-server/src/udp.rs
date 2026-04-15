@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use net_packet::MAX_PACKET_SIZE;
+use net_packet::IP_BUFFER_SIZE;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::UdpSocket,
@@ -33,7 +33,7 @@ pub async fn udp_transfer(
             async move {
                 let host_addr_map = Mutex::new(FxHashMap::<String, SocketAddr>::default());
 
-                let mut buf = vec![0u8; MAX_PACKET_SIZE + MAX_HOST_AND_PORT_LEN];
+                let mut buf = vec![0u8; IP_BUFFER_SIZE + MAX_HOST_AND_PORT_LEN];
                 loop {
                     // Read length header — clean EOF on first byte means transfer done
                     let n = reader.read(&mut buf[..2]).await?;
@@ -62,7 +62,7 @@ pub async fn udp_transfer(
         };
 
     let udp_to_client = async move {
-        let mut buf = vec![0u8; MAX_PACKET_SIZE + MAX_HOST_AND_PORT_LEN];
+        let mut buf = vec![0u8; IP_BUFFER_SIZE + MAX_HOST_AND_PORT_LEN];
         loop {
             let (n, addr) = out_socket.recv_from(&mut buf[MAX_HOST_AND_PORT_LEN..]).await?;
             let end = MAX_HOST_AND_PORT_LEN + n;

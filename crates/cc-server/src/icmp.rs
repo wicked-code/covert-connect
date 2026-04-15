@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use net_packet::MAX_PACKET_SIZE;
+use net_packet::IP_BUFFER_SIZE;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::UdpSocket,
@@ -15,7 +15,7 @@ pub async fn icmp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_sock
     let client_to_icmp = {
         let socket = out_socket.clone();
         async move {
-            let mut buf = vec![0u8; MAX_PACKET_SIZE];
+            let mut buf = vec![0u8; IP_BUFFER_SIZE];
             loop {
                 // Read length header — clean EOF on first byte means transfer done
                 let n = reader.read(&mut buf[..2]).await?;
@@ -42,7 +42,7 @@ pub async fn icmp_transfer(client: impl AsyncRead + AsyncWrite + Unpin, out_sock
     };
 
     let icmp_to_client = async move {
-        let mut buf = vec![0u8; MAX_PACKET_SIZE + 2];
+        let mut buf = vec![0u8; IP_BUFFER_SIZE + 2];
         loop {
             let n = out_socket.recv(&mut buf[2..]).await?;
             buf[0] = ((n >> 8) & 0xff) as u8;
