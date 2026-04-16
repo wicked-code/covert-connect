@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use cc_server::{icmp::icmp_transfer, udp::udp_transfer};
+use net_packet::ip::IpPacket;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHashMap;
 use std::{net::SocketAddr, sync::Arc};
@@ -113,7 +114,7 @@ impl UdpNat {
                     Ok(value) => value,
                     Err(err) => {
                         tracing::warn!("UDP NAT lookup host for {} failed: {:?}", dst_addr.ip(), err);
-                        // TODO: ??? implement host not reachable response to client?
+                        Self::send_host_unreachable(writer, dst_addr, src_addr, &payload).await;
                         return;
                     }
                 };
@@ -256,6 +257,38 @@ impl UdpNat {
                     tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {} ({})", err, target, host);
                 }
             }
+        }
+    }
+
+    async fn send_host_unreachable(mut writer: DeviceWriter, src_addr: SocketAddr, dst_addr: SocketAddr, payload: &[u8]) {
+        let icmp_type = if src_addr.is_ipv4() {
+            net_packet::icmpv4::ICMP_DEST_UNREACHABLE
+        } else {
+            net_packet::icmpv6::ICMPV6_DEST_UNREACHABLE
+        };
+        let icmp_code = if src_addr.is_ipv4() {
+            net_packet::icmpv4::ICMP_UNREACH_HOST
+        } else {
+            net_packet::icmpv6::ICMPV6_UNREACH_ADDR
+        };
+
+        let packet = match IpPacket::build_icmp(
+            icmp_type,
+            icmp_code,
+            0,
+            src_addr,
+            dst_addr,
+            payload,
+        ) {
+            Ok(packet) => packet,
+            Err(err) => {
+                tracing::warn!("Failed to build Host Unreachable packet for {}: {:?}", src_addr, err);
+                return;
+            }
+        };
+
+        if let Err(err) = writer.write_all(&packet).await {
+            tracing::warn!("Failed to send host unreachable packet for {}: {:?}", dst_addr, err);
         }
     }
 }

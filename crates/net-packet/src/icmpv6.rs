@@ -54,6 +54,13 @@ pub const ICMPV6_NEIGHBOR_SOLICITATION: u8 = 135;
 pub const ICMPV6_NEIGHBOR_ADVERTISEMENT: u8 = 136;
 pub const ICMPV6_REDIRECT: u8 = 137;
 
+// ICMPv6 Destination Unreachable codes
+pub const ICMPV6_UNREACH_NO_ROUTE: u8 = 0;
+pub const ICMPV6_UNREACH_ADMIN_PROHIBITED: u8 = 1;
+pub const ICMPV6_UNREACH_BEYOND_SCOPE: u8 = 2;
+pub const ICMPV6_UNREACH_ADDR: u8 = 3;
+pub const ICMPV6_UNREACH_PORT: u8 = 4;
+
 /// Zero-copy ICMPv6 header backed by a mutable byte slice.
 pub struct Icmpv6Header<'a> {
     buf: &'a mut [u8],

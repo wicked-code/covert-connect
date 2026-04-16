@@ -134,7 +134,6 @@ impl TcpProxyNat {
                             Ok(value) => value,
                             Err(err) => {
                                 tracing::warn!("TCP NAT lookup host for {} failed: {:?}", dst_addr.ip(), err);
-                                // TODO: ??? implement host not reachable response to client?
                                 return;
                             }
                         };

@@ -33,6 +33,12 @@ pub const ICMP_REDIRECT: u8 = 5;
 pub const ICMP_ECHO_REQUEST: u8 = 8;
 pub const ICMP_TIME_EXCEEDED: u8 = 11;
 
+// ICMP_DEST_UNREACHABLE codes
+pub const ICMP_UNREACH_NET: u8 = 0;
+pub const ICMP_UNREACH_HOST: u8 = 1;
+pub const ICMP_UNREACH_PROTOCOL: u8 = 2;
+pub const ICMP_UNREACH_PORT: u8 = 3;
+
 /// Zero-copy ICMPv4 header backed by a mutable byte slice.
 pub struct Icmpv4Header<'a> {
     buf: &'a mut [u8],
