@@ -1,4 +1,6 @@
 use anyhow::{Result, anyhow};
+#[cfg(not(target_os = "windows"))]
+use sys_net::setup_dns;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
@@ -11,7 +13,7 @@ use tokio::{
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
-use tun::DeviceWriter;
+use tun::{AbstractDevice, DeviceWriter};
 
 use crate::{
     egress::Egress,
@@ -169,7 +171,7 @@ impl TunService {
     }
 
     async fn init_tun(self: &Arc<Self>) -> Result<(Ipv4Addr, Ipv6Addr, DeviceWriter)> {
-        let tun_name = "cc_tun";
+        let mut tun_name = "cc_tun".to_string();
         let address_v4 = find_if_address()?;
         let gateaway_v4 = Ipv4Addr::from(u32::from(address_v4) + 1);
 
@@ -177,15 +179,19 @@ impl TunService {
         // - use sudo networksetup -ordernetworkservices to set priority for IF on macos
         let mut config = tun::Configuration::default();
         config
-            .tun_name(tun_name)
             .address(address_v4)
             .netmask((255, 255, 255, 240))
             .destination(gateaway_v4)
             .mtu(1500)
-            .platform_config(|config| {
-                config.dns_servers(&[IpAddr::V4(address_v4)]);
-            })
             .up();
+
+        #[cfg(not(target_os = "macos"))]
+        config.tun_name(tun_name);
+
+        #[cfg(target_os = "windows")]
+        config.platform_config(|config| {
+            config.dns_servers(&[IpAddr::V4(address_v4)]);
+        });
 
         // TODO: ??? test ensure_root_privileges on linux
         #[cfg(target_os = "linux")]
@@ -195,6 +201,7 @@ impl TunService {
         });
 
         let dev = tun::create_as_async(&config)?;
+        tun_name = dev.tun_name().unwrap_or(tun_name.to_string());
 
         // This method does't wait for tun to be fully up, but return address immediately
         // but it returns all addresses include IPv6 address, so we can use it to get IPv6 address and gateway
@@ -229,6 +236,10 @@ impl TunService {
             }
             sleep(WAIT_IF_READY_INTERVAL).await;
         }
+
+        // setup dns
+        #[cfg(not(target_os = "windows"))]
+        setup_dns(&tun_name, IpAddr::V4(address_v4))?;
 
         // remove Multicast
         let handle = net_route::Handle::new()?;

@@ -50,6 +50,7 @@ num_enum = "0.7.2"
 socket2 = "0.6.3"
 async-trait = "0.1"
 rustc-hash = "2.1.1"
+network-interface = "2.0.5"
 
 sys-process = { path = "crates/sys-process" }
 sys-net = { path = "crates/sys-net" }
