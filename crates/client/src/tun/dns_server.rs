@@ -3,6 +3,7 @@ use anyhow::{Result, anyhow, bail};
 use hickory_proto::{
     op::{Header, LowerQuery, MessageType, OpCode, ResponseCode},
     rr::{Name, RData, Record, RecordType},
+    xfer::Protocol as HickoryProtocol,
 };
 use hickory_server::{
     ServerFuture,
@@ -10,12 +11,15 @@ use hickory_server::{
     server::{Request, RequestHandler, ResponseHandler, ResponseInfo},
 };
 use parking_lot::Mutex;
+use sys_process::process_path_by_local_addr;
 use std::{
+    path::Path,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
     time::Duration,
 };
 use tokio::net::{TcpListener, UdpSocket};
+use sys_process::{Protocol as ProcessProtocol};
 
 static DEFAULT_DNS_SERVER_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -98,7 +102,25 @@ impl DnsHandler {
 impl RequestHandler for DnsHandler {
     async fn handle_request<H: ResponseHandler>(&self, request: &Request, response_handle: H) -> ResponseInfo {
         self.handle(request, response_handle).await.unwrap_or_else(|e| {
-            tracing::error!("dns request error: {}", e);
+            let from = match process_path_by_local_addr(
+                request.src(),
+                match request.protocol() {
+                    HickoryProtocol::Tcp | HickoryProtocol::Https | HickoryProtocol::Tls => ProcessProtocol::TCP,
+                    HickoryProtocol::Udp | HickoryProtocol::Quic | HickoryProtocol::H3 => ProcessProtocol::UDP,
+                    _ => ProcessProtocol::UDP
+                },
+            ) {
+                Ok(process_path) => {
+                    Path::new(&process_path)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                }
+                Err(_) => request.src().to_string(),
+            };
+
+            tracing::error!("dns request from {}, error: {}", from, e);
             let mut h = Header::new();
             h.set_response_code(ResponseCode::ServFail);
             h.into()
