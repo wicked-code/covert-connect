@@ -186,7 +186,7 @@ impl TunService {
             .up();
 
         #[cfg(not(target_os = "macos"))]
-        config.tun_name(tun_name);
+        config.tun_name(&tun_name);
 
         #[cfg(target_os = "windows")]
         config.platform_config(|config| {
