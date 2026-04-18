@@ -227,12 +227,16 @@ impl Egress {
 
         // fallback to public dns if we can't get dns from IF
         // TODO: ??? move to options, same as in outbound.rs
-        let dns_ips = ["8.8.8.8".parse().unwrap(), "1.1.1.1".parse().unwrap()];
+        let dns_ips = [
+            ("8.8.8.8:443".parse().unwrap(), "dns.google"),
+            ("1.1.1.1:443".parse().unwrap(), "cloudflare-dns.com"),
+        ];
 
         for dns_ip in dns_ips {
-            let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Quic);
+            let mut ns = NameServerConfig::new(dns_ip.0, DnsProtocol::Https);
             // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-            ns.bind_addr = Some(SocketAddr::new(if dns_ip.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
+            ns.bind_addr = Some(SocketAddr::new(if dns_ip.0.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
+            ns.tls_dns_name = Some(dns_ip.1.to_string());
             config.add_name_server(ns);
         }
 
