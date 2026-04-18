@@ -22,12 +22,13 @@ use crate::{
     utils::cancellable_task::CancellableTask,
 };
 use net_packet::{
-    IP_BUFFER_SIZE,
     ip::{IpHeader, IpPacket, NextHeader},
 };
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
+
+const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 
 const WAIT_IF_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 const WAIT_IF_READY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
@@ -265,8 +266,9 @@ impl TunService {
         let self_clone = self.clone();
         let mut writer_clone = writer.clone();
         self.tun_loop_task.spawn(|token| async move {
-            let mut read_buf = vec![0u8; IP_BUFFER_SIZE];
-            let mut modify_buf = vec![0u8; IP_BUFFER_SIZE];
+            // despite 1500 MTU, tcp packets may be larger, no reason to save memory here
+            let mut read_buf = vec![0u8; MAX_PACKET_SIZE];
+            let mut modify_buf = vec![0u8; MAX_PACKET_SIZE];
             loop {
                 select! {
                     _ = token.cancelled() => break,
