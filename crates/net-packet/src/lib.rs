@@ -11,7 +11,7 @@ pub mod udp;
 
 pub const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 pub const MTU_DEFAULT: usize = 1500; // default MTU for Ethernet
-pub const IP_BUFFER_SIZE: usize = 2000;
+pub const IP_BUFFER_SIZE: usize = 4000;
 
 /// Well-known IP protocol numbers.
 pub mod ip_protocols {
