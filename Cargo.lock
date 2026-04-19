@@ -3522,7 +3522,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "tun"
 version = "0.8.7"
-source = "git+https://github.com/wicked-code/rust-tun#09fa648018aff978e4e0f8623eb93a90f65fdb84"
+source = "git+https://github.com/wicked-code/rust-tun#36bb97e5393e44dba6a2d5c3817248c2eda25770"
 dependencies = [
  "bytes",
  "cfg-if",
