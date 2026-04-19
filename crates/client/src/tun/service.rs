@@ -1,10 +1,11 @@
-use anyhow::{Result, anyhow};
-#[cfg(not(target_os = "windows"))]
-use sys_net::setup_dns;
+use anyhow::{Result, anyhow, bail};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
+    time::Duration,
 };
+#[cfg(not(target_os = "windows"))]
+use sys_net::setup_dns;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -21,17 +22,15 @@ use crate::{
     tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
     utils::cancellable_task::CancellableTask,
 };
-use net_packet::{
-    ip::{IpHeader, IpPacket, NextHeader},
-};
+use net_packet::ip::{IpHeader, IpPacket, NextHeader};
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
 
 const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
 
-const WAIT_IF_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
-const WAIT_IF_READY_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+const WAIT_IF_READY_TIMEOUT: Duration = Duration::from_secs(15);
+const WAIT_IF_READY_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(PartialEq)]
 enum ProcessResult {
@@ -176,8 +175,6 @@ impl TunService {
         let address_v4 = find_if_address()?;
         let gateaway_v4 = Ipv4Addr::from(u32::from(address_v4) + 1);
 
-        // TODO: ??? modify library
-        // - use sudo networksetup -ordernetworkservices to set priority for IF on macos
         let mut config = tun::Configuration::default();
         config
             .address(address_v4)
@@ -216,31 +213,12 @@ impl TunService {
             })
             .ok_or_else(|| anyhow!("tun interface not found"))?;
 
-        // wait IF fully up
-        let mut cur_iter_to_show = 0;
-        let instant = std::time::Instant::now();
-        loop {
-            let net_if = if_addrs::get_if_addrs()?
-                .into_iter()
-                .find_map(|x| if x.name == tun_name { Some(x) } else { None });
-            if let Some(iface) = net_if
-                && iface.is_oper_up()
-            {
-                break;
-            }
-            if instant.elapsed() > WAIT_IF_READY_TIMEOUT {
-                return Err(anyhow!("timout waiting for tun interface"));
-            }
-            if instant.elapsed().as_secs() > cur_iter_to_show {
-                cur_iter_to_show += 1;
-                tracing::info!("waiting for tun interface to be ready {}s", cur_iter_to_show);
-            }
-            sleep(WAIT_IF_READY_INTERVAL).await;
-        }
+        wait_interface_ready(&tun_name).await?;
 
         // setup dns
         #[cfg(not(target_os = "windows"))]
         setup_dns(&tun_name, IpAddr::V4(address_v4))?;
+        // TODO: use sudo networksetup -ordernetworkservices to set priority for IF on macos
 
         // remove Multicast
         let handle = net_route::Handle::new()?;
@@ -522,6 +500,30 @@ fn is_local_v4(addr: Ipv4Addr) -> bool {
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
     addr.is_loopback() || addr.is_unique_local() || addr.is_unicast_link_local() || addr.is_multicast()
+}
+
+async fn wait_interface_ready(tun_name: &str) -> Result<()> {
+    let mut cur_iter_to_show = 0;
+    let instant = std::time::Instant::now();
+    loop {
+        let net_if = if_addrs::get_if_addrs()?
+            .into_iter()
+            .find_map(|x| if x.name == tun_name { Some(x) } else { None });
+        if let Some(iface) = net_if
+            && iface.is_oper_up()
+        {
+            break;
+        }
+        if instant.elapsed() > WAIT_IF_READY_TIMEOUT {
+            bail!("timout waiting for tun interface");
+        }
+        if instant.elapsed().as_secs() > cur_iter_to_show {
+            cur_iter_to_show += 1;
+            tracing::info!("waiting for tun interface to be ready {}s", cur_iter_to_show);
+        }
+        sleep(WAIT_IF_READY_INTERVAL).await;
+    }
+    Ok(())
 }
 
 fn find_if_address() -> Result<Ipv4Addr> {
