@@ -1,5 +1,6 @@
 use anyhow::Result;
 use anyhow::anyhow;
+use client::client::ClientState;
 use serde::Deserialize;
 use std::path::Path;
 
@@ -7,8 +8,10 @@ use client::config::ServerConfig;
 
 /// Main application config
 #[derive(Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AppConfig {
+    pub state: ClientState,
+    pub direct_domains: Vec<String>,
+    pub direct_apps: Vec<String>,
     pub servers: Vec<ServerConfig>,
 }
 

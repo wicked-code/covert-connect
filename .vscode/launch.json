@@ -29,16 +29,18 @@
             "preLaunchTask": "tests"
         },
         {
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
-            "name": "Debug Tests TMP (Win)",
-            "program": "${workspaceRoot}/target/debug/deps/client_server-7d4e5d00ed5e2a44.exe",
-            "stopAtEntry": false,
-            "console": "integratedTerminal",
-            "environment": [],
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "tests"
+            "name": "Debug cc-client (Win)",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=cc-client",
+                    "--package=cc-client"
+                ],
+            },
+            "args": ["--config", "../client.json"],
+            "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",

@@ -35,9 +35,10 @@ async fn main() -> Result<()> {
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
-    let client = Client::new(ClientState::All);
+    let client = Client::new(cfg.state);
     client.initialize().await?;
-    client.add_direct_domains(&Vec::new()).await;
+    client.add_direct_domains(&cfg.direct_domains).await;
+    client.add_direct_apps(&cfg.direct_apps).await;
     for srv in cfg.servers {
         client.add_server(srv).await;
     }
