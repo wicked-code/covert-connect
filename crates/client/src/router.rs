@@ -196,19 +196,16 @@ impl Router {
 
             let mut domain_variants = Vec::new();
             let mut accumulated = String::with_capacity(domain.len());
-            let parts = domain.split('.').rev().enumerate();
-            for (i, part) in parts {
+            let parts = domain.split('.').rev();
+            for part in parts {
                 accumulated.insert_str(0, part);
-                if i > 0 {
-                    domain_variants.push(accumulated.clone());
-                }
+                domain_variants.push(accumulated.clone());
                 accumulated.insert(0, '.');
             }
 
             // select server by domain
-            for domain in &domain_variants {
+            for domain in domain_variants.iter().rev() {
                 // any server, try check domain
-
                 route = table.servers_by_domain(domain);
                 match route {
                     RouteResult::NoRoute => {}
