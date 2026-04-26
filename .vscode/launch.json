@@ -31,7 +31,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug cc-client (Win)",
+            "name": "Debug cc-client",
             "cargo": {
                 "args": [
                     "build",
@@ -40,6 +40,19 @@
                 ],
             },
             "args": ["--config", "../client.json"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug cc-tray",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=cc-tray",
+                    "--package=cc-tray"
+                ],
+            },
             "cwd": "${workspaceFolder}"
         },
         {
