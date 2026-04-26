@@ -1,5 +1,6 @@
-// Hide the console window on Windows.
 #![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
+
+mod logger;
 
 use anyhow::{Context, Result};
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
@@ -81,9 +82,6 @@ fn unregister_autostart() -> Result<()> {
     Ok(())
 }
 
-/// Spawn the UI executable. If `args` is empty the UI is launched normally
-/// (Show); passing `/exit` asks an already-running instance to quit (handled
-/// on the Flutter side via `flutter_single_instance`).
 fn spawn_ui(args: &[&str]) -> Result<()> {
     let path = ui_executable_path()?;
     if !path.exists() {
@@ -97,27 +95,21 @@ fn spawn_ui(args: &[&str]) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    logger::init();
 
     let instance = SingleInstance::new(SINGLE_INSTANCE_KEY).context("create single-instance guard")?;
     if !instance.is_single() {
-        tracing::info!("another tray instance is already running, exiting");
+        log::info!("another tray instance is already running, exiting");
         return Ok(());
     }
 
     if let Err(e) = register_autostart() {
-        tracing::warn!("failed to register autostart: {e:?}");
+        log::warn!("failed to register autostart: {e:?}");
     }
 
     let event_loop = EventLoop::new();
 
-    // Build the menu up front; it (and its items) will be moved into the
-    // closure and consumed by TrayIconBuilder on Init.
+    // Build the menu
     let menu = Menu::new();
     let show_item = MenuItem::new("Show", true, None);
     let exit_item = MenuItem::new("Exit", true, None);
@@ -133,8 +125,6 @@ fn main() -> Result<()> {
     let mut tray: Option<TrayIcon> = None;
     let mut last_dark = is_dark_theme();
     let mut menu_holder = Some(menu);
-    // Keep MenuItem refs alive for the lifetime of the menu, just in case.
-    let _items = (show_item, exit_item);
 
     event_loop.run(move |event, _, control_flow| {
         // Wake periodically to poll the OS theme so the icon can follow it.
@@ -158,13 +148,13 @@ fn main() -> Result<()> {
                         match builder.build() {
                             Ok(t) => tray = Some(t),
                             Err(e) => {
-                                tracing::error!("failed to build tray: {e:?}");
+                                log::error!("failed to build tray: {e:?}");
                                 *control_flow = ControlFlow::Exit;
                             }
                         }
                     }
                     Err(e) => {
-                        tracing::error!("failed to load tray icon: {e:?}");
+                        log::error!("failed to load tray icon: {e:?}");
                         *control_flow = ControlFlow::Exit;
                     }
                 }
@@ -177,10 +167,10 @@ fn main() -> Result<()> {
                         match load_icon(dark) {
                             Ok(icon) => {
                                 if let Err(e) = t.set_icon(Some(icon)) {
-                                    tracing::warn!("failed to update tray icon: {e:?}");
+                                    log::warn!("failed to update tray icon: {e:?}");
                                 }
                             }
-                            Err(e) => tracing::warn!("failed to load themed icon: {e:?}"),
+                            Err(e) => log::warn!("failed to load themed icon: {e:?}"),
                         }
                     }
                 }
@@ -191,14 +181,14 @@ fn main() -> Result<()> {
         while let Ok(ev) = menu_channel.try_recv() {
             if ev.id == show_id {
                 if let Err(e) = spawn_ui(&["/show"]) {
-                    tracing::error!("failed to launch UI: {e:?}");
+                    log::error!("failed to launch UI: {e:?}");
                 }
             } else if ev.id == exit_id {
                 if let Err(e) = unregister_autostart() {
-                    tracing::warn!("failed to unregister autostart: {e:?}");
+                    log::warn!("failed to unregister autostart: {e:?}");
                 }
                 if let Err(e) = spawn_ui(&["/exit"]) {
-                    tracing::warn!("failed to send /exit to UI: {e:?}");
+                    log::warn!("failed to send /exit to UI: {e:?}");
                 }
                 *control_flow = ControlFlow::Exit;
             }
@@ -214,7 +204,7 @@ fn main() -> Result<()> {
                 } = tray_ev
                 {
                     if let Err(e) = spawn_ui(&["/show"]) {
-                        tracing::error!("failed to launch UI: {e:?}");
+                        log::error!("failed to launch UI: {e:?}");
                     }
                 }
             }

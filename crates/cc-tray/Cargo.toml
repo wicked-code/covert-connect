@@ -12,8 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
+log = "0.4"
 
 auto-launch = "0.6.0"
 tray-icon = "0.22.1"
@@ -21,3 +20,6 @@ tao = "0.35.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
 dark-light = "2.0.0"
 single-instance = "0.3.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Console"] }

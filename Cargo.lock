@@ -895,11 +895,11 @@ dependencies = [
  "auto-launch 0.6.0",
  "dark-light",
  "image",
+ "log",
  "single-instance",
  "tao",
- "tracing",
- "tracing-subscriber",
  "tray-icon",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
