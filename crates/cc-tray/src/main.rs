@@ -21,8 +21,14 @@ const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION")
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
-const ICON_LIGHT: &[u8] = include_bytes!("../../../flutter/covert_connect_ui/assets/images/app-icon.png");
-const ICON_DARK: &[u8] = include_bytes!("../../../flutter/covert_connect_ui/assets/images/app-icon-dark.png");
+#[cfg(not(debug_assertions))]
+const ICON_LIGHT: &[u8] = include_bytes!("../assets/app-icon.png");
+#[cfg(debug_assertions)]
+const ICON_LIGHT: &[u8] = include_bytes!("../assets/app-icon-d.png");
+#[cfg(not(debug_assertions))]
+const ICON_DARK: &[u8] = include_bytes!("../assets/app-icon-dark.png");
+#[cfg(debug_assertions)]
+const ICON_DARK: &[u8] = include_bytes!("../assets/app-icon-dark-d.png");
 
 fn load_icon(dark: bool) -> Result<Icon> {
     let bytes = if dark { ICON_DARK } else { ICON_LIGHT };
