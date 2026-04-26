@@ -61,6 +61,6 @@ net-packet = { path = "crates/net-packet" }
 
 [profile.release-prod]
 inherits = "release"
-strip = "debuginfo"
+strip = "symbols"
 codegen-units = 1
 lto = true
