@@ -6,10 +6,10 @@ import 'package:covert_connect/src/widgets/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:covert_connect/src/rust/frb_generated.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Future.wait([RustLib.init(), initDesktop()]);
+  await Future.wait([RustLib.init(), initDesktop(args)]);
   setupDI();
 
   runApp(const MyApp());
