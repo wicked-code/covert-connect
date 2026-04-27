@@ -27,7 +27,5 @@ abstract class RouterServiceBase {
   Future<int> getTTFB(String server, String domain);
   Future<bool> getAutostart();
   Future<void> setAutostart(bool enabled);
-  Future<List<LogLine>> getLog(BigInt? start, int limit);
-  Future<BigInt> registerLogger(Future<void> Function(String) callback);
-  Future<void> unregisterLogger(BigInt id);
+  Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit);
 }

@@ -129,18 +129,8 @@ class RouterServiceImpl implements RouterServiceBase {
   }
 
   @override
-  Future<BigInt> registerLogger(Future<void> Function(String) callback) {
-    return router.registerLogger(callback: callback);
-  }
-
-  @override
-  Future<void> unregisterLogger(BigInt id) async {
-    return router.unregisterLogger(id: id);
-  }
-
-  @override
-  Future<List<LogLine>> getLog(BigInt? start, int limit) =>
-      ClientService.getLog(start: start, limit: BigInt.from(limit));
+  Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit) =>
+      ClientService.getLog(start: start, end: end, limit: BigInt.from(limit));
 
   Future<void> saveConfig() async {
     final cfg = await router.getConfig();

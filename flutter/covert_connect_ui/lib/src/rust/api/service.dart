@@ -8,7 +8,7 @@ import 'log.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_client`, `get_writer_notifier`, `init_autostart`
+// These functions are ignored because they are not marked as `pub`: `get_client`, `init_autostart`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>
@@ -31,11 +31,15 @@ abstract class ClientService implements RustOpaqueInterface {
 
   Future<List<String>> getDirectDomains();
 
-  static Future<List<LogLine>> getLog({BigInt? start, required BigInt limit}) =>
-      RustLib.instance.api.crateApiServiceClientServiceGetLog(
-        start: start,
-        limit: limit,
-      );
+  static Future<List<LogLine>> getLog({
+    BigInt? start,
+    BigInt? end,
+    required BigInt limit,
+  }) => RustLib.instance.api.crateApiServiceClientServiceGetLog(
+    start: start,
+    end: end,
+    limit: limit,
+  );
 
   Future<ProtocolConfig> getServerProtocol({
     required String server,
@@ -50,10 +54,6 @@ abstract class ClientService implements RustOpaqueInterface {
 
   factory ClientService() =>
       RustLib.instance.api.crateApiServiceClientServiceNew();
-
-  Future<BigInt> registerLogger({
-    required FutureOr<void> Function(String) callback,
-  });
 
   Future<void> removeApp({required String app});
 
@@ -75,8 +75,6 @@ abstract class ClientService implements RustOpaqueInterface {
   Future<void> start({required ClientConfig cfg});
 
   Future<void> stop();
-
-  Future<void> unregisterLogger({required BigInt id});
 
   Future<void> updateServer({
     required String origHost,

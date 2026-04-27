@@ -11,7 +11,6 @@ import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -67,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 169826042;
+  int get rustContentHash => -696213865;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -108,6 +107,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<LogLine>> crateApiServiceClientServiceGetLog({
     BigInt? start,
+    BigInt? end,
     required BigInt limit,
   });
 
@@ -132,11 +132,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   ClientService crateApiServiceClientServiceNew();
-
-  Future<BigInt> crateApiServiceClientServiceRegisterLogger({
-    required ClientService that,
-    required FutureOr<void> Function(String) callback,
-  });
 
   Future<void> crateApiServiceClientServiceRemoveApp({
     required ClientService that,
@@ -182,46 +177,19 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiServiceClientServiceStop({required ClientService that});
 
-  Future<void> crateApiServiceClientServiceUnregisterLogger({
-    required ClientService that,
-    required BigInt id,
-  });
-
   Future<void> crateApiServiceClientServiceUpdateServer({
     required ClientService that,
     required String origHost,
     required ServerConfig newConfig,
   });
 
-  Future<WriterNotifier> crateApiLogWriterNotifierDefault();
-
-  Future<WriterNotifier> crateApiLogWriterNotifierNew();
-
-  Future<BigInt> crateApiLogWriterNotifierRegisterLogger({
-    required WriterNotifier that,
-    required FutureOr<void> Function(String) callback,
-  });
-
-  Future<void> crateApiLogWriterNotifierUnregisterLogger({
-    required WriterNotifier that,
-    required BigInt id,
-  });
-
   Future<List<LogLine>> crateApiLogGetTraceLog({
     BigInt? start,
+    BigInt? end,
     required BigInt limit,
   });
 
-  Future<ArcWriterNotifier> crateApiLogInitTraceLog();
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_ArcWriterNotifier;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_ArcWriterNotifier;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_ArcWriterNotifierPtr;
+  Future<void> crateApiLogInitTraceLog();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ClientService;
@@ -231,15 +199,6 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_ClientServicePtr;
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_WriterNotifier;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_WriterNotifier;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_WriterNotifierPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -500,6 +459,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<List<LogLine>> crateApiServiceClientServiceGetLog({
     BigInt? start,
+    BigInt? end,
     required BigInt limit,
   }) {
     return handler.executeNormal(
@@ -507,6 +467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_opt_box_autoadd_u_64(start, serializer);
+          sse_encode_opt_box_autoadd_u_64(end, serializer);
           sse_encode_usize(limit, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -520,7 +481,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiServiceClientServiceGetLogConstMeta,
-        argValues: [start, limit],
+        argValues: [start, end, limit],
         apiImpl: this,
       ),
     );
@@ -529,7 +490,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiServiceClientServiceGetLogConstMeta =>
       const TaskConstMeta(
         debugName: "ClientService_get_log",
-        argNames: ["start", "limit"],
+        argNames: ["start", "end", "limit"],
       );
 
   @override
@@ -708,47 +669,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ClientService_new", argNames: []);
 
   @override
-  Future<BigInt> crateApiServiceClientServiceRegisterLogger({
-    required ClientService that,
-    required FutureOr<void> Function(String) callback,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
-            that,
-            serializer,
-          );
-          sse_encode_DartFn_Inputs_String_Output_unit_AnyhowException(
-            callback,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 14,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_64,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceClientServiceRegisterLoggerConstMeta,
-        argValues: [that, callback],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceClientServiceRegisterLoggerConstMeta =>
-      const TaskConstMeta(
-        debugName: "ClientService_register_logger",
-        argNames: ["that", "callback"],
-      );
-
-  @override
   Future<void> crateApiServiceClientServiceRemoveApp({
     required ClientService that,
     required String app,
@@ -765,7 +685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 14,
             port: port_,
           );
         },
@@ -803,7 +723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 15,
             port: port_,
           );
         },
@@ -843,7 +763,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 16,
             port: port_,
           );
         },
@@ -876,7 +796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 17,
             port: port_,
           );
         },
@@ -916,7 +836,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 18,
             port: port_,
           );
         },
@@ -956,7 +876,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 19,
             port: port_,
           );
         },
@@ -994,7 +914,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 20,
             port: port_,
           );
         },
@@ -1032,7 +952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1066,7 +986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1083,44 +1003,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiServiceClientServiceStopConstMeta =>
       const TaskConstMeta(debugName: "ClientService_stop", argNames: ["that"]);
-
-  @override
-  Future<void> crateApiServiceClientServiceUnregisterLogger({
-    required ClientService that,
-    required BigInt id,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
-            that,
-            serializer,
-          );
-          sse_encode_u_64(id, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 24,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiServiceClientServiceUnregisterLoggerConstMeta,
-        argValues: [that, id],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiServiceClientServiceUnregisterLoggerConstMeta =>
-      const TaskConstMeta(
-        debugName: "ClientService_unregister_logger",
-        argNames: ["that", "id"],
-      );
 
   @override
   Future<void> crateApiServiceClientServiceUpdateServer({
@@ -1141,7 +1023,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1163,143 +1045,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<WriterNotifier> crateApiLogWriterNotifierDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 26,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiLogWriterNotifierDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogWriterNotifierDefaultConstMeta =>
-      const TaskConstMeta(debugName: "WriterNotifier_default", argNames: []);
-
-  @override
-  Future<WriterNotifier> crateApiLogWriterNotifierNew() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 27,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiLogWriterNotifierNewConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogWriterNotifierNewConstMeta =>
-      const TaskConstMeta(debugName: "WriterNotifier_new", argNames: []);
-
-  @override
-  Future<BigInt> crateApiLogWriterNotifierRegisterLogger({
-    required WriterNotifier that,
-    required FutureOr<void> Function(String) callback,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-            that,
-            serializer,
-          );
-          sse_encode_DartFn_Inputs_String_Output_unit_AnyhowException(
-            callback,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 28,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_64,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiLogWriterNotifierRegisterLoggerConstMeta,
-        argValues: [that, callback],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogWriterNotifierRegisterLoggerConstMeta =>
-      const TaskConstMeta(
-        debugName: "WriterNotifier_register_logger",
-        argNames: ["that", "callback"],
-      );
-
-  @override
-  Future<void> crateApiLogWriterNotifierUnregisterLogger({
-    required WriterNotifier that,
-    required BigInt id,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-            that,
-            serializer,
-          );
-          sse_encode_u_64(id, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 29,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiLogWriterNotifierUnregisterLoggerConstMeta,
-        argValues: [that, id],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogWriterNotifierUnregisterLoggerConstMeta =>
-      const TaskConstMeta(
-        debugName: "WriterNotifier_unregister_logger",
-        argNames: ["that", "id"],
-      );
-
-  @override
   Future<List<LogLine>> crateApiLogGetTraceLog({
     BigInt? start,
+    BigInt? end,
     required BigInt limit,
   }) {
     return handler.executeNormal(
@@ -1307,11 +1055,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_opt_box_autoadd_u_64(start, serializer);
+          sse_encode_opt_box_autoadd_u_64(end, serializer);
           sse_encode_usize(limit, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1320,7 +1069,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiLogGetTraceLogConstMeta,
-        argValues: [start, limit],
+        argValues: [start, end, limit],
         apiImpl: this,
       ),
     );
@@ -1328,11 +1077,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLogGetTraceLogConstMeta => const TaskConstMeta(
     debugName: "get_trace_log",
-    argNames: ["start", "limit"],
+    argNames: ["start", "end", "limit"],
   );
 
   @override
-  Future<ArcWriterNotifier> crateApiLogInitTraceLog() {
+  Future<void> crateApiLogInitTraceLog() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -1340,13 +1089,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 25,
             port: port_,
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier,
+          decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiLogInitTraceLogConstMeta,
@@ -1359,49 +1107,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiLogInitTraceLogConstMeta =>
       const TaskConstMeta(debugName: "init_trace_log", argNames: []);
 
-  Future<void> Function(int, dynamic)
-  encode_DartFn_Inputs_String_Output_unit_AnyhowException(
-    FutureOr<void> Function(String) raw,
-  ) {
-    return (callId, rawArg0) async {
-      final arg0 = dco_decode_String(rawArg0);
-
-      Box<void>? rawOutput;
-      Box<AnyhowException>? rawError;
-      try {
-        rawOutput = Box(await raw(arg0));
-      } catch (e, s) {
-        rawError = Box(AnyhowException("$e\n\n$s"));
-      }
-
-      final serializer = SseSerializer(generalizedFrbRustBinding);
-      assert((rawOutput != null) ^ (rawError != null));
-      if (rawOutput != null) {
-        serializer.buffer.putUint8(0);
-        sse_encode_unit(rawOutput.value, serializer);
-      } else {
-        serializer.buffer.putUint8(1);
-        sse_encode_AnyhowException(rawError!.value, serializer);
-      }
-      final output = serializer.intoRaw();
-
-      generalizedFrbRustBinding.dartFnDeliverOutput(
-        callId: callId,
-        ptr: output.ptr,
-        rustVecLen: output.rustVecLen,
-        dataLen: output.dataLen,
-      );
-    };
-  }
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_ArcWriterNotifier => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_ArcWriterNotifier => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier;
-
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ClientService => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService;
@@ -1410,27 +1115,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get rust_arc_decrement_strong_count_ClientService => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService;
 
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_WriterNotifier => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_WriterNotifier => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AnyhowException(raw as String);
-  }
-
-  @protected
-  ArcWriterNotifier
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ArcWriterNotifierImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1443,15 +1131,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  WriterNotifier
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
   ClientService
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     dynamic raw,
@@ -1461,52 +1140,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  WriterNotifier
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  FutureOr<void> Function(String)
-  dco_decode_DartFn_Inputs_String_Output_unit_AnyhowException(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    throw UnimplementedError('');
-  }
-
-  @protected
-  Object dco_decode_DartOpaque(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return decodeDartOpaque(raw, generalizedFrbRustBinding);
-  }
-
-  @protected
-  ArcWriterNotifier
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ArcWriterNotifierImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
   ClientService
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ClientServiceImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  WriterNotifier
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1618,12 +1257,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
-  }
-
-  @protected
-  PlatformInt64 dco_decode_isize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -1810,36 +1443,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  ArcWriterNotifier
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ArcWriterNotifierImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
   ClientService
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ClientServiceImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  WriterNotifier
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1858,55 +1467,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  WriterNotifier
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  Object sse_decode_DartOpaque(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_isize(deserializer);
-    return decodeDartOpaque(inner, generalizedFrbRustBinding);
-  }
-
-  @protected
-  ArcWriterNotifier
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ArcWriterNotifierImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
   ClientService
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ClientServiceImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  WriterNotifier
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return WriterNotifierImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -2021,12 +1587,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  PlatformInt64 sse_decode_isize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -2274,19 +1834,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    ArcWriterNotifier self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ArcWriterNotifierImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     ClientService self,
     SseSerializer serializer,
@@ -2294,19 +1841,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as ClientServiceImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    WriterNotifier self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as WriterNotifierImpl).frbInternalSseEncode(move: true),
       serializer,
     );
   }
@@ -2326,59 +1860,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    WriterNotifier self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as WriterNotifierImpl).frbInternalSseEncode(move: false),
-      serializer,
-    );
-  }
-
-  @protected
-  void sse_encode_DartFn_Inputs_String_Output_unit_AnyhowException(
-    FutureOr<void> Function(String) self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_DartOpaque(
-      encode_DartFn_Inputs_String_Output_unit_AnyhowException(self),
-      serializer,
-    );
-  }
-
-  @protected
-  void sse_encode_DartOpaque(Object self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_isize(
-      PlatformPointerUtil.ptrToPlatformInt64(
-        encodeDartOpaque(
-          self,
-          portManager.dartHandlerPort,
-          generalizedFrbRustBinding,
-        ),
-      ),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcWriterNotifier(
-    ArcWriterNotifier self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ArcWriterNotifierImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
     ClientService self,
     SseSerializer serializer,
@@ -2386,19 +1867,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as ClientServiceImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWriterNotifier(
-    WriterNotifier self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as WriterNotifierImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -2498,12 +1966,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
-  }
-
-  @protected
-  void sse_encode_isize(PlatformInt64 self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -2706,30 +2168,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 }
 
 @sealed
-class ArcWriterNotifierImpl extends RustOpaque implements ArcWriterNotifier {
-  // Not to be used by end users
-  ArcWriterNotifierImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  ArcWriterNotifierImpl.frbInternalSseDecode(
-    BigInt ptr,
-    int externalSizeOnNative,
-  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_ArcWriterNotifier,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_ArcWriterNotifier,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_ArcWriterNotifierPtr,
-  );
-}
-
-@sealed
 class ClientServiceImpl extends RustOpaque implements ClientService {
   // Not to be used by end users
   ClientServiceImpl.frbInternalDcoDecode(List<dynamic> wire)
@@ -2785,13 +2223,6 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
         domain: domain,
       );
 
-  Future<BigInt> registerLogger({
-    required FutureOr<void> Function(String) callback,
-  }) => RustLib.instance.api.crateApiServiceClientServiceRegisterLogger(
-    that: this,
-    callback: callback,
-  );
-
   Future<void> removeApp({required String app}) => RustLib.instance.api
       .crateApiServiceClientServiceRemoveApp(that: this, app: app);
 
@@ -2830,9 +2261,6 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
   Future<void> stop() =>
       RustLib.instance.api.crateApiServiceClientServiceStop(that: this);
 
-  Future<void> unregisterLogger({required BigInt id}) => RustLib.instance.api
-      .crateApiServiceClientServiceUnregisterLogger(that: this, id: id);
-
   Future<void> updateServer({
     required String origHost,
     required ServerConfig newConfig,
@@ -2841,34 +2269,4 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
     origHost: origHost,
     newConfig: newConfig,
   );
-}
-
-@sealed
-class WriterNotifierImpl extends RustOpaque implements WriterNotifier {
-  // Not to be used by end users
-  WriterNotifierImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  WriterNotifierImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_WriterNotifier,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_WriterNotifier,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_WriterNotifierPtr,
-  );
-
-  Future<BigInt> registerLogger({
-    required FutureOr<void> Function(String) callback,
-  }) => RustLib.instance.api.crateApiLogWriterNotifierRegisterLogger(
-    that: this,
-    callback: callback,
-  );
-
-  Future<void> unregisterLogger({required BigInt id}) => RustLib.instance.api
-      .crateApiLogWriterNotifierUnregisterLogger(that: this, id: id);
 }

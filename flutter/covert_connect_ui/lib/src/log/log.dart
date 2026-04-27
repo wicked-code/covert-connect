@@ -10,6 +10,8 @@ import 'package:covert_connect/src/services/router_service.dart';
 import 'package:flutter/material.dart';
 
 const kReadChunkSize = 100;
+const kMaxUpdateChunkSize = kReadChunkSize * 5;
+const kLogUpdateInterval = Duration(milliseconds: 500);
 const kLoadMoreThreshold = 25;
 
 class LogPage extends StatefulWidget {
@@ -24,13 +26,14 @@ class _LogPageState extends State<LogPage> {
 
   final _scrollController = ScrollController();
 
-  final List<String> _newMessages = [];
+  final List<LogLine> _newMessages = [];
   final List<LogLine> _oldMessages = [];
   bool _endReached = false;
 
-  BigInt? _loggerId;
-
   bool _loadMoreInProgress = false;
+  bool _updateInProgress = false;
+
+  Timer? _updateTimer;
 
   void _loadMore() async {
     if (_endReached || _loadMoreInProgress || _oldMessages.isEmpty) return;
@@ -38,7 +41,7 @@ class _LogPageState extends State<LogPage> {
     _loadMoreInProgress = true;
     try {
       final lastPosition = _oldMessages.last.position;
-      final newMessages = await di<RouterServiceBase>().getLog(lastPosition, kReadChunkSize);
+      final newMessages = await di<RouterServiceBase>().getLog(lastPosition, null, kReadChunkSize);
       if (newMessages.length < kReadChunkSize) {
         _endReached = true;
         return;
@@ -51,15 +54,30 @@ class _LogPageState extends State<LogPage> {
     }
   }
 
-  Future<void> _onLogMessage(String message) async {
-    _newMessages.add(message);
+  void _init() async {
+    List<LogLine> messages = (await di<RouterServiceBase>().getLog(null, null, kReadChunkSize)).toList();
+    bool fullChunk = messages.length >= kReadChunkSize;
+    if (!mounted) return;
+
+    if (fullChunk) {
+      int splitIndex = messages.length ~/ 2;
+      _oldMessages.addAll(messages.sublist(splitIndex));
+      messages = messages.sublist(0, splitIndex);
+    }
+    _newMessages.insertAll(0, messages.reversed);      
+
+    _updateTimer ??= Timer.periodic(kLogUpdateInterval, (timer) {
+      _updateLog();
+    });
+
     _updateIfMounted();
 
-    if (_scrollController.hasClients && _scrollController.offset > _scrollController.position.maxScrollExtent - 64) {
-      Future.delayed(Durations.short1);
+    if (_scrollController.hasClients) {
+      await Future.delayed(Durations.short1);
+      if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          _scrollController.position.maxScrollExtent + 100,
           duration: Durations.medium1,
           curve: Curves.easeOut,
         ),
@@ -67,49 +85,36 @@ class _LogPageState extends State<LogPage> {
     }
   }
 
-  void _disposeLogger() {
-    if (_loggerId != null) {
-      di<RouterServiceBase>().unregisterLogger(_loggerId!);
-      _loggerId = null;
-    }
-  }
+  void _updateLog() async {
+    if (_updateInProgress || _loadMoreInProgress) return;
 
-  void _init() async {
-    _loggerId = await di<RouterServiceBase>().registerLogger(_onLogMessage);
-
-    List<LogLine> messages = (await di<RouterServiceBase>().getLog(null, kReadChunkSize)).toList();
-    bool fullChunk = messages.length >= kReadChunkSize;
-
-    // Remove trailing empty lines
-    int pos = 0;
-    while (pos < messages.length) {
-      if (messages[pos].line.isNotEmpty) {
-        break;
+    _updateInProgress = true;
+    try {
+      final lastPosition = _newMessages.lastOrNull?.position;
+      final newMessages = await di<RouterServiceBase>().getLog(null, lastPosition, kMaxUpdateChunkSize);
+      if (newMessages.length >= kMaxUpdateChunkSize) {
+        // too many new messages, reset log view
+        _oldMessages.clear();
+        _newMessages.clear();
+        _endReached = false;
+        _updateTimer?.cancel();
+        _updateTimer = null;
+        _init();
+        return;
       }
-      pos++;
-    }
-    messages.removeRange(0, pos);
 
-    if (fullChunk) {
-      int splitIndex = messages.length ~/ 2;
-      _oldMessages.addAll(messages.sublist(splitIndex));
-      messages = messages.sublist(0, splitIndex);
+      _newMessages.addAll(newMessages.reversed);
+    } finally {
+      _updateInProgress = false;
     }
-
-    // Remove possible duplicats
-    var newMessages = messages.reversed.map((m) => m.line);
-    if (_newMessages.isNotEmpty) {
-      newMessages = newMessages.where((m) => !_newMessages.contains(m));
-    }
-    _newMessages.insertAll(0, newMessages);
 
     _updateIfMounted();
-
-    if (_scrollController.hasClients) {
-      Future.delayed(Durations.short1);
+    if (_scrollController.hasClients && _scrollController.offset > _scrollController.position.maxScrollExtent - 64) {
+      await Future.delayed(Durations.short1);
+      if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 100,
+          _scrollController.position.maxScrollExtent,
           duration: Durations.medium1,
           curve: Curves.easeOut,
         ),
@@ -129,7 +134,8 @@ class _LogPageState extends State<LogPage> {
 
   @override
   void dispose() {
-    _disposeLogger();
+    _updateTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -163,7 +169,7 @@ class _LogPageState extends State<LogPage> {
             SliverList(
               key: _centerKey,
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
-                return buildLogMessage(_newMessages[index]);
+                return buildLogMessage(_newMessages[index].line);
               }, childCount: _newMessages.length),
             ),
           ],

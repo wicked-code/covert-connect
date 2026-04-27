@@ -4,33 +4,21 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Callback`, `WriterNotifierWrapper`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `flush`, `from`, `make_writer`, `write`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
-Future<List<LogLine>> getTraceLog({BigInt? start, required BigInt limit}) =>
-    RustLib.instance.api.crateApiLogGetTraceLog(start: start, limit: limit);
+Future<List<LogLine>> getTraceLog({
+  BigInt? start,
+  BigInt? end,
+  required BigInt limit,
+}) => RustLib.instance.api.crateApiLogGetTraceLog(
+  start: start,
+  end: end,
+  limit: limit,
+);
 
-Future<ArcWriterNotifier> initTraceLog() =>
-    RustLib.instance.api.crateApiLogInitTraceLog();
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WriterNotifier>>
-abstract class WriterNotifier implements RustOpaqueInterface {
-  static Future<WriterNotifier> default_() =>
-      RustLib.instance.api.crateApiLogWriterNotifierDefault();
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<WriterNotifier> newInstance() =>
-      RustLib.instance.api.crateApiLogWriterNotifierNew();
-
-  Future<BigInt> registerLogger({
-    required FutureOr<void> Function(String) callback,
-  });
-
-  Future<void> unregisterLogger({required BigInt id});
-}
+Future<void> initTraceLog() => RustLib.instance.api.crateApiLogInitTraceLog();
 
 class LogLine {
   final String line;

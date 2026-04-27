@@ -213,7 +213,7 @@ class RouterServiceMock implements RouterServiceBase {
     return ping;
   }
 
-  String logInternal(String message, {LogErrorType? type}) {
+  void logInternal(String message, String now, {LogErrorType? type}) {
     String level = "INFO";
     if (type != null) {
       switch (type) {
@@ -227,57 +227,46 @@ class RouterServiceMock implements RouterServiceBase {
           break;
       }
     }
-    final now = DateTime.now().toUtc().toIso8601String();
     final logMessage = "{\"timestamp\":\"$now\",\"level\":\"$level\",\"fields\":{\"message\":\"$message\"},\"target\":\"client::proxy\"}";
     _log.add(logMessage);
-    return logMessage;
   }
 
   Timer? _timer;
-  Future<void> Function(String)? _callback;
+  DateTime? _lastUpdate;
 
-  void _sendLog() {
+  void _addLog() {
+    if (_lastUpdate != null && DateTime.now().difference(_lastUpdate!).inSeconds > 10) {
+      _timer?.cancel();
+      _timer = null;
+      return;
+    }
+
     final count = Random().nextInt(10) - 5;
     for(int i = 0; i < count; i++) {
       final chance = Random().nextInt(14);
-      String value = "";
+      final now = DateTime.now().add(Duration(milliseconds: i)).toUtc().toIso8601String();
       if (chance < 6) {
-        value = logInternal(r'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to lh4.googleusercontent.com:443');
+        logInternal(r'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe connecting to lh4.googleusercontent.com:443', now);
       } else if (chance == 6 || chance == 7) {
-        value = logInternal(r'server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof', type: LogErrorType.warning);
+        logInternal(r'server io error: peer closed connection without sending TLS close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof', now, type: LogErrorType.warning);
       } else if (chance == 8) {
-        value = logInternal("some error with text", type: LogErrorType.error);
+        logInternal("some error with text", now, type: LogErrorType.error);
       } else if (chance == 9) {
-        value = logInternal(r"some error, logn error, very very log erorr with path C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", type: LogErrorType.error);
-      }
-
-      if (value.isNotEmpty) {
-        _callback?.call(_log.last);
+        logInternal(r"some error, logn error, very very log erorr with path C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", now, type: LogErrorType.error);
       }
     }
   }
 
   @override
-  Future<List<LogLine>> getLog(BigInt? start, int limit) async {
+  Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit) async {
+    _timer ??= Timer.periodic(Duration(milliseconds: 973), (timer) => _addLog());
+    _lastUpdate = DateTime.now();
+
     if (start == BigInt.from(0)) return [];
 
-    final pos = max(0, (start?.toInt() ?? _log.length) - limit);
+    final pos = max((end?.toInt() ?? -1) + 1, (start?.toInt() ?? _log.length) - limit);
     final logLines = _log.sublist(pos, min(_log.length, pos + limit));
     return logLines.mapIndexed((idx, line) => LogLine(line: line, position: BigInt.from(pos + idx))).toList().reversed.toList();
-  }
-
-  @override
-  Future<BigInt> registerLogger(Future<void> Function(String) callback) async {
-    _callback = callback;
-    _timer ??= Timer.periodic(Duration(seconds: 1), (timer) => _sendLog());
-    return BigInt.from(1);
-  }
-
-  @override
-  Future<void> unregisterLogger(BigInt id) async {
-    _timer?.cancel();
-    _timer = null;
-    _callback = null;
   }
 
   @override

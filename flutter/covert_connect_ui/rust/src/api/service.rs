@@ -8,9 +8,9 @@ use client::client::Client;
 
 pub use client::client::ClientState;
 
-use flutter_rust_bridge::{DartFnFuture, frb};
+use flutter_rust_bridge::frb;
 
-use crate::api::log::{LogLine, WriterNotifier, get_trace_log, init_trace_log};
+use crate::api::log::{LogLine, get_trace_log, init_trace_log};
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 
 #[derive(Clone)]
@@ -47,8 +47,6 @@ pub struct ServerState {
 pub struct ClientService {
     /// flutter_rust_bridge:ignore
     client: OnceLock<Arc<Client>>,
-    /// flutter_rust_bridge:ignore
-    writer_notifier: OnceLock<Arc<WriterNotifier>>,
 }
 
 impl ClientService {
@@ -57,20 +55,14 @@ impl ClientService {
         return {
             ClientService {
                 client: Default::default(),
-                writer_notifier: OnceLock::new(),
             }
         };
     }
 
     pub async fn start(&self, cfg: ClientConfig) -> Result<()> {
-        match init_trace_log() {
-            Ok(notifier) => {
-                self.writer_notifier.set(notifier).ok();
-            }
-            Err(e) => {
-                println!("Failed to initialize trace log: {:?}", e);
-                bail!("Failed to initialize trace log: {:?}", e);
-            }
+        if let Err(err) = init_trace_log() {
+            println!("Failed to initialize trace log: {:?}", err);
+            bail!("Failed to initialize trace log: {:?}", err);
         }
 
         let mut client_state = cfg.state;
@@ -206,8 +198,8 @@ impl ClientService {
         client.remove_app(app).await
     }
 
-    pub async fn get_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
-        get_trace_log(start, limit).await
+    pub async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+        get_trace_log(start, end, limit).await
     }
 
     pub async fn check_domain(domain: String) -> Result<bool> {
@@ -253,23 +245,6 @@ impl ClientService {
             .set_use_launch_agent(true)
             .build()?;
         Ok(auto)
-    }
-
-    pub async fn register_logger(
-        &self,
-        callback: impl Fn(String) -> DartFnFuture<()> + Send + Sync + 'static,
-    ) -> Result<u64> {
-        self.get_writer_notifier()?.register_logger(callback).await
-    }
-
-    pub async fn unregister_logger(&self, id: u64) -> Result<()> {
-        self.get_writer_notifier()?.unregister_logger(id).await
-    }
-
-    fn get_writer_notifier(&self) -> Result<&Arc<WriterNotifier>> {
-        self.writer_notifier
-            .get()
-            .ok_or_else(|| anyhow!("writer notifier not initialized"))
     }
 
     fn get_client(&self) -> Result<&Arc<Client>> {

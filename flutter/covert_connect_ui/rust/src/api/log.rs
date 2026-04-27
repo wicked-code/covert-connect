@@ -1,15 +1,11 @@
-use anyhow::{Result, anyhow};
-use flutter_rust_bridge::DartFnFuture;
+use anyhow::Result;
 use futures_util::{StreamExt, pin_mut};
 use std::env::temp_dir;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     fs::{File, create_dir_all, rename},
-    io::{self, Write},
     sync::Arc,
 };
-use tokio::{io::BufReader, sync::RwLock};
-use tracing_subscriber::fmt::MakeWriter;
+use tokio::io::BufReader;
 use tracing_subscriber::{filter, prelude::*};
 
 use crate::api::rev_lines_ex::{RevLine, RevLines};
@@ -38,12 +34,8 @@ impl From<RevLine> for LogLine {
     }
 }
 
-pub async fn get_trace_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+pub async fn get_trace_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
     let path = temp_dir().join(LOG_FILE_NAME);
-
-    // TODO: implement custom buffered reverse reader
-    // return lines with pos/id (start position in file)
-    // it helps to read only new lines and merge them
 
     let file = tokio::fs::File::open(path).await?;
     let rev_lines = RevLines::new_stream(BufReader::new(file), start).await?;
@@ -54,13 +46,21 @@ pub async fn get_trace_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLi
         if result.len() >= limit {
             break;
         }
-        result.push(line?);
+        let line = line?;
+        if let Some(end) = end
+            && line.position <= end
+        {
+            break;
+        }
+        if !line.line.is_empty() {
+            result.push(line);
+        }
     }
 
     Ok(result.into_iter().map(LogLine::from).collect())
 }
 
-pub fn init_trace_log() -> Result<Arc<WriterNotifier>> {
+pub fn init_trace_log() -> Result<()> {
     let app_dir = temp_dir();
     let path = app_dir.join(LOG_FILE_NAME);
 
@@ -76,10 +76,6 @@ pub fn init_trace_log() -> Result<Arc<WriterNotifier>> {
     let file = File::create(path)?;
     let app_log = tracing_subscriber::fmt::layer().json().with_writer(Arc::new(file));
 
-    let writer_notifier = Arc::new(WriterNotifier::new());
-    let wrapper = WriterNotifierWrapper(writer_notifier.clone());
-    let sender = tracing_subscriber::fmt::layer().json().with_writer(wrapper);
-
     // only errors from hickory server
     let hickory_filter = filter::Targets::new()
         .with_target("hickory_server", filter::LevelFilter::ERROR)
@@ -88,92 +84,7 @@ pub fn init_trace_log() -> Result<Arc<WriterNotifier>> {
     tracing_subscriber::registry()
         .with(stdout_log.with_filter(hickory_filter.clone()))
         .with(app_log.with_filter(hickory_filter.clone()))
-        .with(sender.with_filter(hickory_filter))
         .init();
 
-    Ok(writer_notifier)
-}
-
-/// flutter_rust_bridge:ignore
-pub struct Callback {
-    pub id: u64,
-    pub callback: Box<dyn Fn(String) -> DartFnFuture<()> + Send + Sync>,
-}
-
-pub struct WriterNotifier {
-    next_id: AtomicU64,
-    callbacks: RwLock<Vec<Callback>>,
-    tokio_handle: tokio::runtime::Handle,
-}
-
-impl WriterNotifier {
-    pub fn new() -> Self {
-        Self {
-            next_id: AtomicU64::new(0),
-            callbacks: Default::default(),
-            tokio_handle: tokio::runtime::Handle::current(),
-        }
-    }
-}
-
-impl Default for WriterNotifier {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub struct WriterNotifierWrapper(Arc<WriterNotifier>);
-
-impl WriterNotifier {
-    pub async fn register_logger(
-        &self,
-        callback: impl Fn(String) -> DartFnFuture<()> + Send + Sync + 'static,
-    ) -> Result<u64> {
-        let id = self.next_id.load(Ordering::Relaxed);
-        self.callbacks.write().await.push(Callback {
-            id,
-            callback: Box::new(callback),
-        });
-        self.next_id.fetch_add(1, Ordering::Relaxed);
-        Ok(id)
-    }
-
-    pub async fn unregister_logger(&self, id: u64) -> Result<()> {
-        let mut wr_callbacks = self.callbacks.write().await;
-        if let Some(pos) = wr_callbacks.iter().position(|s| s.id == id) {
-            wr_callbacks.remove(pos);
-            Ok(())
-        } else {
-            Err(anyhow!("not found"))
-        }
-    }
-}
-
-impl Write for WriterNotifierWrapper {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let self_clone = self.0.clone();
-        let buf_clone = buf.to_vec();
-        self.0.tokio_handle.spawn(async move {
-            self_clone.callbacks.read().await.iter().for_each(|callback| {
-                let line = String::from_utf8_lossy(&buf_clone).to_string();
-                let fut = (callback.callback)(line);
-                self_clone.tokio_handle.spawn(async move {
-                    let _ = fut.await;
-                });
-            });
-        });
-
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<'a> MakeWriter<'a> for WriterNotifierWrapper {
-    type Writer = WriterNotifierWrapper;
-    fn make_writer(&'a self) -> Self::Writer {
-        WriterNotifierWrapper(self.0.clone())
-    }
+    Ok(())
 }
