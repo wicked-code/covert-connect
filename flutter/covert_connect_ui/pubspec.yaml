@@ -37,6 +37,7 @@ dependencies:
   package_info_plus: 9.0.0
   intl: ^0.20.2
   flutter_single_instance: ^1.7.0
+  windows_single_instance: ^1.1.0
 
 dev_dependencies:
   flutter_test:

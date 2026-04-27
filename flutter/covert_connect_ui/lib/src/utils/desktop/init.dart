@@ -9,30 +9,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_acrylic/window.dart';
 import 'package:flutter_single_instance/flutter_single_instance.dart';
 import 'package:covert_connect/di.dart';
+import 'package:windows_single_instance/windows_single_instance.dart';
 
 const kDefaultWindowSize = Size(400, 600);
 
 Future<void> initDesktop(List<String> args) async {
   if (!isDesktop) return;
 
-  FlutterSingleInstance.debugMode = false;
+  if (Platform.isWindows) {
+    final String instanceId = Platform.resolvedExecutable
+      .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    await WindowsSingleInstance.ensureSingleInstance(
+        args,
+        instanceId,
+        onSecondWindow: (args) {
+            if (args.contains('/exit')) {
+              exit(0);
+            }          
+        });
+  } else {
+    FlutterSingleInstance.debugMode = false;
+    if (await FlutterSingleInstance().isFirstInstance() == false) {
+      final err = await FlutterSingleInstance().focus({
+        "args": args,
+      });
+      if (err != null) {
+        log("Error focusing running instance: $err");
+      }
 
-  if (await FlutterSingleInstance().isFirstInstance() == false) {
-    final err = await FlutterSingleInstance().focus({
-      "args": args,
-    });
-    if (err != null) {
-      log("Error focusing running instance: $err");
-    }
-
-    exit(0);
-  }
-
-  FlutterSingleInstance.onFocus = (data) {
-    if ((data['args'] as List?)?.contains('/exit') ?? false) {
       exit(0);
     }
-  };
+
+    FlutterSingleInstance.onFocus = (data) {
+      if ((data['args'] as List?)?.contains('/exit') ?? false) {
+        exit(0);
+      }
+    };
+  }
 
   await windowManager.ensureInitialized();
   await Window.initialize();
