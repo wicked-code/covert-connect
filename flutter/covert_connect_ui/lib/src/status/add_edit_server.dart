@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:math' as math;
 
+import 'package:logging/logging.dart';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
@@ -61,7 +62,7 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
       _protocol = await di<RouterServiceBase>().getServerProtocol(host, key);
     } catch (e) {
       final errMsg = exceptionToString(e);
-      di<RouterServiceBase>().log(errMsg);
+      log("getServerProtocol error: $errMsg", level: Level.SEVERE.value);
 
       final errMsgLower = errMsg.toLowerCase();
       if (["connection", "host", "peer"].any((word) => errMsgLower.contains(word))) {

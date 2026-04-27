@@ -213,11 +213,6 @@ class RouterServiceMock implements RouterServiceBase {
     return ping;
   }
 
-  @override
-  Future<void> log(String message, {LogErrorType? type}) async {
-    logInternal(message, type: type);
-  }
-
   String logInternal(String message, {LogErrorType? type}) {
     String level = "INFO";
     if (type != null) {

@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1113129290;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 169826042;
 
 // Section: executor
 
@@ -554,39 +554,6 @@ fn wire__crate__api__service__ClientService_get_ttfb_impl(
                         let output_ok =
                             crate::api::service::ClientService::get_ttfb(&*api_that_guard, api_server, api_domain)
                                 .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__service__ClientService_log_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ClientService_log",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
-            };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_message = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, ()>(
-                    (move || async move {
-                        let output_ok = Result::<_, ()>::Ok({
-                            crate::api::service::ClientService::log(api_message).await;
-                        })?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1898,25 +1865,24 @@ fn pde_ffi_dispatcher_primary_impl(
         10 => wire__crate__api__service__ClientService_get_state_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__service__ClientService_get_status_impl(port, ptr, rust_vec_len, data_len),
         12 => wire__crate__api__service__ClientService_get_ttfb_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__service__ClientService_log_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__service__ClientService_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__service__ClientService_remove_app_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__service__ClientService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__service__ClientService_set_app_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__service__ClientService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__service__ClientService_set_domain_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__service__ClientService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__service__ClientService_set_state_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__service__ClientService_start_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__service__ClientService_stop_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__service__ClientService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__service__ClientService_update_server_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__log__WriterNotifier_default_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__service__ClientService_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__service__ClientService_remove_app_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__service__ClientService_remove_domain_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__service__ClientService_set_app_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__service__ClientService_set_autostart_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__service__ClientService_set_domain_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__service__ClientService_set_server_enabled_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__service__ClientService_set_state_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__service__ClientService_start_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__service__ClientService_stop_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__service__ClientService_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__service__ClientService_update_server_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__log__WriterNotifier_default_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__log__WriterNotifier_new_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__log__WriterNotifier_register_logger_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__log__WriterNotifier_unregister_logger_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1929,7 +1895,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        14 => wire__crate__api__service__ClientService_new_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__service__ClientService_new_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

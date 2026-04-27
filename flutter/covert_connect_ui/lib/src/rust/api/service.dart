@@ -48,9 +48,6 @@ abstract class ClientService implements RustOpaqueInterface {
 
   Future<int> getTtfb({required String server, required String domain});
 
-  static Future<void> log({required String message}) =>
-      RustLib.instance.api.crateApiServiceClientServiceLog(message: message);
-
   factory ClientService() =>
       RustLib.instance.api.crateApiServiceClientServiceNew();
 

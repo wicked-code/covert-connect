@@ -206,10 +206,6 @@ impl ClientService {
         client.remove_app(app).await
     }
 
-    pub async fn log(message: String) {
-        tracing::info!(message);
-    }
-
     pub async fn get_log(start: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
         get_trace_log(start, limit).await
     }

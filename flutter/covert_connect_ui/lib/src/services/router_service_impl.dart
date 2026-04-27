@@ -41,25 +41,13 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<void> setState(ClientState state) async {
-    try {
-      await router.setState(state: state);
-    } catch (e) {
-      log(e.toString());
-      rethrow;
-    }
-
+    await router.setState(state: state);
     saveConfig();
   }
 
   @override
   Future<void> setServerEnabled(String host, bool value) async {
-    try {
-      await router.setServerEnabled(host: host, value: value);
-    } catch (e) {
-      log(e.toString());
-      rethrow;
-    }
-
+    await router.setServerEnabled(host: host, value: value);
     saveConfig();
   }
 
@@ -138,23 +126,6 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<void> setAutostart(bool enabled) {
     return ClientService.setAutostart(enabled: enabled);
-  }
-
-  @override
-  Future<void> log(String message, {LogErrorType? type}) async {
-    if (type != null) {
-      switch (type) {
-        case LogErrorType.message:
-          break;
-        case LogErrorType.warning:
-          message = "\x1B[33m$message";
-          break;
-        case LogErrorType.error:
-          message = "\x1B[31m$message";
-          break;
-      }
-    }
-    ClientService.log(message: message);
   }
 
   @override
