@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
+use directories::ProjectDirs;
 use std::env;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
@@ -59,32 +60,22 @@ impl ClientService {
         };
     }
 
-    pub async fn start(&self, cfg: ClientConfig) -> Result<()> {
+    pub async fn start(&self) -> Result<()> {
         if let Err(err) = init_trace_log() {
             println!("Failed to initialize trace log: {:?}", err);
             bail!("Failed to initialize trace log: {:?}", err);
         }
 
-        let mut client_state = cfg.state;
-        if cfg.servers.is_empty() {
-            // turn off proxy if no servers
-            client_state = ClientState::Off;
-        }
+        let dirs = ProjectDirs::from("com", "wicked-code",  "covert-connect")
+            .ok_or_else(|| anyhow!("Failed to get config directory"))?;
 
-        let client_instance = Client::new(client_state);
+        let client_instance = Client::new(dirs.config_dir().to_path_buf());
         client_instance.initialize().await?;
         self.client
             .set(client_instance.clone())
             .map_err(|_| anyhow!("client already initialized"))?;
 
         flutter_rust_bridge::spawn(async move {
-            client_instance.add_direct_apps(&cfg.direct_apps).await;
-            client_instance.add_direct_domains(&cfg.direct_domains).await;
-
-            for srv in cfg.servers {
-                client_instance.add_server(srv.into()).await;
-            }
-
             if let Err(err) = client_instance.serve().await {
                 tracing::error!("serve: {:?}", err);
             }

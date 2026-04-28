@@ -932,7 +932,6 @@ fn wire__crate__api__service__ClientService_start_impl(
                 <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
-            let api_cfg = <crate::api::service::ClientConfig>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -948,7 +947,7 @@ fn wire__crate__api__service__ClientService_start_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::service::ClientService::start(&*api_that_guard, api_cfg).await?;
+                        let output_ok = crate::api::service::ClientService::start(&*api_that_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,

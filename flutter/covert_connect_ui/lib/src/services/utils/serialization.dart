@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 
@@ -23,17 +21,6 @@ const kHPaddingEnd = "h_end";
 const kDPaddingMax = "d_max";
 const kDPaddingRate = "d_rate";
 const kEncryptionLimit = "encryptionLimit";
-
-ClientConfig proxyConfigFromString(String configStr) {
-  final json = jsonDecode(configStr);
-
-  return ClientConfig(
-    state: ClientState.values.byName(json[kState] as String),
-    directDomains: (json[kDomains] as List<dynamic>).map((x) => x as String).toList(),
-    directApps: (json[kApps] as List<dynamic>?)?.map((x) => x as String).toList() ?? [],
-    servers: (json[kServers] as List<dynamic>?)?.map((x) => serverConfigFromJson(x as Map<String, dynamic>)).toList() ?? [],
-  );
-}
 
 ServerConfig serverConfigFromJson(Map<String, dynamic> json) {
   return ServerConfig(

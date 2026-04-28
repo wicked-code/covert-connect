@@ -1,17 +1,9 @@
-import 'dart:convert';
-
 import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/router_service.dart';
-import 'package:covert_connect/src/services/utils/serialization.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class RouterServiceImpl implements RouterServiceBase {
-  static const kConfigKey = "proxy_config${kDebugMode ? "_debug" : ""}";
-  static const kDefaultPort = 25445;
-
   static Future<RouterServiceBase> create() async {
     final router = RouterServiceImpl();
     await router.init();
@@ -21,16 +13,7 @@ class RouterServiceImpl implements RouterServiceBase {
   final router = ClientService();
 
   Future<void> init() async {
-    final prefs = SharedPreferencesAsync();
-    String configStr = await prefs.getString(kConfigKey) ?? "";
-    ClientConfig cfg;
-    if (configStr.isNotEmpty) {
-      cfg = proxyConfigFromString(configStr);
-    } else {
-      cfg = ClientConfig(state: ClientState.off, directDomains: [], directApps: [], servers: []);
-    }
-
-    await router.start(cfg: cfg);
+    await router.start();
   }
 
   @override
@@ -42,13 +25,11 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<void> setState(ClientState state) async {
     await router.setState(state: state);
-    saveConfig();
   }
 
   @override
   Future<void> setServerEnabled(String host, bool value) async {
     await router.setServerEnabled(host: host, value: value);
-    saveConfig();
   }
 
   @override
@@ -69,25 +50,21 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<void> setDomain(String domain, String serverHost) async {
     await router.setDomain(domain: domain, serverHost: serverHost);
-    await saveConfig();
   }
 
   @override
   Future<void> removeDomain(String domain) async {
     await router.removeDomain(domain: domain);
-    saveConfig();
   }
 
   @override
   Future<void> setApp(String app, String serverHost) async {
     await router.setApp(app: app, serverHost: serverHost);
-    await saveConfig();
   }
 
   @override
   Future<void> removeApp(String app) async {
     await router.removeApp(app: app);
-    saveConfig();
   }
 
   @override
@@ -98,19 +75,16 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<void> addServer(ServerConfig config) async {
     await router.addServer(config: config);
-    saveConfig();
   }
 
   @override
   Future<void> updateServer(String origHost, ServerConfig newConfig) async {
     await router.updateServer(origHost: origHost, newConfig: newConfig);
-    saveConfig();
   }
 
   @override
   Future<void> deleteServer(String host) async {
     await router.deleteServer(host: host);
-    saveConfig();
   }
 
   @override
@@ -131,16 +105,4 @@ class RouterServiceImpl implements RouterServiceBase {
   @override
   Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit) =>
       ClientService.getLog(start: start, end: end, limit: BigInt.from(limit));
-
-  Future<void> saveConfig() async {
-    final cfg = await router.getConfig();
-    String json = jsonEncode(
-      cfg,
-      toEncodable: (Object? value) => value is ClientConfig
-          ? proxyCofigToJson(value)
-          : throw UnsupportedError('Saving proxy config: Cannot convert to JSON: $value'),
-    );
-    final prefs = SharedPreferencesAsync();
-    prefs.setString(kConfigKey, json);
-  }
 }

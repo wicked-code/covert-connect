@@ -1,19 +1,19 @@
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use client::client::{Client, ClientState};
 use is_terminal::IsTerminal;
 use tracing_subscriber::EnvFilter;
 
-mod config;
-
-use config::AppConfig;
+use cfgmatic_paths::PathsBuilder;
 
 /// Covert-Connect client
 #[derive(Parser)]
 struct Cli {
     /// config file path
     #[arg(short, long, value_name = "PATH", value_hint = clap::ValueHint::DirPath)]
-    config: std::path::PathBuf,
+    config: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -31,17 +31,14 @@ async fn main() -> Result<()> {
     }
 
     let args: Cli = Cli::parse();
-    let cfg = AppConfig::new(args.config)?;
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
-    let client = Client::new(cfg.state);
+    let cfg_path = args.config.unwrap_or_else(|| find_config_path().unwrap());
+    tracing::info!("config path: {:?}", cfg_path);
+
+    let client = Client::new(cfg_path);
     client.initialize().await?;
-    client.add_direct_domains(&cfg.direct_domains).await;
-    client.add_direct_apps(&cfg.direct_apps).await;
-    for srv in cfg.servers {
-        client.add_server(srv).await;
-    }
 
     let client_clone = client.clone();
     tokio::spawn(async move {
@@ -54,4 +51,13 @@ async fn main() -> Result<()> {
     });
 
     client.serve().await
+}
+
+fn find_config_path() -> Result<PathBuf> {
+    let finder = PathsBuilder::new(env!("CARGO_PKG_NAME")).build();
+    if let Some(path) = finder.system_dirs().into_iter().next() {
+        Ok(path)
+    } else {
+        Err(anyhow!("No config file found"))
+    }
 }

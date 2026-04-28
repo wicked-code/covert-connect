@@ -2,11 +2,10 @@ use anyhow::Result;
 use crypto::config::ProtocolConfig;
 use serde::{Deserialize, Serialize};
 use std::{
-    sync::{
+    path::PathBuf, sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
+    }, time::Duration
 };
 use tokio::{
     sync::{Notify, RwLock},
@@ -15,7 +14,7 @@ use tokio::{
 
 use crate::{
     client_info::{ClientInfo, ServerInfo},
-    config::ServerConfig,
+    config::{ClientConfig, ServerConfig},
     egress::Egress,
     router::Router,
     router_table::RouterTable,
@@ -42,39 +41,36 @@ pub struct Client {
     router: Arc<Router>,
     tun_service: Arc<TunService>,
     egress: Arc<Egress>,
+
+    cfg_path: PathBuf,
 }
 
 impl Client {
-    pub fn new(state: ClientState) -> Arc<Self> {
+    pub fn new(cfg_path: PathBuf) -> Arc<Self> {
         let egress = Egress::new();
         Arc::new(Client {
             tun_service: TunService::new(egress.clone()),
             info: ClientInfo::new(),
-            state: RwLock::new(state),
+            state: RwLock::new(ClientState::Off),
             state_notify: Arc::new(Notify::new()),
             initialized: AtomicBool::new(false),
             working: AtomicBool::new(false),
             router: Router::new(egress.clone()),
             egress,
+            cfg_path: cfg_path.join("config.toml"),
         })
     }
 
     pub async fn initialize(&self) -> Result<()> {
-        self.egress.init().await
+        self.load_config().await?;
+        self.egress.init().await?;
+        self.update().await;
+        self.initialized.store(true, Ordering::Relaxed);
+        Ok(())
     }
 
     pub async fn get_direct_apps(&self) -> Vec<String> {
         self.info.get_direct_apps().await
-    }
-
-    pub async fn add_direct_apps(&self, apps: &Vec<String>) {
-        self.info.add_direct_apps(apps).await;
-        self.update_router().await;
-    }
-
-    pub async fn add_direct_domains(&self, hosts: &Vec<String>) {
-        self.info.add_direct_domains(hosts).await;
-        self.update_router().await;
     }
 
     pub async fn get_direct_domains(&self) -> Vec<String> {
@@ -83,25 +79,25 @@ impl Client {
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
         self.info.set_domain(domain, server_host).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         Ok(())
     }
 
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
         self.info.remove_domain(&domain).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         Ok(())
     }
 
     pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
         self.info.set_app(app, server_host).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         Ok(())
     }
 
     pub async fn remove_app(&self, app: String) -> Result<()> {
         self.info.remove_app(&app).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         Ok(())
     }
 
@@ -111,12 +107,12 @@ impl Client {
 
     pub async fn add_server(&self, config: ServerConfig) {
         self.info.add_server(config, &self.egress).await;
-        self.update_router().await;
+        self.update_and_safe().await;
     }
 
     pub async fn del_server(&self, host: &str) -> Result<()> {
         let srv_count = self.info.del_server(host).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         if srv_count == 0 {
             // turn off proxy if we have no servers
             self.set_state(ClientState::Off).await
@@ -127,14 +123,14 @@ impl Client {
 
     pub async fn set_enabled(&self, host: &str, value: bool) -> Result<()> {
         self.info.set_enabled(host, value).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         // TODO: ??? terminate all connections
         Ok(())
     }
 
     pub async fn update_server(&self, orig_host: &str, config: ServerConfig) -> Result<()> {
         self.info.update_server(orig_host, config, &self.egress).await?;
-        self.update_router().await;
+        self.update_and_safe().await;
         Ok(())
     }
 
@@ -167,6 +163,8 @@ impl Client {
         *wr_state = proxy_state;
         drop(wr_state);
 
+        self.save_config().await;
+
         match proxy_state {
             ClientState::Off => {
                 self.tun_service.stop().await;
@@ -191,7 +189,6 @@ impl Client {
             if state == ClientState::Off {
                 self.working.store(false, Ordering::Relaxed);
                 error_retry_interval_sec = DEFAULT_ERROR_RETRY_INTERVAL_SEC;
-                self.initialized.store(true, Ordering::Relaxed);
 
                 // wait for state change
                 self.state_notify.notified().await;
@@ -202,7 +199,6 @@ impl Client {
             self.router.reset_cancel();
             let serve = self.tun_service.serve(self.router.clone(), move || {
                 self_clone.working.store(true, Ordering::Relaxed);
-                self_clone.initialized.store(true, Ordering::Relaxed);
             });
             if let Err(err) = serve.await {
                 self.working.store(false, Ordering::Relaxed);
@@ -223,8 +219,44 @@ impl Client {
         }
     }
 
-    async fn update_router(&self) {
+    async fn update_and_safe(&self) {
+        self.update().await;
+        self.save_config().await;
+    }
+
+    async fn update(&self) {
         self.info.update_connection_info(&self.egress).await;
         self.router.update_table(RouterTable::from(self.info.clone()).await);
+    }
+
+    async fn load_config(&self) -> Result<()> {        
+        let cfg = ClientConfig::from_file(self.cfg_path.clone()).await?;
+
+        self.info.add_direct_apps(&cfg.direct_apps).await;
+        self.info.add_direct_domains(&cfg.direct_domains).await;
+
+        for srv in cfg.servers {
+            self.info.add_server(srv, &self.egress).await;
+        }
+
+        Ok(())
+    }
+
+    async fn save_config(&self) {
+        let cfg = ClientConfig {
+            state: self.get_state().await,
+            direct_domains: self.get_direct_domains().await,
+            direct_apps: self.get_direct_apps().await,
+            servers: self
+                .get_servers()
+                .await
+                .into_iter()
+                .map(|srv| srv.config.into())
+                .collect(),
+        };
+
+        if let Err(err) = cfg.save_to_file(self.cfg_path.clone()).await {
+            tracing::error!("Failed to save config: {:?}", err);
+        }
     }
 }

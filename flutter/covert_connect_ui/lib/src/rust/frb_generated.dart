@@ -170,10 +170,7 @@ abstract class RustLibApi extends BaseApi {
     required ClientState state,
   });
 
-  Future<void> crateApiServiceClientServiceStart({
-    required ClientService that,
-    required ClientConfig cfg,
-  });
+  Future<void> crateApiServiceClientServiceStart({required ClientService that});
 
   Future<void> crateApiServiceClientServiceStop({required ClientService that});
 
@@ -938,7 +935,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiServiceClientServiceStart({
     required ClientService that,
-    required ClientConfig cfg,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -948,7 +944,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          sse_encode_box_autoadd_client_config(cfg, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -961,17 +956,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiServiceClientServiceStartConstMeta,
-        argValues: [that, cfg],
+        argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiServiceClientServiceStartConstMeta =>
-      const TaskConstMeta(
-        debugName: "ClientService_start",
-        argNames: ["that", "cfg"],
-      );
+      const TaskConstMeta(debugName: "ClientService_start", argNames: ["that"]);
 
   @override
   Future<void> crateApiServiceClientServiceStop({required ClientService that}) {
@@ -1158,12 +1150,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
-  }
-
-  @protected
-  ClientConfig dco_decode_box_autoadd_client_config(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_client_config(raw);
   }
 
   @protected
@@ -1489,14 +1475,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
-  ClientConfig sse_decode_box_autoadd_client_config(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_client_config(deserializer));
   }
 
   @protected
@@ -1884,15 +1862,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_client_config(
-    ClientConfig self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_client_config(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_server_config(
     ServerConfig self,
     SseSerializer serializer,
@@ -2255,8 +2224,8 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
   Future<void> setState({required ClientState state}) => RustLib.instance.api
       .crateApiServiceClientServiceSetState(that: this, state: state);
 
-  Future<void> start({required ClientConfig cfg}) => RustLib.instance.api
-      .crateApiServiceClientServiceStart(that: this, cfg: cfg);
+  Future<void> start() =>
+      RustLib.instance.api.crateApiServiceClientServiceStart(that: this);
 
   Future<void> stop() =>
       RustLib.instance.api.crateApiServiceClientServiceStop(that: this);

@@ -72,7 +72,7 @@ abstract class ClientService implements RustOpaqueInterface {
 
   Future<void> setState({required ClientState state});
 
-  Future<void> start({required ClientConfig cfg});
+  Future<void> start();
 
   Future<void> stop();
 

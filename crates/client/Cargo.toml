@@ -26,6 +26,7 @@ num_enum.workspace = true
 socket2.workspace = true
 rustc-hash.workspace = true
 network-interface.workspace = true
+config.workspace = true
 
 tokio-rustls.workspace = true
 webpki-roots.workspace = true
@@ -38,6 +39,7 @@ net-packet.workspace = true
 cc-server.workspace = true
 
 if-addrs = "0.15.0"
+toml = "1.1.2"
 #tun = {version = "0.8.6", features = ["async"]}
 tun = {git = "https://github.com/wicked-code/rust-tun", features = ["async"]}
 
