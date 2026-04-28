@@ -62,8 +62,8 @@ impl Client {
     }
 
     pub async fn initialize(&self) -> Result<()> {
-        self.load_config().await?;
         self.egress.init().await?;
+        self.load_config().await?;
         self.update().await;
         self.initialized.store(true, Ordering::Relaxed);
         Ok(())
