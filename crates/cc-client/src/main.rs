@@ -34,7 +34,10 @@ async fn main() -> Result<()> {
 
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
-    let cfg_path = args.config.unwrap_or_else(|| find_config_path().unwrap());
+    let cfg_path = match args.config {
+        Some(path) => path,
+        None => find_config_path()?.join("config.toml"),
+    };
     tracing::info!("config path: {:?}", cfg_path);
 
     let client = Client::new(cfg_path);

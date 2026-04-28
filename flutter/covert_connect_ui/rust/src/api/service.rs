@@ -69,7 +69,7 @@ impl ClientService {
         let dirs = ProjectDirs::from("com", "wicked-code",  "covert-connect")
             .ok_or_else(|| anyhow!("Failed to get config directory"))?;
 
-        let client_instance = Client::new(dirs.config_dir().to_path_buf());
+        let client_instance = Client::new(dirs.config_dir().to_path_buf().join("config.toml"));
         client_instance.initialize().await?;
         self.client
             .set(client_instance.clone())

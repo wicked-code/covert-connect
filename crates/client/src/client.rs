@@ -57,7 +57,7 @@ impl Client {
             working: AtomicBool::new(false),
             router: Router::new(egress.clone()),
             egress,
-            cfg_path: cfg_path.join("config.toml"),
+            cfg_path,
         })
     }
 
@@ -239,6 +239,7 @@ impl Client {
             self.info.add_server(srv, &self.egress).await;
         }
 
+        *self.state.write().await = cfg.state;
         Ok(())
     }
 
