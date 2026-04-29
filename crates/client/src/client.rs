@@ -1,6 +1,7 @@
 use anyhow::Result;
 use crypto::config::ProtocolConfig;
 use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 use std::{
     path::PathBuf, sync::{
         Arc,
@@ -182,7 +183,7 @@ impl Client {
         Ok(())
     }
 
-    pub async fn serve(self: &Arc<Self>) -> Result<()> {
+    pub async fn serve(self: &Arc<Self>, cancel_token: CancellationToken) -> Result<()> {
         let mut error_retry_interval_sec = DEFAULT_ERROR_RETRY_INTERVAL_SEC;
         loop {
             let state = *self.state.read().await;
@@ -191,7 +192,13 @@ impl Client {
                 error_retry_interval_sec = DEFAULT_ERROR_RETRY_INTERVAL_SEC;
 
                 // wait for state change
-                self.state_notify.notified().await;
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("cancelled, exiting serve loop");
+                        return Ok(());
+                    }
+                    _ = self.state_notify.notified() => {}
+                }
                 continue;
             }
 

@@ -1,4 +1,5 @@
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use serde::{Serialize, Deserialize};
 
 use anyhow::{Result, anyhow};
 use crypto::kdf::Kdf;
@@ -8,7 +9,7 @@ use crate::egress::Egress;
 const HTTPS_PORT_STR: &str = ":443";
 const HTTPS_PORT: u16 = 443;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerConnectInfo {
     pub address: SocketAddr,
     pub url_path: Option<String>,

@@ -1,9 +1,11 @@
 use anyhow::{Result, anyhow, bail};
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use directories::ProjectDirs;
+use parking_lot::Mutex;
 use std::env;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
+use tokio_util::sync::CancellationToken;
 
 use client::client::Client;
 
@@ -48,6 +50,7 @@ pub struct ServerState {
 pub struct ClientService {
     /// flutter_rust_bridge:ignore
     client: OnceLock<Arc<Client>>,
+    cancel_token: Mutex<CancellationToken>,
 }
 
 impl ClientService {
@@ -56,6 +59,7 @@ impl ClientService {
         return {
             ClientService {
                 client: Default::default(),
+                cancel_token: Mutex::new(CancellationToken::new()),
             }
         };
     }
@@ -75,8 +79,9 @@ impl ClientService {
             .set(client_instance.clone())
             .map_err(|_| anyhow!("client already initialized"))?;
 
+        let cancel_token = self.cancel_token.lock().clone();
         flutter_rust_bridge::spawn(async move {
-            if let Err(err) = client_instance.serve().await {
+            if let Err(err) = client_instance.serve(cancel_token).await {
                 tracing::error!("serve: {:?}", err);
             }
         });
@@ -145,6 +150,8 @@ impl ClientService {
     }
 
     pub async fn stop(&self) -> Result<()> {
+        self.cancel_token.lock().cancel();
+        *self.cancel_token.lock() = CancellationToken::new();
         self.get_client()?.set_state(ClientState::Off).await
     }
 

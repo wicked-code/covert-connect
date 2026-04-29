@@ -13,6 +13,7 @@ hyper-util.workspace = true
 hyper.workspace = true
 serde.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 tower.workspace = true
 tracing.workspace = true
 chrono.workspace = true
@@ -44,7 +45,6 @@ toml = "1.1.2"
 tun = {git = "https://github.com/wicked-code/rust-tun", features = ["async"]}
 
 futures-util = "0.3.32"
-tokio-util = "0.7.18"
 arc-swap = "1.9.0"
 net-route = "0.4.6"
 

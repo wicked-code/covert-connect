@@ -16,9 +16,10 @@ pub struct ClientConfig {
     pub servers: Vec<ServerConfig>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServerConfig {
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
 

@@ -1,0 +1,229 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use client::{
+    client::{Client, ClientState},
+    client_info::ServerInfo,
+    config::ServerConfig,
+};
+use crypto::config::ProtocolConfig;
+use futures::StreamExt;
+use tarpc::{
+    context, serde_transport,
+    server::{self, Channel},
+};
+use tokio_serde::formats::Bincode;
+use tokio_util::sync::CancellationToken;
+
+use crate::client_api::ClientApi;
+
+#[derive(Clone)]
+pub struct ClientController {
+    client: Arc<Client>,
+    cancel_token: CancellationToken,
+}
+
+impl ClientController {
+    pub fn new(client: Arc<Client>, cancel_token: CancellationToken) -> Self {
+        Self { client, cancel_token }
+    }
+
+    pub async fn run(&self) -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::fs;
+            use std::os::unix::fs::PermissionsExt;
+            use tokio::net::UnixListener;
+
+            use crate::client_api::get_api_socket_path;
+
+            let socket_path = get_api_socket_path();
+            let _ = fs::remove_file(&socket_path); // Remove existing socket
+
+            if let Some(parent) = std::path::Path::new(&socket_path).parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            let listener = UnixListener::bind(&socket_path)?;
+            fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o666))?;
+            println!("Server listening on UDS: {}", socket_path);
+
+            loop {
+                let (stream, _) = tokio::select! {
+                    result = listener.accept() => result?,
+                    _ = self.cancel_token.cancelled() => {
+                        tracing::info!("Shutting down api server...");
+                        break;
+                    }
+                };
+
+                let transport = serde_transport::new(
+                    tokio_util::codec::LengthDelimitedCodec::builder().new_framed(stream),
+                    Bincode::default(),
+                );
+
+                let controller = self.clone();
+                tokio::spawn(
+                    server::BaseChannel::with_defaults(transport)
+                        .execute(controller.serve())
+                        .for_each_concurrent(None, |response| async move {
+                            response.await;
+                        }),
+                );
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            use tokio::net::windows::named_pipe::ServerOptions;
+            use windows::Win32::Foundation::FALSE;
+            use windows::Win32::Security::{
+                InitializeSecurityDescriptor, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
+                SetSecurityDescriptorDacl,
+            };
+            use windows::Win32::System::SystemServices::SECURITY_DESCRIPTOR_REVISION;
+
+            use crate::client_api::get_api_pipe_name;
+
+            let pipe_name = get_api_pipe_name();
+            println!("Server listening on Named Pipe: {}", pipe_name);
+
+            loop {
+                let server = {
+                    let mut sd = SECURITY_DESCRIPTOR::default();
+
+                    unsafe {
+                        let psd = PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _);
+
+                        InitializeSecurityDescriptor(psd, SECURITY_DESCRIPTOR_REVISION)
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+                        // TRUE enables DACL, but passing None for the ACL allows 'Everyone'
+                        SetSecurityDescriptorDacl(psd, true, None, false)
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    }
+
+                    let mut sa = SECURITY_ATTRIBUTES {
+                        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+                        lpSecurityDescriptor: &mut sd as *mut _ as *mut _,
+                        bInheritHandle: FALSE,
+                    };
+
+                    unsafe {
+                        ServerOptions::new()
+                            .write_dac(true)
+                            .create_with_security_attributes_raw(&pipe_name, &mut sa as *mut _ as *mut _)?
+                    }
+                };
+
+                tokio::select! {
+                    _ = server.connect() => {}
+                    _ = self.cancel_token.cancelled() => {
+                        tracing::info!("Shutting down api server...");
+                        break;
+                    }
+                }
+
+                let transport = serde_transport::new(
+                    tokio_util::codec::LengthDelimitedCodec::builder().new_framed(server),
+                    Bincode::default(),
+                );
+
+                let controller = self.clone();
+                tokio::spawn(
+                    server::BaseChannel::with_defaults(transport)
+                        .execute(controller.serve())
+                        .for_each_concurrent(None, |response| async move {
+                            response.await;
+                        }),
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ClientApi for ClientController {
+    async fn get_state(self, _: context::Context) -> ClientState {
+        self.client.get_state().await
+    }
+
+    async fn set_state(self, _: context::Context, state: ClientState) -> Result<(), String> {
+        self.client.set_state(state).await.map_err(|e| e.to_string())
+    }
+
+    async fn get_direct_apps(self, _: context::Context) -> Vec<String> {
+        self.client.get_direct_apps().await
+    }
+
+    async fn get_direct_domains(self, _: context::Context) -> Vec<String> {
+        self.client.get_direct_domains().await
+    }
+
+    async fn get_servers(self, _: context::Context) -> Vec<ServerInfo> {
+        self.client.get_servers().await
+    }
+
+    async fn is_initialized(self, _: context::Context) -> bool {
+        self.client.is_initialized()
+    }
+
+    async fn is_working(self, _: context::Context) -> bool {
+        self.client.is_working()
+    }
+
+    async fn set_enabled(self, _: context::Context, host: String, value: bool) -> Result<(), String> {
+        self.client.set_enabled(&host, value).await.map_err(|e| e.to_string())
+    }
+
+    async fn get_server_protocol(
+        self,
+        _: context::Context,
+        host: String,
+        key: String,
+    ) -> Result<ProtocolConfig, String> {
+        self.client
+            .get_server_protocol(&host, &key)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn add_server(self, _: context::Context, config: ServerConfig) {
+        self.client.add_server(config).await;
+    }
+
+    async fn update_server(self, _: context::Context, orig_host: String, config: ServerConfig) -> Result<(), String> {
+        self.client
+            .update_server(&orig_host, config)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn del_server(self, _: context::Context, host: String) -> Result<(), String> {
+        self.client.del_server(&host).await.map_err(|e| e.to_string())
+    }
+
+    async fn set_domain(self, _: context::Context, domain: String, server_host: String) -> Result<(), String> {
+        self.client
+            .set_domain(domain, server_host)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn remove_domain(self, _: context::Context, domain: String) -> Result<(), String> {
+        self.client.remove_domain(domain).await.map_err(|e| e.to_string())
+    }
+
+    async fn set_app(self, _: context::Context, app: String, server_host: String) -> Result<(), String> {
+        self.client.set_app(app, server_host).await.map_err(|e| e.to_string())
+    }
+
+    async fn remove_app(self, _: context::Context, app: String) -> Result<(), String> {
+        self.client.remove_app(app).await.map_err(|e| e.to_string())
+    }
+
+    async fn get_ttfb(self, _: context::Context, host: String, domain: String) -> Result<usize, String> {
+        self.client.get_ttfb(&host, &domain).await.map_err(|e| e.to_string())
+    }
+}

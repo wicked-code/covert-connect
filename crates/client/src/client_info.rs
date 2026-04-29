@@ -1,10 +1,11 @@
 use anyhow::{Result, anyhow, bail};
 use std::sync::{Arc, atomic::AtomicU64};
 use tokio::sync::RwLock;
+use serde::{Serialize, Deserialize};
 
 use crate::{config::ServerConfig, egress::Egress, server_connection_info::ServerConnectInfo};
 
-#[derive(Default)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct ServerState {
     pub rx_total: AtomicU64,
     pub tx_total: AtomicU64,
@@ -12,7 +13,7 @@ pub struct ServerState {
     pub success_count: AtomicU64, // tunnels with no zero data returned from server, used for check healthy connection
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerInfo {
     pub config: ServerConfig,
     pub state: Arc<ServerState>,
