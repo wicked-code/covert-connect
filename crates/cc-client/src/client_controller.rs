@@ -96,11 +96,11 @@ impl ClientController {
                         let psd = PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _);
 
                         InitializeSecurityDescriptor(psd, SECURITY_DESCRIPTOR_REVISION)
-                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                            .map_err(std::io::Error::other)?;
 
                         // TRUE enables DACL, but passing None for the ACL allows 'Everyone'
                         SetSecurityDescriptorDacl(psd, true, None, false)
-                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                            .map_err(std::io::Error::other)?;
                     }
 
                     let mut sa = SECURITY_ATTRIBUTES {

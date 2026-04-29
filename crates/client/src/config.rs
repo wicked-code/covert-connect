@@ -95,7 +95,7 @@ impl ClientConfig {
             Err(e) => bail!("read config from {:?}: {:?}", path.as_ref(), e),
         };
 
-        toml::from_str::<ClientConfig>(&config_str).with_context(|| format!("deserialize config"))
+        toml::from_str::<ClientConfig>(&config_str).with_context(|| "deserialize config".to_string())
     }
 
     pub async fn save_to_file<P>(&self, path: P) -> Result<()>

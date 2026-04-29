@@ -3,9 +3,9 @@
 mod logger;
 
 use anyhow::{Context, Result};
-use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 #[cfg(target_os = "macos")]
 use auto_launch::MacOSLaunchMode;
+use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use single_instance::SingleInstance;
 use std::path::PathBuf;
 use std::process::Command;
@@ -202,10 +202,9 @@ fn main() -> Result<()> {
                     button_state: tray_icon::MouseButtonState::Up,
                     ..
                 } = tray_ev
+                    && let Err(e) = spawn_ui(&["/show"])
                 {
-                    if let Err(e) = spawn_ui(&["/show"]) {
-                        log::error!("failed to launch UI: {e:?}");
-                    }
+                    log::error!("failed to launch UI: {e:?}");
                 }
             }
         }

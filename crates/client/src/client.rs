@@ -259,7 +259,7 @@ impl Client {
                 .get_servers()
                 .await
                 .into_iter()
-                .map(|srv| srv.config.into())
+                .map(|srv| srv.config)
                 .collect(),
         };
 
