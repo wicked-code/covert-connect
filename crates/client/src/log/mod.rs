@@ -1,5 +1,8 @@
+mod rev_lines_ex;
+
 use anyhow::Result;
 use futures_util::{StreamExt, pin_mut};
+use serde::{Deserialize, Serialize};
 use std::env::temp_dir;
 use std::{
     fs::{File, create_dir_all, rename},
@@ -8,7 +11,7 @@ use std::{
 use tokio::io::BufReader;
 use tracing_subscriber::{filter, prelude::*};
 
-use crate::api::rev_lines_ex::{RevLine, RevLines};
+use crate::log::rev_lines_ex::{RevLine, RevLines};
 
 #[cfg(debug_assertions)]
 const LOG_FILE_NAME: &str = "covert-connect.debug.log";
@@ -20,6 +23,7 @@ const LOG_FILE_NAME: &str = "covert-connect.log";
 #[cfg(not(debug_assertions))]
 const PREV_FILE_NAME: &str = "covert-connect.log.old";
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LogLine {
     pub line: String,
     pub position: u64,

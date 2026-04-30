@@ -1,22 +1,12 @@
+use anyhow::{Result, anyhow};
 use futures_util::{Stream, stream};
 use std::cmp::min;
-use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, SeekFrom};
 
 static DEFAULT_SIZE: usize = 4096;
 
 static LF_BYTE: u8 = b'\n';
 static CR_BYTE: u8 = b'\r';
-
-/// Custom error types
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    Io(#[from] tokio::io::Error),
-
-    #[error(transparent)]
-    NotUtf8(#[from] std::string::FromUtf8Error),
-}
 
 pub struct RevLine {
     pub line: String,
@@ -36,7 +26,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
     pub async fn new_stream(
         reader: BufReader<R>,
         pos: Option<u64>,
-    ) -> Result<impl Stream<Item = Result<RevLine, Error>>, Error> {
+    ) -> Result<impl Stream<Item = Result<RevLine>>> {
         RevLines::stream_with_capacity(DEFAULT_SIZE, pos, reader).await
     }
 
@@ -46,7 +36,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
         cap: usize,
         pos: Option<u64>,
         mut reader: BufReader<R>,
-    ) -> Result<impl Stream<Item = Result<RevLine, Error>>, Error> {
+    ) -> Result<impl Stream<Item = Result<RevLine>>> {
         // Seek to end of reader now
         let reader_size = reader
             .seek(match pos {
@@ -81,7 +71,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
         Ok(buf)
     }
 
-    async fn next_line(&mut self) -> Option<Result<RevLine, Error>> {
+    async fn next_line(&mut self) -> Option<Result<RevLine>> {
         let mut result: Vec<u8> = Vec::new();
 
         'outer: loop {
@@ -116,7 +106,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                                     break 'outer;
                                 }
 
-                                Err(e) => return Some(Err(Error::Io(e))),
+                                Err(e) => return Some(Err(anyhow!("IO error: {e}"))),
                             }
                         } else {
                             result.push(*ch);
@@ -124,7 +114,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                     }
                 }
 
-                Err(e) => return Some(Err(Error::Io(e))),
+                Err(e) => return Some(Err(anyhow!("IO error: {e}"))),
             }
         }
 
@@ -137,7 +127,7 @@ impl<R: AsyncSeek + AsyncRead + Unpin> RevLines<R> {
                 line: s,
                 position: self.reader_pos,
             })),
-            Err(e) => Some(Err(Error::NotUtf8(e))),
+            Err(e) => Some(Err(anyhow!("from utf8 error: {e}"))),
         }
     }
 }

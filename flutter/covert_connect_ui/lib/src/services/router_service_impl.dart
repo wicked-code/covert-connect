@@ -1,4 +1,3 @@
-import 'package:covert_connect/src/rust/api/log.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/router_service.dart';

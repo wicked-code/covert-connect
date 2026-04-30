@@ -48,6 +48,24 @@ class HeaderPadding {
 
 enum Kdf { argon2, blake3 }
 
+class LogLine {
+  final String line;
+  final BigInt position;
+
+  const LogLine({required this.line, required this.position});
+
+  @override
+  int get hashCode => line.hashCode ^ position.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LogLine &&
+          runtimeType == other.runtimeType &&
+          line == other.line &&
+          position == other.position;
+}
+
 class ProtocolConfig {
   final String key;
   final Kdf kdf;

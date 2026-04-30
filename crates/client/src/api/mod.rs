@@ -1,8 +1,10 @@
 use anyhow::Result;
-use client::{client::ClientState, client_info::ServerInfo, config::ServerConfig};
+use crate::{client::ClientState, client_info::ServerInfo, config::ServerConfig, log::LogLine};
 use crypto::config::ProtocolConfig;
 use tarpc::serde_transport;
 use tokio_serde::formats::Bincode;
+
+const API_APP_NAME: &str = "covert_connect";
 
 #[cfg(debug_assertions)]
 const API_CHANNEL_NAME: &str = "cc_client_debug_api";
@@ -11,11 +13,11 @@ const API_CHANNEL_NAME: &str = "cc_client_api";
 
 #[cfg(unix)]
 pub fn get_api_socket_path() -> String {
-    format!("/var/run/{}/{}.sock", env!("CARGO_PKG_NAME"), API_CHANNEL_NAME)
+    format!("/var/run/{}/{}.sock", API_APP_NAME, API_CHANNEL_NAME)
 }
 #[cfg(windows)]
 pub fn get_api_pipe_name() -> String {
-    format!(r"\\.\pipe\{}.{}", env!("CARGO_PKG_NAME"), API_CHANNEL_NAME)
+    format!(r"\\.\pipe\{}.{}", API_APP_NAME, API_CHANNEL_NAME)
 }
 
 #[tarpc::service]
@@ -36,8 +38,7 @@ pub trait ClientApi {
     async fn remove_domain(domain: String) -> Result<(), String>;
     async fn set_app(app: String, server_host: String) -> Result<(), String>;
     async fn remove_app(app: String) -> Result<(), String>;
-    // TODO: ??? uncomment
-    //async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>>
+    async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>, String>;
     async fn get_ttfb(host: String, domain: String) -> Result<usize, String>;
 }
 
@@ -52,13 +53,13 @@ pub async fn connect_client_api() -> Result<ClientApiClient> {
     let stream = {
         use std::time::Duration;
         use tokio::net::windows::named_pipe::ClientOptions;
-        use windows::Win32::Foundation::ERROR_PIPE_BUSY;
+        use windows_sys::Win32::Foundation::ERROR_PIPE_BUSY;
 
         let pipe_name = get_api_pipe_name();
         loop {
             match ClientOptions::new().open(&pipe_name) {
                 Ok(client) => break client,
-                Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
+                Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY as i32) => {
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
                 Err(e) => return Err(e.into()),

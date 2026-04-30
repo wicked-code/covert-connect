@@ -5,6 +5,7 @@ use client::{
     client::{Client, ClientState},
     client_info::ServerInfo,
     config::ServerConfig,
+    log::{LogLine, get_trace_log},
 };
 use crypto::config::ProtocolConfig;
 use futures::StreamExt;
@@ -15,7 +16,7 @@ use tarpc::{
 use tokio_serde::formats::Bincode;
 use tokio_util::sync::CancellationToken;
 
-use crate::client_api::ClientApi;
+use client::api::ClientApi;
 
 #[derive(Clone)]
 pub struct ClientController {
@@ -35,7 +36,7 @@ impl ClientController {
             use std::os::unix::fs::PermissionsExt;
             use tokio::net::UnixListener;
 
-            use crate::client_api::get_api_socket_path;
+            use client::api::get_api_socket_path;
 
             let socket_path = get_api_socket_path();
             let _ = fs::remove_file(&socket_path); // Remove existing socket
@@ -83,7 +84,7 @@ impl ClientController {
             };
             use windows::Win32::System::SystemServices::SECURITY_DESCRIPTOR_REVISION;
 
-            use crate::client_api::get_api_pipe_name;
+            use client::api::get_api_pipe_name;
 
             let pipe_name = get_api_pipe_name();
             println!("Server listening on Named Pipe: {}", pipe_name);
@@ -99,8 +100,7 @@ impl ClientController {
                             .map_err(std::io::Error::other)?;
 
                         // TRUE enables DACL, but passing None for the ACL allows 'Everyone'
-                        SetSecurityDescriptorDacl(psd, true, None, false)
-                            .map_err(std::io::Error::other)?;
+                        SetSecurityDescriptorDacl(psd, true, None, false).map_err(std::io::Error::other)?;
                     }
 
                     let mut sa = SECURITY_ATTRIBUTES {
@@ -225,5 +225,15 @@ impl ClientApi for ClientController {
 
     async fn get_ttfb(self, _: context::Context, host: String, domain: String) -> Result<usize, String> {
         self.client.get_ttfb(&host, &domain).await.map_err(|e| e.to_string())
+    }
+
+    async fn get_log(
+        self,
+        _: context::Context,
+        start: Option<u64>,
+        end: Option<u64>,
+        limit: usize,
+    ) -> Result<Vec<LogLine>, String> {
+        get_trace_log(start, end, limit).await.map_err(|e| e.to_string())
     }
 }

@@ -6,7 +6,6 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api/log.dart';
 import 'api/service.dart';
 import 'api/wrappers.dart';
 import 'dart:async';

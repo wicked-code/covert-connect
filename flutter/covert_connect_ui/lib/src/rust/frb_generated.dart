@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/log.dart';
 import 'api/service.dart';
 import 'api/wrappers.dart';
 import 'dart:async';
@@ -66,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -696213865;
+  int get rustContentHash => -635815060;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -179,14 +178,6 @@ abstract class RustLibApi extends BaseApi {
     required String origHost,
     required ServerConfig newConfig,
   });
-
-  Future<List<LogLine>> crateApiLogGetTraceLog({
-    BigInt? start,
-    BigInt? end,
-    required BigInt limit,
-  });
-
-  Future<void> crateApiLogInitTraceLog();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ClientService;
@@ -1035,69 +1026,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "ClientService_update_server",
         argNames: ["that", "origHost", "newConfig"],
       );
-
-  @override
-  Future<List<LogLine>> crateApiLogGetTraceLog({
-    BigInt? start,
-    BigInt? end,
-    required BigInt limit,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_box_autoadd_u_64(start, serializer);
-          sse_encode_opt_box_autoadd_u_64(end, serializer);
-          sse_encode_usize(limit, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 24,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_log_line,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiLogGetTraceLogConstMeta,
-        argValues: [start, end, limit],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogGetTraceLogConstMeta => const TaskConstMeta(
-    debugName: "get_trace_log",
-    argNames: ["start", "end", "limit"],
-  );
-
-  @override
-  Future<void> crateApiLogInitTraceLog() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 25,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiLogInitTraceLogConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogInitTraceLogConstMeta =>
-      const TaskConstMeta(debugName: "init_trace_log", argNames: []);
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ClientService => wire

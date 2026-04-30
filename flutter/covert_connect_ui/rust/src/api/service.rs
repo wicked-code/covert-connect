@@ -13,7 +13,7 @@ pub use client::client::ClientState;
 
 use flutter_rust_bridge::frb;
 
-use crate::api::log::{LogLine, get_trace_log, init_trace_log};
+use client::log::{LogLine, get_trace_log, init_trace_log};
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 
 #[derive(Clone)]

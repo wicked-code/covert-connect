@@ -5,8 +5,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use client::{
     client::{Client, ClientState},
     config::ServerConfig,
+    log::init_trace_log,
 };
-use is_terminal::IsTerminal;
 use tarpc::context;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
@@ -14,12 +14,9 @@ use tracing_subscriber::EnvFilter;
 use cfgmatic_paths::PathsBuilder;
 use url::Url;
 
-use crate::{
-    client_api::{ClientApiClient, connect_client_api},
-    client_controller::ClientController,
-};
+use crate::client_controller::ClientController;
+use client::api::{ClientApiClient, connect_client_api};
 
-mod client_api;
 mod client_controller;
 
 /// Covert-Connect client
@@ -71,32 +68,20 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let logger = tracing_subscriber::fmt().with_env_filter(
-        EnvFilter::builder()
-            .with_default_directive(tracing::Level::INFO.into())
-            .from_env_lossy()
-            .add_directive("tarpc=warn".parse().unwrap())
-    );
-
-    if std::io::stdout().is_terminal() {
-        logger.init();
-    } else {
-        logger.without_time().init();
-    }
-
     let args: Cli = Cli::parse();
-
-    tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
     if let Some(command) = args.command {
         return process_command(command).await;
     }
 
+    init_trace_log()?;
+    tracing::info!(version = env!("CARGO_PKG_VERSION"));
+
     let cfg_path = match args.config {
         Some(path) => path,
         None => find_config_path()?.join("config.toml"),
     };
-    
+
     let client = Client::new(cfg_path);
     client.initialize().await?;
 
@@ -123,6 +108,18 @@ async fn main() -> Result<()> {
 }
 
 async fn process_command(command: Commands) -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(tracing::Level::INFO.into())
+                .from_env_lossy()
+                .add_directive("tarpc=warn".parse().unwrap()),
+        )
+        .without_time()
+        .init();
+
+    tracing::info!(version = env!("CARGO_PKG_VERSION"));
+
     match command {
         Commands::Add { uri } => {
             add_server(uri).await?;

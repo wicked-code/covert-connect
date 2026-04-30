@@ -2,6 +2,7 @@ use flutter_rust_bridge::frb;
 use std::ops::Range;
 
 pub use client::config::ServerConfig as ClientServerConfig;
+pub use client::log::LogLine;
 pub use crypto::config::{DataPadding, ProtocolConfig as CryptoProtocolConfig};
 pub use crypto::{cipher::CipherType, kdf::Kdf};
 
@@ -111,4 +112,10 @@ pub enum _Kdf {
 pub enum _CipherType {
     Aes256Gcm,
     ChaCha20Poly1305,
+}
+
+#[frb(mirror(LogLine))]
+pub struct _LogLine {
+    pub line: String,
+    pub position: u64,
 }

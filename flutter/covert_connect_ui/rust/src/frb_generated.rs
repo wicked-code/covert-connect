@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -696213865;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -635815060;
 
 // Section: executor
 
@@ -1053,74 +1053,21 @@ fn wire__crate__api__service__ClientService_update_server_impl(
         },
     )
 }
-fn wire__crate__api__log__get_trace_log_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_trace_log",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
-            };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_start = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_end = <Option<u64>>::sse_decode(&mut deserializer);
-            let api_limit = <usize>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
-                    (move || async move {
-                        let output_ok = crate::api::log::get_trace_log(api_start, api_end, api_limit).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__log__init_trace_log_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "init_trace_log",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
-            };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
-                    let output_ok = crate::api::log::init_trace_log()?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 
 // Section: static_checks
 
 #[allow(clippy::unnecessary_literal_unwrap)]
 const _: fn() = || {
-    let DataPadding = None::<crate::api::wrappers::DataPadding>.unwrap();
-    let _: u16 = DataPadding.max;
-    let _: u8 = DataPadding.rate;
+    {
+        let DataPadding = None::<crate::api::wrappers::DataPadding>.unwrap();
+        let _: u16 = DataPadding.max;
+        let _: u8 = DataPadding.rate;
+    }
+    {
+        let LogLine = None::<crate::api::wrappers::LogLine>.unwrap();
+        let _: String = LogLine.line;
+        let _: u64 = LogLine.position;
+    }
 };
 
 // Section: related_funcs
@@ -1283,13 +1230,13 @@ impl SseDecode for Vec<String> {
     }
 }
 
-impl SseDecode for Vec<crate::api::log::LogLine> {
+impl SseDecode for Vec<crate::api::wrappers::LogLine> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::log::LogLine>::sse_decode(deserializer));
+            ans_.push(<crate::api::wrappers::LogLine>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1331,12 +1278,12 @@ impl SseDecode for Vec<crate::api::service::ServerInfo> {
     }
 }
 
-impl SseDecode for crate::api::log::LogLine {
+impl SseDecode for crate::api::wrappers::LogLine {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_line = <String>::sse_decode(deserializer);
         let mut var_position = <u64>::sse_decode(deserializer);
-        return crate::api::log::LogLine {
+        return crate::api::wrappers::LogLine {
             line: var_line,
             position: var_position,
         };
@@ -1545,8 +1492,6 @@ fn pde_ffi_dispatcher_primary_impl(
         21 => wire__crate__api__service__ClientService_start_impl(port, ptr, rust_vec_len, data_len),
         22 => wire__crate__api__service__ClientService_stop_impl(port, ptr, rust_vec_len, data_len),
         23 => wire__crate__api__service__ClientService_update_server_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__log__get_trace_log_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__log__init_trace_log_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1703,19 +1648,19 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::wrappers::Kdf>> fo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::log::LogLine {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::wrappers::LogLine> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.line.into_into_dart().into_dart(),
-            self.position.into_into_dart().into_dart(),
+            self.0.line.into_into_dart().into_dart(),
+            self.0.position.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::log::LogLine {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::log::LogLine> for crate::api::log::LogLine {
-    fn into_into_dart(self) -> crate::api::log::LogLine {
-        self
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::wrappers::LogLine> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::wrappers::LogLine>> for crate::api::wrappers::LogLine {
+    fn into_into_dart(self) -> FrbWrapper<crate::api::wrappers::LogLine> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1938,12 +1883,12 @@ impl SseEncode for Vec<String> {
     }
 }
 
-impl SseEncode for Vec<crate::api::log::LogLine> {
+impl SseEncode for Vec<crate::api::wrappers::LogLine> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::log::LogLine>::sse_encode(item, serializer);
+            <crate::api::wrappers::LogLine>::sse_encode(item, serializer);
         }
     }
 }
@@ -1978,7 +1923,7 @@ impl SseEncode for Vec<crate::api::service::ServerInfo> {
     }
 }
 
-impl SseEncode for crate::api::log::LogLine {
+impl SseEncode for crate::api::wrappers::LogLine {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.line, serializer);

@@ -5,7 +5,7 @@ import 'dart:developer';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/widgets/log_message.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
-import 'package:covert_connect/src/rust/api/log.dart';
+import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/router_service.dart';
 import 'package:flutter/material.dart';
 
