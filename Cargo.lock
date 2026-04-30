@@ -4457,6 +4457,7 @@ name = "rust_lib_covert_connect"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "client",
  "crypto",
  "directories",
@@ -4465,6 +4466,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "tarpc",
  "tokio",
  "tokio-rustls",
  "tokio-util",

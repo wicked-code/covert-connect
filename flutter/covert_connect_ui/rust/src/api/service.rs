@@ -1,18 +1,16 @@
 use anyhow::{Result, anyhow, bail};
-use directories::ProjectDirs;
 use parking_lot::Mutex;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
 use tokio_util::sync::CancellationToken;
 
-use client::client::Client;
-
 use client::client::ClientState;
 
 use flutter_rust_bridge::frb;
 
-use client::log::{LogLine, get_trace_log, init_trace_log};
+use crate::api::backend::ClientBackend;
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
+use client::log::{LogLine, get_trace_log, init_trace_log};
 
 #[derive(Clone)]
 pub struct ClientConfig {
@@ -47,34 +45,39 @@ pub struct ServerState {
 
 pub struct ClientService {
     /// flutter_rust_bridge:ignore
-    client: OnceLock<Arc<Client>>,
+    client: OnceLock<Arc<dyn ClientBackend>>,
     cancel_token: Mutex<CancellationToken>,
 }
 
 impl ClientService {
     #[frb(sync)]
     pub fn new() -> ClientService {
-        return {
-            ClientService {
-                client: Default::default(),
-                cancel_token: Mutex::new(CancellationToken::new()),
-            }
-        };
+        ClientService {
+            client: Default::default(),
+            cancel_token: Mutex::new(CancellationToken::new()),
+        }
     }
 
+    /// Mobile (Android/iOS): run the client in-process.
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     pub async fn start(&self) -> Result<()> {
+        use crate::api::backend::LocalBackend;
+        use client::client::Client;
+        use directories::ProjectDirs;
+
         if let Err(err) = init_trace_log() {
             println!("Failed to initialize trace log: {:?}", err);
             bail!("Failed to initialize trace log: {:?}", err);
         }
 
-        let dirs = ProjectDirs::from("com", "wicked-code",  "covert-connect")
+        let dirs = ProjectDirs::from("com", "wicked-code", "covert-connect")
             .ok_or_else(|| anyhow!("Failed to get config directory"))?;
 
         let client_instance = Client::new(dirs.config_dir().to_path_buf().join("config.toml"));
         client_instance.initialize().await?;
+
         self.client
-            .set(client_instance.clone())
+            .set(Arc::new(LocalBackend(client_instance.clone())))
             .map_err(|_| anyhow!("client already initialized"))?;
 
         let cancel_token = self.cancel_token.lock().clone();
@@ -87,20 +90,47 @@ impl ClientService {
         Ok(())
     }
 
+    /// Desktop: spawn cc-tray (unless `/show` was passed) and connect to the
+    /// running cc-client over its IPC channel.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    pub async fn start(&self) -> Result<()> {
+        use crate::api::backend::RemoteBackend;
+        use client::api::connect_client_api;
+
+        if let Err(err) = init_trace_log() {
+            println!("Failed to initialize trace log: {:?}", err);
+            bail!("Failed to initialize trace log: {:?}", err);
+        }
+
+        let show_only = std::env::args().skip(1).any(|a| a == "/show");
+        if !show_only {
+            if let Err(err) = spawn_tray() {
+                tracing::warn!("failed to spawn cc-tray: {:?}", err);
+            }
+        }
+
+        let api = connect_client_api().await?;
+        self.client
+            .set(Arc::new(RemoteBackend(api)))
+            .map_err(|_| anyhow!("client already initialized"))?;
+
+        Ok(())
+    }
+
     pub async fn get_config(&self) -> Result<ClientConfig> {
         let client = self.get_client()?;
 
-        return Ok(ClientConfig {
-            state: client.get_state().await,
-            direct_domains: client.get_direct_domains().await,
-            direct_apps: client.get_direct_apps().await,
+        Ok(ClientConfig {
+            state: client.get_state().await?,
+            direct_domains: client.get_direct_domains().await?,
+            direct_apps: client.get_direct_apps().await?,
             servers: client
                 .get_servers()
-                .await
+                .await?
                 .into_iter()
                 .map(|srv| srv.config.into())
                 .collect(),
-        });
+        })
     }
 
     pub async fn get_status(&self) -> Result<ClientStatus> {
@@ -108,7 +138,7 @@ impl ClientService {
 
         let servers = client
             .get_servers()
-            .await
+            .await?
             .iter()
             .map(|s| ServerInfo {
                 state: ServerState {
@@ -124,14 +154,14 @@ impl ClientService {
             .collect();
 
         Ok(ClientStatus {
-            initialized: client.is_initialized(),
-            working: client.is_working(),
+            initialized: client.is_initialized().await?,
+            working: client.is_working().await?,
             servers,
         })
     }
 
     pub async fn get_state(&self) -> Result<ClientState> {
-        Ok(self.get_client()?.get_state().await)
+        self.get_client()?.get_state().await
     }
 
     pub async fn set_state(&self, state: ClientState) -> Result<()> {
@@ -139,11 +169,11 @@ impl ClientService {
     }
 
     pub async fn set_server_enabled(&self, host: String, value: bool) -> Result<()> {
-        self.get_client()?.set_enabled(&host, value).await
+        self.get_client()?.set_enabled(host, value).await
     }
 
     pub async fn get_server_protocol(&self, server: String, key: String) -> Result<ProtocolConfig> {
-        let protocol = self.get_client()?.get_server_protocol(&server, &key).await?;
+        let protocol = self.get_client()?.get_server_protocol(server, key).await?;
         Ok(protocol.into())
     }
 
@@ -154,44 +184,39 @@ impl ClientService {
     }
 
     pub async fn get_direct_apps(&self) -> Result<Vec<String>> {
-        Ok(self.get_client()?.get_direct_apps().await)
+        self.get_client()?.get_direct_apps().await
     }
 
     pub async fn get_direct_domains(&self) -> Result<Vec<String>> {
-        Ok(self.get_client()?.get_direct_domains().await)
+        self.get_client()?.get_direct_domains().await
     }
 
     pub async fn add_server(&self, config: ServerConfig) -> Result<()> {
-        self.get_client()?.add_server(config.into()).await;
-        Ok(())
+        self.get_client()?.add_server(config.into()).await
     }
 
     pub async fn update_server(&self, orig_host: String, new_config: ServerConfig) -> Result<()> {
-        self.get_client()?.update_server(&orig_host, new_config.into()).await
+        self.get_client()?.update_server(orig_host, new_config.into()).await
     }
 
     pub async fn delete_server(&self, host: String) -> Result<()> {
-        self.get_client()?.del_server(&host).await
+        self.get_client()?.del_server(host).await
     }
 
     pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
-        let client = self.get_client()?;
-        client.set_domain(domain, server_host).await
+        self.get_client()?.set_domain(domain, server_host).await
     }
 
     pub async fn remove_domain(&self, domain: String) -> Result<()> {
-        let client = self.get_client()?;
-        client.remove_domain(domain).await
+        self.get_client()?.remove_domain(domain).await
     }
 
     pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
-        let client = self.get_client()?;
-        client.set_app(app, server_host).await
+        self.get_client()?.set_app(app, server_host).await
     }
 
     pub async fn remove_app(&self, app: String) -> Result<()> {
-        let client = self.get_client()?;
-        client.remove_app(app).await
+        self.get_client()?.remove_app(app).await
     }
 
     pub async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
@@ -208,11 +233,22 @@ impl ClientService {
 
     pub async fn get_ttfb(&self, server: String, domain: String) -> Result<u32> {
         let client = self.get_client()?;
-        Ok(client.get_ttfb(&server, &domain).await? as u32)
+        Ok(client.get_ttfb(server, domain).await? as u32)
     }
 
-    fn get_client(&self) -> Result<&Arc<Client>> {
+    fn get_client(&self) -> Result<&Arc<dyn ClientBackend>> {
         self.client.get().ok_or_else(|| anyhow!("client not initialized"))
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn spawn_tray() -> Result<()> {
+    use std::process::Command;
+
+    let exe = std::env::current_exe()?;
+    let dir = exe.parent().unwrap_or_else(|| exe.as_path());
+    let name = if cfg!(windows) { "cc-tray.exe" } else { "cc-tray" };
+    let path = dir.join(name);
+    Command::new(path).spawn()?;
+    Ok(())
+}

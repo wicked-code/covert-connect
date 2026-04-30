@@ -28,6 +28,8 @@ parking_lot.workspace = true
 
 crypto.workspace = true
 client.workspace = true
+async-trait.workspace = true
+tarpc.workspace = true
 
 [features]
 default = ["rustls_ring"]

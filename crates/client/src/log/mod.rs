@@ -80,9 +80,10 @@ pub fn init_trace_log() -> Result<()> {
     let file = File::create(path)?;
     let app_log = tracing_subscriber::fmt::layer().json().with_writer(Arc::new(file));
 
-    // only errors from hickory server
+    // Keep noisy dependencies quieter in normal operation.
     let hickory_filter = filter::Targets::new()
         .with_target("hickory_server", filter::LevelFilter::ERROR)
+        .with_target("tarpc", filter::LevelFilter::WARN)
         .with_default(filter::LevelFilter::INFO);
 
     tracing_subscriber::registry()

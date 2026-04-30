@@ -193,10 +193,7 @@ impl Client {
 
                 // wait for state change
                 tokio::select! {
-                    _ = cancel_token.cancelled() => {
-                        tracing::info!("cancelled, exiting serve loop");
-                        return Ok(());
-                    }
+                    _ = cancel_token.cancelled() => return Ok(()),
                     _ = self.state_notify.notified() => {}
                 }
                 continue;

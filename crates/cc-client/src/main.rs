@@ -102,9 +102,12 @@ async fn main() -> Result<()> {
             tracing::error!("Client controller error: {:?}", err);
             stop_client(client_clone, cancel_token_clone).await;
         }
+        tracing::info!("API server stopped");
     });
 
-    client.serve(cancel_token).await
+    client.serve(cancel_token).await?;
+    tracing::info!("Client stopped");
+    Ok(())
 }
 
 async fn process_command(command: Commands) -> Result<()> {

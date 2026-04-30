@@ -47,15 +47,12 @@ impl ClientController {
 
             let listener = UnixListener::bind(&socket_path)?;
             fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o666))?;
-            println!("Server listening on UDS: {}", socket_path);
+            tracing::info!("Server listening on UDS: {}", socket_path);
 
             loop {
                 let (stream, _) = tokio::select! {
                     result = listener.accept() => result?,
-                    _ = self.cancel_token.cancelled() => {
-                        tracing::info!("Shutting down api server...");
-                        break;
-                    }
+                    _ = self.cancel_token.cancelled() => return Ok(()),
                 };
 
                 let transport = serde_transport::new(
@@ -87,7 +84,7 @@ impl ClientController {
             use client::api::get_api_pipe_name;
 
             let pipe_name = get_api_pipe_name();
-            println!("Server listening on Named Pipe: {}", pipe_name);
+            tracing::info!("Server listening on Named Pipe: {}", pipe_name);
 
             loop {
                 let server = {
@@ -118,10 +115,7 @@ impl ClientController {
 
                 tokio::select! {
                     _ = server.connect() => {}
-                    _ = self.cancel_token.cancelled() => {
-                        tracing::info!("Shutting down api server...");
-                        break;
-                    }
+                    _ = self.cancel_token.cancelled() => return Ok(()),
                 }
 
                 let transport = serde_transport::new(
@@ -139,8 +133,6 @@ impl ClientController {
                 );
             }
         }
-
-        Ok(())
     }
 }
 
