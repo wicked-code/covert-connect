@@ -10,6 +10,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 enum CipherType { aes256Gcm, chaCha20Poly1305 }
 
+enum ClientState { smart, all, off }
+
 class DataPadding {
   final int max;
   final int rate;

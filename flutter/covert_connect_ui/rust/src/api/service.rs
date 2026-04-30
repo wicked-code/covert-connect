@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 
 use client::client::Client;
 
-pub use client::client::ClientState;
+use client::client::ClientState;
 
 use flutter_rust_bridge::frb;
 
@@ -250,9 +250,3 @@ impl ClientService {
     }
 }
 
-#[frb(mirror(ClientState))]
-pub enum _ClientState {
-    Smart,
-    All,
-    Off,
-}

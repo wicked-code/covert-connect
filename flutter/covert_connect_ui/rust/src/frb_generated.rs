@@ -885,7 +885,7 @@ fn wire__crate__api__service__ClientService_set_state_impl(
                 <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>>::sse_decode(
                     &mut deserializer,
                 );
-            let api_state = <crate::api::service::ClientState>::sse_decode(&mut deserializer);
+            let api_state = <crate::api::wrappers::ClientState>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -1135,7 +1135,7 @@ impl SseDecode for crate::api::wrappers::CipherType {
 impl SseDecode for crate::api::service::ClientConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_state = <crate::api::service::ClientState>::sse_decode(deserializer);
+        let mut var_state = <crate::api::wrappers::ClientState>::sse_decode(deserializer);
         let mut var_directDomains = <Vec<String>>::sse_decode(deserializer);
         let mut var_directApps = <Vec<String>>::sse_decode(deserializer);
         let mut var_servers = <Vec<crate::api::wrappers::ServerConfig>>::sse_decode(deserializer);
@@ -1148,14 +1148,14 @@ impl SseDecode for crate::api::service::ClientConfig {
     }
 }
 
-impl SseDecode for crate::api::service::ClientState {
+impl SseDecode for crate::api::wrappers::ClientState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::service::ClientState::Smart,
-            1 => crate::api::service::ClientState::All,
-            2 => crate::api::service::ClientState::Off,
+            0 => crate::api::wrappers::ClientState::Smart,
+            1 => crate::api::wrappers::ClientState::All,
+            2 => crate::api::wrappers::ClientState::Off,
             _ => unreachable!("Invalid variant for ClientState: {}", inner),
         };
     }
@@ -1562,21 +1562,21 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::service::ClientConfig> for cr
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::service::ClientState> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::wrappers::ClientState> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::api::service::ClientState::Smart => 0.into_dart(),
-            crate::api::service::ClientState::All => 1.into_dart(),
-            crate::api::service::ClientState::Off => 2.into_dart(),
+            crate::api::wrappers::ClientState::Smart => 0.into_dart(),
+            crate::api::wrappers::ClientState::All => 1.into_dart(),
+            crate::api::wrappers::ClientState::Off => 2.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::service::ClientState> {}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::service::ClientState>>
-    for crate::api::service::ClientState
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::api::wrappers::ClientState> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::wrappers::ClientState>>
+    for crate::api::wrappers::ClientState
 {
-    fn into_into_dart(self) -> FrbWrapper<crate::api::service::ClientState> {
+    fn into_into_dart(self) -> FrbWrapper<crate::api::wrappers::ClientState> {
         self.into()
     }
 }
@@ -1801,21 +1801,21 @@ impl SseEncode for crate::api::wrappers::CipherType {
 impl SseEncode for crate::api::service::ClientConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::service::ClientState>::sse_encode(self.state, serializer);
+        <crate::api::wrappers::ClientState>::sse_encode(self.state, serializer);
         <Vec<String>>::sse_encode(self.direct_domains, serializer);
         <Vec<String>>::sse_encode(self.direct_apps, serializer);
         <Vec<crate::api::wrappers::ServerConfig>>::sse_encode(self.servers, serializer);
     }
 }
 
-impl SseEncode for crate::api::service::ClientState {
+impl SseEncode for crate::api::wrappers::ClientState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::service::ClientState::Smart => 0,
-                crate::api::service::ClientState::All => 1,
-                crate::api::service::ClientState::Off => 2,
+                crate::api::wrappers::ClientState::Smart => 0,
+                crate::api::wrappers::ClientState::All => 1,
+                crate::api::wrappers::ClientState::Off => 2,
                 _ => {
                     unimplemented!("");
                 }

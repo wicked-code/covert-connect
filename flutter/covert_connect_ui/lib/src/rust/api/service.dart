@@ -112,8 +112,6 @@ class ClientConfig {
           servers == other.servers;
 }
 
-enum ClientState { smart, all, off }
-
 class ClientStatus {
   final bool initialized;
   final bool working;

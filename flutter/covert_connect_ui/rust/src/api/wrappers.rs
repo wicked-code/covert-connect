@@ -1,8 +1,7 @@
 use flutter_rust_bridge::frb;
 use std::ops::Range;
 
-pub use client::config::ServerConfig as ClientServerConfig;
-pub use client::log::LogLine;
+pub use client::{client::ClientState, config::ServerConfig as ClientServerConfig, log::LogLine};
 pub use crypto::config::{DataPadding, ProtocolConfig as CryptoProtocolConfig};
 pub use crypto::{cipher::CipherType, kdf::Kdf};
 
@@ -118,4 +117,11 @@ pub enum _CipherType {
 pub struct _LogLine {
     pub line: String,
     pub position: u64,
+}
+
+#[frb(mirror(ClientState))]
+pub enum _ClientState {
+    Smart,
+    All,
+    Off,
 }
