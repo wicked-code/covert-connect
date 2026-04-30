@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
+import 'package:covert_connect/src/rust/api/wrappers.dart';
 import 'package:covert_connect/src/services/app_state_service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/status/widgets/server_list.dart';
