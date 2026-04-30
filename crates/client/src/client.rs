@@ -1,17 +1,19 @@
 use anyhow::Result;
 use crypto::config::ProtocolConfig;
 use serde::{Deserialize, Serialize};
-use tokio_util::sync::CancellationToken;
 use std::{
-    path::PathBuf, sync::{
+    path::PathBuf,
+    sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-    }, time::Duration
+    },
+    time::Duration,
 };
 use tokio::{
     sync::{Notify, RwLock},
     time::sleep,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     client_info::{ClientInfo, ServerInfo},
@@ -116,10 +118,9 @@ impl Client {
         self.update_and_safe().await;
         if srv_count == 0 {
             // turn off proxy if we have no servers
-            self.set_state(ClientState::Off).await
-        } else {
-            Ok(())
+            self.set_state(ClientState::Off).await;
         }
+        Ok(())
     }
 
     pub async fn set_enabled(&self, host: &str, value: bool) -> Result<()> {
@@ -155,10 +156,10 @@ impl Client {
         self.router.get_server_protocol(host, key).await
     }
 
-    pub async fn set_state(&self, proxy_state: ClientState) -> Result<()> {
+    pub async fn set_state(&self, proxy_state: ClientState) {
         let mut wr_state = self.state.write().await;
         if *wr_state == proxy_state {
-            return Ok(());
+            return;
         }
 
         *wr_state = proxy_state;
@@ -180,7 +181,6 @@ impl Client {
                 self.state_notify.notify_one();
             }
         }
-        Ok(())
     }
 
     pub async fn serve(self: &Arc<Self>, cancel_token: CancellationToken) -> Result<()> {
@@ -193,7 +193,10 @@ impl Client {
 
                 // wait for state change
                 tokio::select! {
-                    _ = cancel_token.cancelled() => return Ok(()),
+                    _ = cancel_token.cancelled() => {
+                        self.egress.shutdown().await;
+                        return Ok(())
+                    },
                     _ = self.state_notify.notified() => {}
                 }
                 continue;
@@ -233,17 +236,22 @@ impl Client {
         self.router.update_table(RouterTable::from(self.info.clone()).await);
     }
 
-    async fn load_config(&self) -> Result<()> {        
+    async fn load_config(&self) -> Result<()> {
         let cfg = ClientConfig::from_file(self.cfg_path.clone()).await?;
 
         self.info.add_direct_apps(&cfg.direct_apps).await;
         self.info.add_direct_domains(&cfg.direct_domains).await;
 
+        *self.state.write().await = if cfg.servers.is_empty() {
+            ClientState::Off
+        } else {
+            cfg.state
+        };
+
         for srv in cfg.servers {
             self.info.add_server(srv, &self.egress).await;
         }
 
-        *self.state.write().await = cfg.state;
         Ok(())
     }
 
@@ -252,12 +260,7 @@ impl Client {
             state: self.get_state().await,
             direct_domains: self.get_direct_domains().await,
             direct_apps: self.get_direct_apps().await,
-            servers: self
-                .get_servers()
-                .await
-                .into_iter()
-                .map(|srv| srv.config)
-                .collect(),
+            servers: self.get_servers().await.into_iter().map(|srv| srv.config).collect(),
         };
 
         if let Err(err) = cfg.save_to_file(self.cfg_path.clone()).await {

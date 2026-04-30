@@ -40,7 +40,8 @@ impl ClientBackend for LocalBackend {
         Ok(self.0.get_state().await)
     }
     async fn set_state(&self, state: ClientState) -> Result<()> {
-        self.0.set_state(state).await
+        self.0.set_state(state).await;
+        Ok(())
     }
     async fn get_direct_apps(&self) -> Result<Vec<String>> {
         Ok(self.0.get_direct_apps().await)

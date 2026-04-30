@@ -257,9 +257,5 @@ fn find_config_path() -> Result<PathBuf> {
 
 async fn stop_client(client: Arc<Client>, cancel_token: CancellationToken) {
     cancel_token.cancel();
-    if let Err(err) = client.set_state(ClientState::Off).await {
-        tracing::error!("Unable to restore proxy settings: {:?}", err);
-    } else {
-        tracing::info!("proxy settings restored");
-    }
+    client.set_state(ClientState::Off).await;
 }

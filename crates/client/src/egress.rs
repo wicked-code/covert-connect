@@ -14,7 +14,6 @@ use std::{
 use tokio::{
     io,
     net::{TcpSocket, TcpStream, UdpSocket},
-    task,
 };
 
 use tokio_rustls::{
@@ -23,12 +22,9 @@ use tokio_rustls::{
     rustls::{self, RootCertStore, client::Tls12Resumption, pki_types},
 };
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
+const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
 
-const UPDATE_DELAY: std::time::Duration = std::time::Duration::from_secs(3);
-
-use crate::streams::upgrade_stream::UpgradeStream;
+use crate::{streams::upgrade_stream::UpgradeStream, utils::cancellable_task::CancellableTask};
 use sys_net::find_default_if;
 
 pub enum StreamType {
@@ -42,6 +38,7 @@ pub struct Egress {
     outbound_dns: ArcSwap<Vec<IpAddr>>,
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
+    update_task: CancellableTask,
 }
 
 impl Egress {
@@ -66,6 +63,7 @@ impl Egress {
             resolver: ArcSwap::from_pointee(
                 Resolver::builder_with_config(ResolverConfig::new(), TokioConnectionProvider::default()).build(),
             ),
+            update_task: CancellableTask::new("EgressUpdateTask"),
         })
     }
 
@@ -73,43 +71,23 @@ impl Egress {
         self.update().await?;
 
         let self_clone = self.clone();
-        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-        task::spawn_blocking(move || {
-            let mut task_nandle: Option<task::JoinHandle<()>> = None;
-            let mut notifier = if_addrs::IfChangeNotifier::new().unwrap();
+        self.update_task.spawn(|token| async move {
             loop {
-                if notifier.wait(None).is_ok() {
-                    if let Some(handle) = task_nandle.take() {
-                        handle.abort();
-                    }
-
-                    let self_clone = self_clone.clone();
-                    task_nandle = Some(tokio::spawn(async move {
-                        loop {
-                            tokio::time::sleep(UPDATE_DELAY).await;
-                            if let Err(err) = self_clone.update().await {
-                                tracing::error!("Failed to update egress after IF change: {:?}", err);
-                                tokio::time::sleep(UPDATE_DELAY).await;
-                            } else {
-                                break;
-                            }
-                        }
-                    }));
+                tokio::select! {
+                    _ = token.cancelled() => return,
+                    _ = tokio::time::sleep(UPDATE_INTERVAL) => {}
                 }
-            }
-        });
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
-        task::spawn(async move {
-            loop {
-                // TODO: ??? it should be better way, but if_addrs::IfChangeNotifier Not available on iOS/macOS
-                tokio::time::sleep(UPDATE_INTERVAL).await;
                 if let Err(err) = self_clone.update().await {
-                    tracing::error!("Failed to update egress after IF change: {:?}", err);
+                    tracing::error!("Failed to update egress: {:?}", err);
                 }
             }
         });
 
         Ok(())
+    }
+
+    pub async fn shutdown(&self) {
+        self.update_task.stop().await;
     }
 
     pub async fn connect_with_upgrade(

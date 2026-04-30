@@ -142,7 +142,8 @@ impl ClientApi for ClientController {
     }
 
     async fn set_state(self, _: context::Context, state: ClientState) -> Result<(), String> {
-        self.client.set_state(state).await.map_err(|e| e.to_string())
+        self.client.set_state(state).await;
+        Ok(())
     }
 
     async fn get_direct_apps(self, _: context::Context) -> Vec<String> {
