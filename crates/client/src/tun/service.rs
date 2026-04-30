@@ -187,9 +187,14 @@ impl TunService {
         config.tun_name(&tun_name);
 
         #[cfg(target_os = "windows")]
-        config.platform_config(|config| {
-            config.dns_servers(&[IpAddr::V4(address_v4)]);
-        });
+        {
+            use sys_net::fix_firewall;
+
+            config.platform_config(|config| {
+                config.dns_servers(&[IpAddr::V4(address_v4)]);
+            });
+            fix_firewall();
+        }
 
         // TODO: ??? test ensure_root_privileges on linux
         #[cfg(target_os = "linux")]
