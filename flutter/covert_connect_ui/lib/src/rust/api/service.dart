@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_client`, `init_autostart`
+// These functions are ignored because they are not marked as `pub`: `get_client`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>
@@ -20,9 +20,6 @@ abstract class ClientService implements RustOpaqueInterface {
       .crateApiServiceClientServiceCheckDomain(domain: domain);
 
   Future<void> deleteServer({required String host});
-
-  static Future<bool> getAutostart() =>
-      RustLib.instance.api.crateApiServiceClientServiceGetAutostart();
 
   Future<ClientConfig> getConfig();
 
@@ -59,11 +56,6 @@ abstract class ClientService implements RustOpaqueInterface {
   Future<void> removeDomain({required String domain});
 
   Future<void> setApp({required String app, required String serverHost});
-
-  static Future<void> setAutostart({required bool enabled}) => RustLib
-      .instance
-      .api
-      .crateApiServiceClientServiceSetAutostart(enabled: enabled);
 
   Future<void> setDomain({required String domain, required String serverHost});
 

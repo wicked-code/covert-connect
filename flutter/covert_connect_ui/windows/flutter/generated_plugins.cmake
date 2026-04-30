@@ -6,7 +6,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   flutter_acrylic
   screen_retriever_windows
-  tray_manager
   window_manager
   windows_single_instance
 )

@@ -1,8 +1,6 @@
 use anyhow::{Result, anyhow, bail};
-use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use directories::ProjectDirs;
 use parking_lot::Mutex;
-use std::env;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
 use tokio_util::sync::CancellationToken;
@@ -211,38 +209,6 @@ impl ClientService {
     pub async fn get_ttfb(&self, server: String, domain: String) -> Result<u32> {
         let client = self.get_client()?;
         Ok(client.get_ttfb(&server, &domain).await? as u32)
-    }
-
-    pub async fn get_autostart() -> Result<bool> {
-        let auto = ClientService::init_autostart()?;
-        Ok(auto.is_enabled()?)
-    }
-
-    pub async fn set_autostart(enabled: bool) -> Result<()> {
-        let auto = ClientService::init_autostart()?;
-        if enabled {
-            auto.enable()?;
-        } else {
-            auto.disable()?;
-        }
-        if auto.is_enabled()? == enabled {
-            Ok(())
-        } else {
-            Err(anyhow!("failed to set autostart"))
-        }
-    }
-
-    fn init_autostart() -> Result<AutoLaunch> {
-        let path = env::current_exe().map_err(|e| anyhow!("failed to get current exe path: {e}"))?;
-        let path_str = path
-            .to_str()
-            .ok_or_else(|| anyhow!("failed to convert path to string"))?;
-        let auto = AutoLaunchBuilder::new()
-            .set_app_name(&format!("covert-connect-{}", env!("CARGO_PKG_VERSION")))
-            .set_app_path(path_str)
-            .set_use_launch_agent(true)
-            .build()?;
-        Ok(auto)
     }
 
     fn get_client(&self) -> Result<&Arc<Client>> {

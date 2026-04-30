@@ -92,16 +92,6 @@ class RouterServiceImpl implements RouterServiceBase {
   }
 
   @override
-  Future<bool> getAutostart() {
-    return ClientService.getAutostart();
-  }
-
-  @override
-  Future<void> setAutostart(bool enabled) {
-    return ClientService.setAutostart(enabled: enabled);
-  }
-
-  @override
   Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit) =>
       ClientService.getLog(start: start, end: end, limit: BigInt.from(limit));
 }

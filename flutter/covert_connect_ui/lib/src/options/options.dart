@@ -21,21 +21,11 @@ class _OptionsPageState extends State<OptionsPage> {
   String _version = "";
   String _build = "";
 
-  Future<void> _initAutoStart() async {
-    _autostart = await di<RouterServiceBase>().getAutostart();
-    _updateIfMounted();
-  }
-
   void _initVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     _version = packageInfo.version;
     _build = packageInfo.buildNumber;
     _updateIfMounted();
-  }
-
-  void setAutostart(bool value) async {
-    await di<RouterServiceBase>().setAutostart(value);
-    await _initAutoStart();
   }
 
   void _updateIfMounted() {
@@ -50,7 +40,6 @@ class _OptionsPageState extends State<OptionsPage> {
 
   @override
   void initState() {
-    _initAutoStart();
     _initVersion();
     super.initState();
   }
@@ -70,15 +59,16 @@ class _OptionsPageState extends State<OptionsPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: Text("Start on boot", style: TextStyle(height: 1.0))),
-                    OptionSwitch(
-                      value: _autostart,
-                      onToggle: setAutostart,
-                    ),
-                  ],
-                ),
+                // TODO: ??? add more options here
+                // Row(
+                //   children: [
+                //     Expanded(child: Text("Start on boot", style: TextStyle(height: 1.0))),
+                //     OptionSwitch(
+                //       value: _autostart,
+                //       onToggle: setAutostart,
+                //     ),
+                //   ],
+                // ),
                 SizedBox(height: 6),
                 Text("The app will be launched after reboot", style: grayedTextStyle),
               ],

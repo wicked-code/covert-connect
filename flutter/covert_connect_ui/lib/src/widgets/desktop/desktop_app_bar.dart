@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:covert_connect/di.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -13,8 +12,6 @@ import 'package:covert_connect/src/widgets/desktop/caption_button_base.dart';
 import 'package:covert_connect/src/widgets/desktop/caption_buttons_macos.dart';
 import 'package:covert_connect/src/widgets/desktop/caption_buttons_windows.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 const kTabHeight = 36.0;
@@ -29,7 +26,7 @@ class DesktopAppBar extends StatefulWidget {
 }
 
 class _DesktopAppBarState extends State<DesktopAppBar>
-    with WindowListener, TrayListener, AppRouteAware, SingleTickerProviderStateMixin {
+    with WindowListener, AppRouteAware, SingleTickerProviderStateMixin {
   Brightness? _brightness;
   bool _isFocused = false;
   bool _canPop = false;
@@ -48,15 +45,6 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     // REMOVE <<
 
     await _setIcons();
-
-    Menu menu = Menu(
-      items: [
-        MenuItem(key: 'show_window', label: 'Show Window'),
-        MenuItem.separator(),
-        MenuItem(key: 'exit_app', label: 'Exit App'),
-      ],
-    );
-    await trayManager.setContextMenu(menu);
   }
 
   Future<void> _setIcons() async {
@@ -64,13 +52,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
 
     if (Platform.isWindows) {
       final icon = _brightness == Brightness.dark ? "assets/images/app-icon-dark.ico" : "assets/images/app-icon.ico";
-      await trayManager.setIcon(icon);
       await windowManager.setIcon(icon);
-    } else {
-      await trayManager.setIcon("assets/images/app-icon-dark.png");
-    }
-    if (!Platform.isLinux) {
-      await trayManager.setToolTip("Covert Connect");
     }
   }
 
@@ -136,7 +118,6 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     });
 
     appChildNavigator.subscribe(this);
-    trayManager.addListener(this);
     windowManager.addListener(this);
     windowManager.isFocused().then((isFocused) => setState(() => _isFocused = isFocused));
   }
@@ -145,7 +126,6 @@ class _DesktopAppBarState extends State<DesktopAppBar>
   void dispose() {
     appChildNavigator.unsubscribe(this);
     windowManager.removeListener(this);
-    trayManager.removeListener(this);
     super.dispose();
   }
 
@@ -254,41 +234,6 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     if (mounted) setState(() => _isFocused = true);
     windowManager.getPosition().then((position) => WindowState.saveVisible(true));
     di<AppStateService>().value = AppState.visible;
-  }
-
-  @override
-  void onTrayIconMouseDown() {
-    if (Platform.isWindows) {
-      _showWindow();
-    } else {
-      trayManager.popUpContextMenu();
-    }
-  }
-
-  @override
-  void onTrayIconRightMouseDown() {
-    if (Platform.isWindows) {
-      trayManager.popUpContextMenu();
-    }
-  }
-
-  @override
-  void onTrayMenuItemClick(MenuItem menuItem) async {
-    if (menuItem.key == 'show_window') {
-      _showWindow();
-    } else if (menuItem.key == 'exit_app') {
-      appWindow.close();
-      if (Platform.isMacOS) {
-        ServicesBinding.instance.exitApplication(AppExitType.required);
-      }
-    }
-  }
-
-  void _showWindow() {
-    appWindow.show();
-    if (appWindow.isVisible) {
-      windowManager.focus();
-    }
   }
 }
 

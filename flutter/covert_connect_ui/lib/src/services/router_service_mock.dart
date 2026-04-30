@@ -267,16 +267,6 @@ class RouterServiceMock implements RouterServiceBase {
     final logLines = _log.sublist(pos, min(_log.length, pos + limit));
     return logLines.mapIndexed((idx, line) => LogLine(line: line, position: BigInt.from(pos + idx))).toList().reversed.toList();
   }
-
-  @override
-  Future<bool> getAutostart() async {
-    return _autostart;
-  }
-
-  @override
-  Future<void> setAutostart(bool enabled) async {
-    _autostart = enabled;
-  }
 }
 
 extension ServerInfoEx on ServerInfo {
