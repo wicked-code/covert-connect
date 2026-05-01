@@ -1,4 +1,4 @@
-#![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod logger;
 
@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use auto_launch::MacOSLaunchMode;
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use single_instance::SingleInstance;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
@@ -43,14 +43,22 @@ fn is_dark_theme() -> bool {
 }
 
 fn ui_executable_path() -> Result<PathBuf> {
+    sibling_executable_path("covert_connect")
+}
+
+fn api_executable_path() -> Result<PathBuf> {
+    sibling_executable_path("cc-client")
+}
+
+fn sibling_executable_path(base_name: &str) -> Result<PathBuf> {
     let dir = std::env::current_exe()?
         .parent()
         .context("tray exe has no parent directory")?
         .to_path_buf();
     let name = if cfg!(windows) {
-        "covert_connect.exe"
+        format!("{base_name}.exe")
     } else {
-        "covert_connect"
+        base_name.to_owned()
     };
     Ok(dir.join(name))
 }
@@ -84,14 +92,32 @@ fn unregister_autostart() -> Result<()> {
 
 fn spawn_ui(args: &[&str]) -> Result<()> {
     let path = ui_executable_path()?;
+    spawn_executable(&path, args)
+}
+
+fn spawn_api(args: &[&str]) -> Result<()> {
+    let path = api_executable_path()?;
+    spawn_executable(&path, args)
+}
+
+fn spawn_executable(path: &Path, args: &[&str]) -> Result<()> {
     if !path.exists() {
-        anyhow::bail!("UI executable not found at {}", path.display());
+        anyhow::bail!("executable not found at {}", path.display());
     }
-    Command::new(&path)
+    Command::new(path)
         .args(args)
         .spawn()
-        .with_context(|| format!("failed to launch UI at {}", path.display()))?;
+        .with_context(|| format!("failed to launch executable at {}", path.display()))?;
     Ok(())
+}
+
+fn show_error_dialog(message: &str) {
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("Covert Connect")
+        .set_description(message)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
 }
 
 fn main() -> Result<()> {
@@ -190,7 +216,13 @@ fn main() -> Result<()> {
                 if let Err(e) = spawn_ui(&["/exit"]) {
                     log::warn!("failed to send /exit to UI: {e:?}");
                 }
-                *control_flow = ControlFlow::Exit;
+                match spawn_api(&["Uninstall"]) {
+                    Ok(_) => *control_flow = ControlFlow::Exit,
+                    Err(e) => {
+                        log::error!("failed to exit client: {e:?}");
+                        show_error_dialog(&format!("Failed to exit client.\n\n{e:#}"));
+                    }
+                }
             }
         }
 

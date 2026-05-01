@@ -1,57 +1,51 @@
-//! Tiny `log` backend for the tray binary.
-//!
-//! Writes one line per record to stderr.
-//! Defaults to `info`.
+use std::env::temp_dir;
+use std::fs::{File, create_dir_all, rename};
+use std::io::Write;
+use std::sync::Mutex;
 
-use std::io::IsTerminal;
+use log::{LevelFilter, Log, Metadata, Record};
 
-use log::{Level, LevelFilter, Log, Metadata, Record};
+#[cfg(debug_assertions)]
+const LOG_FILE_NAME: &str = "covert-connect-tray.debug.log";
+#[cfg(debug_assertions)]
+const PREV_FILE_NAME: &str = "covert-connect-tray.debug.log.old";
 
-struct StderrLogger {
+#[cfg(not(debug_assertions))]
+const LOG_FILE_NAME: &str = "covert-connect-tray.log";
+#[cfg(not(debug_assertions))]
+const PREV_FILE_NAME: &str = "covert-connect-tray.log.old";
+
+struct FileLogger {
     level: LevelFilter,
-    color: bool,
+    file: Mutex<File>,
 }
 
-// ANSI SGR codes.
-const RESET: &str = "\x1b[0m";
-const RED: &str = "\x1b[31m";
-const GREEN: &str = "\x1b[32m";
-const YELLOW: &str = "\x1b[33m";
-const BLUE: &str = "\x1b[34m";
-const DIM: &str = "\x1b[2m";
-
-fn level_color(level: Level) -> &'static str {
-    match level {
-        Level::Error => RED,
-        Level::Warn => YELLOW,
-        Level::Info => GREEN,
-        Level::Debug => BLUE,
-        Level::Trace => DIM,
-    }
-}
-
-impl Log for StderrLogger {
+impl Log for FileLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= self.level
     }
+
     fn log(&self, record: &Record) {
         if !self.enabled(record.metadata()) {
             return;
         }
-        let level = record.level();
-        if self.color {
-            let color = level_color(level);
-            eprintln!(
-                "{color}{:<5}{RESET} {DIM}[{}]{RESET} {}",
-                level,
+
+        if let Ok(mut file) = self.file.lock() {
+            let _ = writeln!(
+                file,
+                "{:<5} {}: {}",
+                record.level(),
                 record.target(),
                 record.args()
             );
-        } else {
-            eprintln!("{:<5} {}: {}", level, record.target(), record.args());
         }
     }
-    fn flush(&self) {}
+
+    fn flush(&self) {
+        if let Ok(mut file) = self.file.lock() {
+            let _ = file.flush();
+        }
+    }
 }
 
 fn level_from_env() -> LevelFilter {
@@ -68,38 +62,38 @@ fn level_from_env() -> LevelFilter {
     }
 }
 
-/// Install the stderr logger as the global `log` backend.
+fn init_log_file() -> std::io::Result<File> {
+    let app_dir = temp_dir();
+    let path = app_dir.join(LOG_FILE_NAME);
+
+    if path.exists() {
+        let prev = app_dir.join(PREV_FILE_NAME);
+        rename(&path, &prev)?;
+    } else {
+        create_dir_all(&app_dir)?;
+    }
+
+    File::create(path)
+}
+
+/// Install the file logger as the global `log` backend.
 pub fn init() {
     let level = level_from_env();
-    let color = std::io::stderr().is_terminal() && enable_ansi_on_windows();
-    let logger: &'static StderrLogger = Box::leak(Box::new(StderrLogger { level, color }));
-    let _ = log::set_logger(logger);
-    log::set_max_level(level);
-}
 
-#[cfg(not(windows))]
-fn enable_ansi_on_windows() -> bool {
-    true
-}
-
-/// Enable VT processing on the stderr console so ANSI escapes render.
-/// Returns `false` if stderr is not a real console (e.g. detached when
-/// built with `windows_subsystem = "windows"`), which suppresses color.
-#[cfg(windows)]
-fn enable_ansi_on_windows() -> bool {
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::System::Console::{
-        ENABLE_VIRTUAL_TERMINAL_PROCESSING, GetConsoleMode, SetConsoleMode,
+    let file = match init_log_file() {
+        Ok(file) => file,
+        Err(_) => {
+            log::set_max_level(level);
+            return;
+        }
     };
 
-    let handle = std::io::stderr().as_raw_handle() as _;
-    let mut mode: u32 = 0;
-    // SAFETY: handle comes from a live stderr reference; pointer is to a
-    // local u32 valid for the duration of the call.
-    unsafe {
-        if GetConsoleMode(handle, &mut mode) == 0 {
-            return false;
-        }
-        SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0
+    let logger: &'static FileLogger = Box::leak(Box::new(FileLogger {
+        level,
+        file: Mutex::new(file),
+    }));
+
+    if log::set_logger(logger).is_ok() {
+        log::set_max_level(level);
     }
 }
