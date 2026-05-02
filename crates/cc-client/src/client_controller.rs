@@ -9,6 +9,7 @@ use client::{
 };
 use crypto::config::ProtocolConfig;
 use futures::StreamExt;
+use service_manager::{ServiceLabel, ServiceManager, ServiceStopCtx, ServiceUninstallCtx};
 use tarpc::{
     context, serde_transport,
     server::{self, Channel},
@@ -18,6 +19,15 @@ use tokio_util::sync::CancellationToken;
 
 use client::api::ClientApi;
 
+#[cfg(debug_assertions)]
+pub const SERVICE_NAME: &str = "com.wicked-code.cc-client-dbg";
+#[cfg(not(debug_assertions))]
+pub const SERVICE_NAME: &str = "com.wicked-code.cc-client";
+
+pub fn service_label() -> ServiceLabel {
+    SERVICE_NAME.parse().unwrap()
+}
+
 #[derive(Clone)]
 pub struct ClientController {
     client: Arc<Client>,
@@ -26,7 +36,10 @@ pub struct ClientController {
 
 impl ClientController {
     pub fn new(client: Arc<Client>) -> Self {
-        Self { client, cancel_token: CancellationToken::new() }
+        Self {
+            client,
+            cancel_token: CancellationToken::new(),
+        }
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -236,6 +249,15 @@ impl ClientApi for ClientController {
     }
 
     async fn uninstall_service(self, _: context::Context) {
-        // TODO: ??? implement uninstall service
+        let label = service_label();
+
+        let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+        manager
+            .stop(ServiceStopCtx { label: label.clone() })
+            .expect("Failed to stop");
+
+        manager
+            .uninstall(ServiceUninstallCtx { label: label.clone() })
+            .expect("Failed to uninstall");
     }
 }

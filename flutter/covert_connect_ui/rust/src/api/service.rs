@@ -98,10 +98,8 @@ impl ClientService {
         }
 
         let show_only = std::env::args().skip(1).any(|a| a == "/show");
-        if !show_only {
-            if let Err(err) = spawn_tray() {
-                tracing::warn!("failed to spawn cc-tray: {:?}", err);
-            }
+        if !show_only && let Err(err) = spawn_tray() {
+            tracing::warn!("failed to spawn cc-tray: {:?}", err);
         }
 
         let api = connect_client_api().await?;
@@ -239,7 +237,7 @@ fn spawn_tray() -> Result<()> {
     use std::process::Command;
 
     let exe = std::env::current_exe()?;
-    let dir = exe.parent().unwrap_or_else(|| exe.as_path());
+    let dir = exe.parent().unwrap_or(exe.as_path());
     let name = if cfg!(windows) { "cc-tray.exe" } else { "cc-tray" };
     let path = dir.join(name);
     Command::new(path).spawn()?;

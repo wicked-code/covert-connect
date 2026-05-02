@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::atomic::Ordering, time::Duration};
+use std::{ffi::OsString, path::PathBuf, sync::atomic::Ordering, time::Duration};
 
 use anyhow::{Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -7,13 +7,14 @@ use client::{
     config::ServerConfig,
     log::init_trace_log,
 };
+use service_manager::{RestartPolicy, ServiceInstallCtx, ServiceManager, ServiceStartCtx};
 use tarpc::context;
 use tracing_subscriber::EnvFilter;
 
 use cfgmatic_paths::PathsBuilder;
 use url::Url;
 
-use crate::client_controller::ClientController;
+use crate::client_controller::{ClientController, service_label};
 use client::api::{ClientApiClient, connect_client_api};
 
 mod client_controller;
@@ -291,9 +292,28 @@ async fn monitor_client() -> Result<()> {
 }
 
 async fn install(cfg_path: PathBuf) -> Result<()> {
-    println!("Not implemented yet");
-    // TODO: ??? install service pass cfg_path to it
-    // spawn run for now
+    let label = service_label();
+
+    let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+
+    manager
+        .install(ServiceInstallCtx {
+            label: label.clone(),
+            program: PathBuf::from("path/to/my-service-executable"),
+            args: vec![OsString::from("--config"), cfg_path.into(), OsString::from("start")],
+            contents: None,
+            username: None,
+            working_directory: None,
+            environment: None,
+            autostart: true,
+            restart_policy: RestartPolicy::Always { delay_secs: Some(10) },
+        })
+        .expect("Failed to install");
+
+    manager
+        .start(ServiceStartCtx { label: label.clone() })
+        .expect("Failed to start");
+
     Ok(())
 }
 

@@ -1,10 +1,15 @@
 use anyhow::{Error, Result};
 use async_trait::async_trait;
+
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
 use std::sync::Arc;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use client::Client;
 
 use client::{
     api::ClientApiClient,
-    client::{Client, ClientState},
+    client::ClientState,
     client_info::ServerInfo,
     config::ServerConfig,
 };
@@ -33,8 +38,10 @@ pub trait ClientBackend: Send + Sync + 'static {
     async fn shutdown(&self) -> Result<()>;
 }
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub struct LocalBackend(pub Arc<Client>);
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
 #[async_trait]
 impl ClientBackend for LocalBackend {
     async fn get_state(&self) -> Result<ClientState> {
@@ -96,13 +103,16 @@ impl ClientBackend for LocalBackend {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub struct RemoteBackend(pub ClientApiClient);
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[inline]
 fn ctx() -> context::Context {
     context::current()
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[async_trait]
 impl ClientBackend for RemoteBackend {
     async fn get_state(&self) -> Result<ClientState> {
