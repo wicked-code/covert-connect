@@ -13,7 +13,7 @@ use tarpc::{
     context, serde_transport,
     server::{self, Channel},
 };
-use tokio_serde::formats::{Bincode, Json};
+use tokio_serde::formats::Json;
 use tokio_util::sync::CancellationToken;
 
 use client::api::ClientApi;
@@ -57,7 +57,7 @@ impl ClientController {
 
                 let transport = serde_transport::new(
                     tokio_util::codec::LengthDelimitedCodec::builder().new_framed(stream),
-                    Bincode::default(),
+                    Json::default(),
                 );
 
                 let controller = self.clone();
@@ -120,8 +120,6 @@ impl ClientController {
 
                 let transport = serde_transport::new(
                     tokio_util::codec::LengthDelimitedCodec::builder().new_framed(server),
-                    // TODO: ??? return back to bincode
-                    //Bincode::default(),
                     Json::default(),
                 );
 

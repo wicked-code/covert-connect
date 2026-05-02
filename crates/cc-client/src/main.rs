@@ -259,13 +259,19 @@ fn find_config_path() -> Result<PathBuf> {
 async fn monitor_client() -> Result<()> {
     let client = connect_client_api().await?;
     loop {
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                println!("\n");
+                break;
+            }
+            _ = tokio::time::sleep(Duration::from_millis(500)) => {}
+        }
         let state = client.get_state(context::current()).await?;
         println!("State: {:?}          ", state);
         let servers = client.get_servers(context::current()).await?;
-        for srv in &servers {
+        for (idx, srv) in servers.iter().enumerate() {
             print!(
-                "{} ({}) In: {} \tOut: {} \tSuccess: {} \tErrors: {}                    ",
+                "{} ({}) In: {} \tOut: {} \tSuccess: {} \tErrors: {}                    {}",
                 srv.config.host,
                 match &srv.connect_info {
                     Some(info) => info.address.to_string(),
@@ -274,11 +280,14 @@ async fn monitor_client() -> Result<()> {
                 srv.state.rx_total.load(Ordering::Relaxed),
                 srv.state.tx_total.load(Ordering::Relaxed),
                 srv.state.success_count.load(Ordering::Relaxed),
-                srv.state.err_count.load(Ordering::Relaxed)
+                srv.state.err_count.load(Ordering::Relaxed),
+                if idx < servers.len() - 1 { "\n" } else { "" }
             );
-            print!("\r\x1B[{}F", servers.len() + 1);
         }
+        print!("\r\x1B[{}F", servers.len());
     }
+
+    Ok(())
 }
 
 async fn install(cfg_path: PathBuf) -> Result<()> {

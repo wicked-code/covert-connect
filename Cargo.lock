@@ -1078,7 +1078,6 @@ dependencies = [
  "arc-swap",
  "async-trait",
  "axum",
- "bincode",
  "bytes",
  "cc-server",
  "chrono",
