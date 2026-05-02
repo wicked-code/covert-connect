@@ -79,3 +79,6 @@ rustls_ring = [
     "hickory-resolver/quic-ring",
     "hickory-resolver/https-ring",
 ]
+
+[dev-dependencies]
+bincode = "1.3"

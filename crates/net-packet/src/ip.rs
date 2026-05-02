@@ -42,7 +42,8 @@ fn parse_transport<'a>(protocol: u8, payload: &'a mut [u8]) -> Result<NextHeader
         ip_protocols::ICMPV6 => NextHeader::Icmpv6(Icmpv6Header::new(payload)?),
         ip_protocols::IGMP => NextHeader::Igmp(IgmpHeader::new(payload)?),
         ip_protocols::HOPBYHOP => {
-            // TODO: just skip it for now
+            // drop the hop-by-hop header and parse the next header
+            // they are often dropped by internet service providers due to security risks
             let (header, payload) = HopByHopHeader::new(payload)?.split();
             return parse_transport(header.next_header(), payload);
         }

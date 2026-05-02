@@ -8,9 +8,15 @@ final di = GetIt.instance;
 
 void setupDI() {
   if (const bool.hasEnvironment("MOCK_SERVICE")) {
-    di.registerSingletonAsync<RouterServiceBase>(() => RouterServiceMock.create());
+    di.registerSingletonAsync<RouterServiceBase>(
+      () => RouterServiceMock.create(),
+      dispose: (service) => service.dispose(),
+    );
   } else {
-    di.registerSingletonAsync<RouterServiceBase>(() => RouterServiceImpl.create());
+    di.registerSingletonAsync<RouterServiceBase>(
+      () => RouterServiceImpl.create(),
+      dispose: (service) => service.dispose(),
+    );
   }
   di.registerSingleton<AppStateService>(AppStateService());
 }

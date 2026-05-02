@@ -1,8 +1,6 @@
 use anyhow::{Result, anyhow, bail};
-use parking_lot::Mutex;
 use std::sync::{Arc, OnceLock, atomic::Ordering};
 use tokio::net::lookup_host;
-use tokio_util::sync::CancellationToken;
 
 use client::client::ClientState;
 
@@ -46,7 +44,6 @@ pub struct ServerState {
 pub struct ClientService {
     /// flutter_rust_bridge:ignore
     client: OnceLock<Arc<dyn ClientBackend>>,
-    cancel_token: Mutex<CancellationToken>,
 }
 
 impl ClientService {
@@ -54,7 +51,6 @@ impl ClientService {
     pub fn new() -> ClientService {
         ClientService {
             client: Default::default(),
-            cancel_token: Mutex::new(CancellationToken::new()),
         }
     }
 
@@ -80,9 +76,8 @@ impl ClientService {
             .set(Arc::new(LocalBackend(client_instance.clone())))
             .map_err(|_| anyhow!("client already initialized"))?;
 
-        let cancel_token = self.cancel_token.lock().clone();
         flutter_rust_bridge::spawn(async move {
-            if let Err(err) = client_instance.serve(cancel_token).await {
+            if let Err(err) = client_instance.serve().await {
                 tracing::error!("serve: {:?}", err);
             }
         });
@@ -177,10 +172,8 @@ impl ClientService {
         Ok(protocol.into())
     }
 
-    pub async fn stop(&self) -> Result<()> {
-        self.cancel_token.lock().cancel();
-        *self.cancel_token.lock() = CancellationToken::new();
-        self.get_client()?.set_state(ClientState::Off).await
+    pub async fn shutdown(&self) -> Result<()> {
+        self.get_client()?.shutdown().await
     }
 
     pub async fn get_direct_apps(&self) -> Result<Vec<String>> {

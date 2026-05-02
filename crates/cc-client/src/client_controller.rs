@@ -13,7 +13,7 @@ use tarpc::{
     context, serde_transport,
     server::{self, Channel},
 };
-use tokio_serde::formats::Bincode;
+use tokio_serde::formats::{Bincode, Json};
 use tokio_util::sync::CancellationToken;
 
 use client::api::ClientApi;
@@ -25,8 +25,8 @@ pub struct ClientController {
 }
 
 impl ClientController {
-    pub fn new(client: Arc<Client>, cancel_token: CancellationToken) -> Self {
-        Self { client, cancel_token }
+    pub fn new(client: Arc<Client>) -> Self {
+        Self { client, cancel_token: CancellationToken::new() }
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -120,7 +120,9 @@ impl ClientController {
 
                 let transport = serde_transport::new(
                     tokio_util::codec::LengthDelimitedCodec::builder().new_framed(server),
-                    Bincode::default(),
+                    // TODO: ??? return back to bincode
+                    //Bincode::default(),
+                    Json::default(),
                 );
 
                 let controller = self.clone();
@@ -228,5 +230,14 @@ impl ClientApi for ClientController {
         limit: usize,
     ) -> Result<Vec<LogLine>, String> {
         get_trace_log(start, end, limit).await.map_err(|e| e.to_string())
+    }
+
+    async fn shutdown(self, _: context::Context) {
+        self.cancel_token.cancel();
+        self.client.shutdown().await;
+    }
+
+    async fn uninstall_service(self, _: context::Context) {
+        // TODO: ??? implement uninstall service
     }
 }

@@ -35,6 +35,8 @@ pub enum ClientState {
 }
 
 pub struct Client {
+    cancel_token: CancellationToken,
+
     initialized: AtomicBool,
     working: AtomicBool,
     state: RwLock<ClientState>,
@@ -52,6 +54,7 @@ impl Client {
     pub fn new(cfg_path: PathBuf) -> Arc<Self> {
         let egress = Egress::new();
         Arc::new(Client {
+            cancel_token: CancellationToken::new(),
             tun_service: TunService::new(egress.clone()),
             info: ClientInfo::new(),
             state: RwLock::new(ClientState::Off),
@@ -157,6 +160,10 @@ impl Client {
     }
 
     pub async fn set_state(&self, proxy_state: ClientState) {
+        self.set_state_internal(proxy_state, true).await;
+    }
+
+    async fn set_state_internal(&self, proxy_state: ClientState, save_config: bool) {
         let mut wr_state = self.state.write().await;
         if *wr_state == proxy_state {
             return;
@@ -165,7 +172,9 @@ impl Client {
         *wr_state = proxy_state;
         drop(wr_state);
 
-        self.save_config().await;
+        if save_config {
+            self.save_config().await;
+        }
 
         match proxy_state {
             ClientState::Off => {
@@ -183,7 +192,12 @@ impl Client {
         }
     }
 
-    pub async fn serve(self: &Arc<Self>, cancel_token: CancellationToken) -> Result<()> {
+    pub async fn shutdown(&self) {
+        self.cancel_token.cancel();
+        self.set_state_internal(ClientState::Off, false).await;
+    }
+
+    pub async fn serve(self: &Arc<Self>) -> Result<()> {
         let mut error_retry_interval_sec = DEFAULT_ERROR_RETRY_INTERVAL_SEC;
         loop {
             let state = *self.state.read().await;
@@ -193,7 +207,7 @@ impl Client {
 
                 // wait for state change
                 tokio::select! {
-                    _ = cancel_token.cancelled() => {
+                    _ = self.cancel_token.cancelled() => {
                         self.egress.shutdown().await;
                         return Ok(())
                     },

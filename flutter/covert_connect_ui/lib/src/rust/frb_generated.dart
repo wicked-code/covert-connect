@@ -65,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1830033570;
+  int get rustContentHash => 213127326;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -163,9 +163,11 @@ abstract class RustLibApi extends BaseApi {
     required ClientState state,
   });
 
-  Future<void> crateApiServiceClientServiceStart({required ClientService that});
+  Future<void> crateApiServiceClientServiceShutdown({
+    required ClientService that,
+  });
 
-  Future<void> crateApiServiceClientServiceStop({required ClientService that});
+  Future<void> crateApiServiceClientServiceStart({required ClientService that});
 
   Future<void> crateApiServiceClientServiceUpdateServer({
     required ClientService that,
@@ -855,7 +857,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiServiceClientServiceStart({
+  Future<void> crateApiServiceClientServiceShutdown({
     required ClientService that,
   }) {
     return handler.executeNormal(
@@ -877,18 +879,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiServiceClientServiceStartConstMeta,
+        constMeta: kCrateApiServiceClientServiceShutdownConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiServiceClientServiceStartConstMeta =>
-      const TaskConstMeta(debugName: "ClientService_start", argNames: ["that"]);
+  TaskConstMeta get kCrateApiServiceClientServiceShutdownConstMeta =>
+      const TaskConstMeta(
+        debugName: "ClientService_shutdown",
+        argNames: ["that"],
+      );
 
   @override
-  Future<void> crateApiServiceClientServiceStop({required ClientService that}) {
+  Future<void> crateApiServiceClientServiceStart({
+    required ClientService that,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -908,15 +915,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiServiceClientServiceStopConstMeta,
+        constMeta: kCrateApiServiceClientServiceStartConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiServiceClientServiceStopConstMeta =>
-      const TaskConstMeta(debugName: "ClientService_stop", argNames: ["that"]);
+  TaskConstMeta get kCrateApiServiceClientServiceStartConstMeta =>
+      const TaskConstMeta(debugName: "ClientService_start", argNames: ["that"]);
 
   @override
   Future<void> crateApiServiceClientServiceUpdateServer({
@@ -2083,11 +2090,13 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
   Future<void> setState({required ClientState state}) => RustLib.instance.api
       .crateApiServiceClientServiceSetState(that: this, state: state);
 
+  Future<void> shutdown() =>
+      RustLib.instance.api.crateApiServiceClientServiceShutdown(that: this);
+
+  /// Desktop: spawn cc-tray (unless `/show` was passed) and connect to the
+  /// running cc-client over its IPC channel.
   Future<void> start() =>
       RustLib.instance.api.crateApiServiceClientServiceStart(that: this);
-
-  Future<void> stop() =>
-      RustLib.instance.api.crateApiServiceClientServiceStop(that: this);
 
   Future<void> updateServer({
     required String origHost,

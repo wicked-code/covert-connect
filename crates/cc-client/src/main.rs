@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::atomic::Ordering, time::Duration};
 
 use anyhow::{Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -8,7 +8,6 @@ use client::{
     log::init_trace_log,
 };
 use tarpc::context;
-use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 use cfgmatic_paths::PathsBuilder;
@@ -28,7 +27,7 @@ struct Cli {
     config: Option<PathBuf>,
     /// commands
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -61,56 +60,33 @@ enum Commands {
     /// Show or change client state
     #[command(visible_alias = "s")]
     State { state: Option<CliClientState> },
+    /// Install service
+    #[command(visible_alias = "i")]
+    Install,
     /// Uninstall service
     #[command(visible_alias = "u")]
     Uninstall,
+    /// Start service
+    #[command()]
+    Start,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Cli = Cli::parse();
 
-    if let Some(command) = args.command {
-        return process_command(command).await;
-    }
-
-    init_trace_log()?;
-    tracing::info!(version = env!("CARGO_PKG_VERSION"));
-
     let cfg_path = match args.config {
         Some(path) => path,
         None => find_config_path()?.join("config.toml"),
     };
 
-    let client = Client::new(cfg_path);
-    client.initialize().await?;
-
-    let cancel_token = CancellationToken::new();
-
-    let client_clone = client.clone();
-    let cancel_token_clone = cancel_token.clone();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        stop_client(client_clone, cancel_token_clone).await;
-    });
-
-    let client_clone = client.clone();
-    let cancel_token_clone = cancel_token.clone();
-    tokio::spawn(async move {
-        let client_controller = ClientController::new(client_clone.clone(), cancel_token_clone.clone());
-        if let Err(err) = client_controller.run().await {
-            tracing::error!("Client controller error: {:?}", err);
-            stop_client(client_clone, cancel_token_clone).await;
-        }
-        tracing::info!("API server stopped");
-    });
-
-    client.serve(cancel_token).await?;
-    tracing::info!("Client stopped");
-    Ok(())
+    match args.command {
+        Commands::Start => start_client(cfg_path).await,
+        _ => process_command(args.command, cfg_path).await,
+    }
 }
 
-async fn process_command(command: Commands) -> Result<()> {
+async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
@@ -124,9 +100,7 @@ async fn process_command(command: Commands) -> Result<()> {
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
     match command {
-        Commands::Add { uri } => {
-            add_server(uri).await?;
-        }
+        Commands::Add { uri } => add_server(uri).await,
         Commands::Del { host } => {
             let client = connect_client_api().await?;
             client
@@ -134,22 +108,49 @@ async fn process_command(command: Commands) -> Result<()> {
                 .await?
                 .map_err(anyhow::Error::msg)?;
             tracing::info!("Server deleted");
-            list_servers(client).await?;
+            list_servers(client).await
         }
         Commands::List => {
             let client = connect_client_api().await?;
-            list_servers(client).await?;
+            list_servers(client).await
         }
-        Commands::Monitor => {
-            println!("Not implemented yet");
-        }
-        Commands::State { state } => {
-            show_or_set_state(state).await?;
-        }
-        Commands::Uninstall => {
-            println!("Not implemented yet");
+        Commands::Monitor => monitor_client().await,
+        Commands::State { state } => show_or_set_state(state).await,
+        Commands::Install => install(cfg_path).await,
+        Commands::Uninstall => uninstall().await,
+        Commands::Start => {
+            panic!("Start command should be handled in main");
         }
     }
+}
+
+async fn start_client(cfg_path: PathBuf) -> Result<()> {
+    init_trace_log()?;
+    tracing::info!(version = env!("CARGO_PKG_VERSION"));
+
+    let client = Client::new(cfg_path);
+    client.initialize().await?;
+
+    let client_clone = client.clone();
+    let ctrl_c_listener = tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        client_clone.shutdown().await;
+    });
+
+    let client_clone = client.clone();
+    tokio::spawn(async move {
+        let client_controller = ClientController::new(client_clone.clone());
+        if let Err(err) = client_controller.run().await {
+            tracing::error!("Client controller error: {:?}", err);
+            client_clone.shutdown().await;
+        }
+        tracing::info!("API server stopped");
+    });
+
+    client.serve().await?;
+    tracing::info!("Client stopped");
+
+    ctrl_c_listener.abort();
     Ok(())
 }
 
@@ -255,7 +256,41 @@ fn find_config_path() -> Result<PathBuf> {
     }
 }
 
-async fn stop_client(client: Arc<Client>, cancel_token: CancellationToken) {
-    cancel_token.cancel();
-    client.set_state(ClientState::Off).await;
+async fn monitor_client() -> Result<()> {
+    let client = connect_client_api().await?;
+    loop {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let state = client.get_state(context::current()).await?;
+        println!("State: {:?}          ", state);
+        let servers = client.get_servers(context::current()).await?;
+        for srv in &servers {
+            print!(
+                "{} ({}) In: {} \tOut: {} \tSuccess: {} \tErrors: {}                    ",
+                srv.config.host,
+                match &srv.connect_info {
+                    Some(info) => info.address.to_string(),
+                    None => "not connected".to_string(),
+                },
+                srv.state.rx_total.load(Ordering::Relaxed),
+                srv.state.tx_total.load(Ordering::Relaxed),
+                srv.state.success_count.load(Ordering::Relaxed),
+                srv.state.err_count.load(Ordering::Relaxed)
+            );
+            print!("\r\x1B[{}F", servers.len() + 1);
+        }
+    }
+}
+
+async fn install(cfg_path: PathBuf) -> Result<()> {
+    println!("Not implemented yet");
+    // TODO: ??? install service pass cfg_path to it
+    // spawn run for now
+    Ok(())
+}
+
+async fn uninstall() -> Result<()> {
+    let client = connect_client_api().await?;
+    client.uninstall_service(context::current()).await?;
+    client.shutdown(context::current()).await?;
+    Ok(())
 }

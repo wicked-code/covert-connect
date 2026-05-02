@@ -12,6 +12,12 @@ class RouterServiceMock implements RouterServiceBase {
   }
 
   @override
+  Future<void> dispose() async {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
   Future<ClientStatus> getStatus() async {
     if (_noValueCount <= 0) {
       servers = servers

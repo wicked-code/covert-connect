@@ -30,6 +30,7 @@ pub trait ClientBackend: Send + Sync + 'static {
     async fn set_app(&self, app: String, server_host: String) -> Result<()>;
     async fn remove_app(&self, app: String) -> Result<()>;
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize>;
+    async fn shutdown(&self) -> Result<()>;
 }
 
 pub struct LocalBackend(pub Arc<Client>);
@@ -89,6 +90,10 @@ impl ClientBackend for LocalBackend {
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize> {
         self.0.get_ttfb(&host, &domain).await
     }
+    async fn shutdown(&self) -> Result<()> {
+        self.0.shutdown().await;
+        Ok(())
+    }
 }
 
 pub struct RemoteBackend(pub ClientApiClient);
@@ -132,7 +137,10 @@ impl ClientBackend for RemoteBackend {
         Ok(())
     }
     async fn update_server(&self, orig_host: String, config: ServerConfig) -> Result<()> {
-        self.0.update_server(ctx(), orig_host, config).await?.map_err(Error::msg)
+        self.0
+            .update_server(ctx(), orig_host, config)
+            .await?
+            .map_err(Error::msg)
     }
     async fn del_server(&self, host: String) -> Result<()> {
         self.0.del_server(ctx(), host).await?.map_err(Error::msg)
@@ -151,5 +159,9 @@ impl ClientBackend for RemoteBackend {
     }
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize> {
         self.0.get_ttfb(ctx(), host, domain).await?.map_err(Error::msg)
+    }
+    async fn shutdown(&self) -> Result<()> {
+        // do not shutdown, only tray app can do that
+        Ok(())
     }
 }

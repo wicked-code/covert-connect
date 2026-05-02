@@ -10,9 +10,22 @@ class RouterServiceImpl implements RouterServiceBase {
   }
 
   final router = ClientService();
+  bool _disposed = false;
 
   Future<void> init() async {
     await router.start();
+  }
+
+  @override
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+
+    try {
+      await router.shutdown();
+    } finally {
+      router.dispose();
+    }
   }
 
   @override

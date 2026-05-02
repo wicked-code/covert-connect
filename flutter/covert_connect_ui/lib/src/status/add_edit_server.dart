@@ -87,6 +87,7 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
     final newConfig = ServerConfig(
       host: _hostController.text,
       caption: _nameController.text,
+      apps: widget.server?.config.apps,
       domains: widget.server?.config.domains,
       enabled: widget.server?.config.enabled ?? true,
       protocol: _protocol!,

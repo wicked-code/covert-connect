@@ -1,8 +1,8 @@
-use anyhow::Result;
 use crate::{client::ClientState, client_info::ServerInfo, config::ServerConfig, log::LogLine};
+use anyhow::Result;
 use crypto::config::ProtocolConfig;
 use tarpc::serde_transport;
-use tokio_serde::formats::Bincode;
+use tokio_serde::formats::{Bincode, Json};
 
 const API_APP_NAME: &str = "covert_connect";
 
@@ -40,6 +40,8 @@ pub trait ClientApi {
     async fn remove_app(app: String) -> Result<(), String>;
     async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>, String>;
     async fn get_ttfb(host: String, domain: String) -> Result<usize, String>;
+    async fn shutdown();
+    async fn uninstall_service();
 }
 
 pub async fn connect_client_api() -> Result<ClientApiClient> {
@@ -69,9 +71,45 @@ pub async fn connect_client_api() -> Result<ClientApiClient> {
 
     let transport = serde_transport::new(
         tokio_util::codec::LengthDelimitedCodec::builder().new_framed(stream),
-        Bincode::default(),
+        // TODO: ??? return back to bincode
+        //Bincode::default(),
+        Json::default(),
     );
 
     let config = tarpc::client::Config::default();
     Ok(ClientApiClient::new(config, transport).spawn())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::ServerConfig;
+    use crypto::config::ProtocolConfig;
+
+    #[test]
+    fn test_server_config_roundtrip() {
+        use crypto::{DataPadding, cipher::CipherType, kdf::Kdf};
+
+        let config = ServerConfig {
+            host: "example.com".to_string(),
+            caption: None,
+            protocol: ProtocolConfig {
+                key: "test_key".to_string(),
+                kdf: Kdf::Blake3,
+                cipher: CipherType::Aes256Gcm,
+                max_connect_delay: 10000,
+                header_padding: 11..127,
+                data_padding: DataPadding { rate: 56, max: 1024 },
+                encryption_limit: 4096,
+            },
+            weight: None,
+            domains: None,
+            apps: None,
+            enabled: true,
+        };
+        let encoded = bincode::serialize(&config).unwrap();
+        // This will likely panic/error here, revealing the actual issue
+        let decoded: ServerConfig = bincode::deserialize(&encoded).unwrap();
+        assert_eq!(config.host, decoded.host);
+        assert_eq!(config.protocol.key, decoded.protocol.key);
+    }
 }

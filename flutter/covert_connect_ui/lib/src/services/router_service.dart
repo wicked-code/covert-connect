@@ -8,6 +8,7 @@ enum LogErrorType {
 }
 
 abstract class RouterServiceBase {
+  Future<void> dispose();
   Future<ClientStatus> getStatus();
   Future<ClientState> getState();
   Future<void> setState(ClientState state);

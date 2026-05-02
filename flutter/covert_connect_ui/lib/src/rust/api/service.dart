@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wrappers.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_client`
+// These functions are ignored because they are not marked as `pub`: `get_client`, `spawn_tray`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ClientService>>
@@ -63,9 +63,11 @@ abstract class ClientService implements RustOpaqueInterface {
 
   Future<void> setState({required ClientState state});
 
-  Future<void> start();
+  Future<void> shutdown();
 
-  Future<void> stop();
+  /// Desktop: spawn cc-tray (unless `/show` was passed) and connect to the
+  /// running cc-client over its IPC channel.
+  Future<void> start();
 
   Future<void> updateServer({
     required String origHost,
