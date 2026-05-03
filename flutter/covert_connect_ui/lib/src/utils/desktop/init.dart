@@ -15,22 +15,20 @@ Future<void> initDesktop(List<String> args) async {
   if (!isDesktop) return;
 
   if (Platform.isWindows) {
-    final String instanceId = Platform.resolvedExecutable
-      .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final String instanceId = Platform.resolvedExecutable.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     await WindowsSingleInstance.ensureSingleInstance(
-        args,
-        instanceId,
-        onSecondWindow: (args) {
-            if (args.contains('/exit')) {
-              exit(0);
-            }          
-        });
+      args,
+      instanceId,
+      onSecondWindow: (args) {
+        if (args.contains('/exit')) {
+          exit(0);
+        }
+      },
+    );
   } else {
     FlutterSingleInstance.debugMode = false;
     if (await FlutterSingleInstance().isFirstInstance() == false) {
-      final err = await FlutterSingleInstance().focus({
-        "args": args,
-      });
+      final err = await FlutterSingleInstance().focus({"args": args});
       if (err != null) {
         log("Error focusing running instance: $err");
       }
@@ -43,6 +41,9 @@ Future<void> initDesktop(List<String> args) async {
         exit(0);
       }
     };
+  }
+  if (args.contains('/exit')) {
+    exit(0);
   }
 
   await windowManager.ensureInitialized();
@@ -66,7 +67,7 @@ Future<void> initDesktop(List<String> args) async {
     } else if (windowSize.width > kMaxSize.width || windowSize.height > kMaxSize.height) {
       windowSize = kMaxSize;
     }
-    
+
     appWindow.size = windowSize;
     appWindow.minSize = kMinSize;
     appWindow.maxSize = kMaxSize;
