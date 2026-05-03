@@ -42,6 +42,11 @@ impl ClientController {
         }
     }
 
+    /// Stop the API server loop without shutting down the inner `Client`.
+    pub fn stop(&self) {
+        self.cancel_token.cancel();
+    }
+
     pub async fn run(&self) -> Result<()> {
         #[cfg(unix)]
         {

@@ -149,27 +149,33 @@ pub(crate) async fn start_client(
     let client = Client::new(cfg_path);
     client.initialize().await?;
 
+    let client_controller = ClientController::new(client.clone());
+
     let shutdown_listener = match shutdown_signal {
         Some(stop_rx) => {
             let client_clone = client.clone();
+            let controller_clone = client_controller.clone();
             tokio::spawn(async move {
                 let _ = stop_rx.await;
+                controller_clone.stop();
                 client_clone.shutdown().await;
             })
         }
         None => {
             let client_clone = client.clone();
+            let controller_clone = client_controller.clone();
             tokio::spawn(async move {
                 tokio::signal::ctrl_c().await.unwrap();
+                controller_clone.stop();
                 client_clone.shutdown().await;
             })
         }
     };
 
     let client_clone = client.clone();
+    let controller_clone = client_controller.clone();
     tokio::spawn(async move {
-        let client_controller = ClientController::new(client_clone.clone());
-        if let Err(err) = client_controller.run().await {
+        if let Err(err) = controller_clone.run().await {
             tracing::error!("Client controller error: {:?}", err);
             client_clone.shutdown().await;
         }
@@ -183,6 +189,7 @@ pub(crate) async fn start_client(
     client.serve().await?;
     tracing::info!("Client stopped");
 
+    client_controller.stop();
     shutdown_listener.abort();
     Ok(())
 }
