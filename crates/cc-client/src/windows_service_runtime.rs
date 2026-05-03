@@ -1,6 +1,7 @@
 use std::{
     ffi::OsString,
     path::PathBuf,
+    process::Command,
     sync::{
         Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
@@ -155,5 +156,46 @@ fn stop_pending_status(checkpoint: u32) -> ServiceStatus {
         checkpoint,
         wait_hint: Duration::from_secs(30),
         process_id: None,
+    }
+}
+
+static SC_EXE: &str = "sc.exe";
+pub async fn set_failure_and_description(service_name: &str, description: &str) {
+    let mut command = Command::new(SC_EXE);
+    command
+        .arg("failure")
+        .arg(service_name)
+        .arg("reset=")
+        .arg("60")
+        .arg("actions=")
+        .arg("restart/3000/restart/5000/restart/10000/restart/30000/restart/60000");
+    match command.output() {
+        Ok(output) => {
+            if !output.status.success() {
+                tracing::error!(
+                    "Failed to set service failure actions: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+        Err(err) => {
+            tracing::error!("Failed to execute sc.exe to set service failure actions: {err}");
+        }
+    }
+
+    let mut command = Command::new(SC_EXE);
+    command.arg("description").arg(service_name).arg(description);
+    match command.output() {
+        Ok(output) => {
+            if !output.status.success() {
+                tracing::error!(
+                    "Failed to set service description: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+        Err(err) => {
+            tracing::error!("Failed to execute sc.exe to set service description: {err}");
+        }
     }
 }

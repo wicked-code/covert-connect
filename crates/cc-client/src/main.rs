@@ -18,6 +18,8 @@ use cfgmatic_paths::PathsBuilder;
 use url::Url;
 
 use crate::client_controller::{ClientController, service_label};
+#[cfg(windows)]
+use crate::windows_service_runtime::set_failure_and_description;
 use client::api::{ClientApiClient, connect_client_api};
 use tokio::sync::oneshot;
 
@@ -378,6 +380,9 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
     manager
         .start(ServiceStartCtx { label: label.clone() })
         .with_context(|| "Failed to start service")?;
+
+    #[cfg(windows)]
+    set_failure_and_description(&label.to_qualified_name(), "Covert-Connect client backend engine").await;
 
     Ok(())
 }
