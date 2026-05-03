@@ -1,5 +1,6 @@
 use anyhow::{Error, Result};
 use async_trait::async_trait;
+use client::log::LogLine;
 
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -35,6 +36,7 @@ pub trait ClientBackend: Send + Sync + 'static {
     async fn set_app(&self, app: String, server_host: String) -> Result<()>;
     async fn remove_app(&self, app: String) -> Result<()>;
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize>;
+    async fn get_log(&self, start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>>;
     async fn shutdown(&self) -> Result<()>;
 }
 
@@ -96,6 +98,9 @@ impl ClientBackend for LocalBackend {
     }
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize> {
         self.0.get_ttfb(&host, &domain).await
+    }
+    async fn get_log(&self, start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+        get_trace_log(start, end, limit).await
     }
     async fn shutdown(&self) -> Result<()> {
         self.0.shutdown().await;
@@ -169,6 +174,9 @@ impl ClientBackend for RemoteBackend {
     }
     async fn get_ttfb(&self, host: String, domain: String) -> Result<usize> {
         self.0.get_ttfb(ctx(), host, domain).await?.map_err(Error::msg)
+    }
+    async fn get_log(&self, start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+        self.0.get_log(ctx(), start, end, limit).await?.map_err(Error::msg)
     }
     async fn shutdown(&self) -> Result<()> {
         // do not shutdown, only tray app can do that

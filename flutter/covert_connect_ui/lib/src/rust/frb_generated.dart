@@ -103,6 +103,7 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<LogLine>> crateApiServiceClientServiceGetLog({
+    required ClientService that,
     BigInt? start,
     BigInt? end,
     required BigInt limit,
@@ -412,6 +413,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<List<LogLine>> crateApiServiceClientServiceGetLog({
+    required ClientService that,
     BigInt? start,
     BigInt? end,
     required BigInt limit,
@@ -420,6 +422,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientService(
+            that,
+            serializer,
+          );
           sse_encode_opt_box_autoadd_u_64(start, serializer);
           sse_encode_opt_box_autoadd_u_64(end, serializer);
           sse_encode_usize(limit, serializer);
@@ -435,7 +441,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiServiceClientServiceGetLogConstMeta,
-        argValues: [start, end, limit],
+        argValues: [that, start, end, limit],
         apiImpl: this,
       ),
     );
@@ -444,7 +450,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiServiceClientServiceGetLogConstMeta =>
       const TaskConstMeta(
         debugName: "ClientService_get_log",
-        argNames: ["start", "end", "limit"],
+        argNames: ["that", "start", "end", "limit"],
       );
 
   @override
@@ -2035,6 +2041,17 @@ class ClientServiceImpl extends RustOpaque implements ClientService {
 
   Future<List<String>> getDirectDomains() => RustLib.instance.api
       .crateApiServiceClientServiceGetDirectDomains(that: this);
+
+  Future<List<LogLine>> getLog({
+    BigInt? start,
+    BigInt? end,
+    required BigInt limit,
+  }) => RustLib.instance.api.crateApiServiceClientServiceGetLog(
+    that: this,
+    start: start,
+    end: end,
+    limit: limit,
+  );
 
   Future<ProtocolConfig> getServerProtocol({
     required String server,

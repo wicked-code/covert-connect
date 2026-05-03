@@ -106,5 +106,5 @@ class RouterServiceImpl implements RouterServiceBase {
 
   @override
   Future<List<LogLine>> getLog(BigInt? start, BigInt? end, int limit) =>
-      ClientService.getLog(start: start, end: end, limit: BigInt.from(limit));
+      router.getLog(start: start, end: end, limit: BigInt.from(limit));
 }

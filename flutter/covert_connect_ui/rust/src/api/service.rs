@@ -8,7 +8,7 @@ use flutter_rust_bridge::frb;
 
 use crate::api::backend::ClientBackend;
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
-use client::log::{LogLine, get_trace_log, init_trace_log};
+use client::log::{LogLine, init_trace_log};
 
 const MAX_CONNECT_RETRY: usize = 5;
 const CONNECT_RETRY_INTERVAL_MS: u64 = 1000;
@@ -250,8 +250,8 @@ impl ClientService {
         self.get_client()?.remove_app(app).await
     }
 
-    pub async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
-        get_trace_log(start, end, limit).await
+    pub async fn get_log(&self, start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
+        self.get_client()?.get_log(start, end, limit).await
     }
 
     pub async fn check_domain(domain: String) -> Result<bool> {
