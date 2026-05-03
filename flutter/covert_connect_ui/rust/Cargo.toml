@@ -12,6 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.11.1"
 futures-util = "0.3"
 directories = "6.0.0"
+elevated-command = "1.1.2"
 
 tokio-rustls.workspace = true 
 webpki-roots.workspace = true

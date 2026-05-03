@@ -10,6 +10,9 @@ use crate::api::backend::ClientBackend;
 use crate::api::wrappers::{ProtocolConfig, ServerConfig};
 use client::log::{LogLine, get_trace_log, init_trace_log};
 
+const MAX_CONNECT_RETRY: usize = 5;
+const CONNECT_RETRY_INTERVAL_MS: u64 = 1000;
+
 #[derive(Clone)]
 pub struct ClientConfig {
     pub state: ClientState,
@@ -90,7 +93,7 @@ impl ClientService {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     pub async fn start(&self) -> Result<()> {
         use crate::api::backend::RemoteBackend;
-        use client::api::connect_client_api;
+        use client::api::{ClientApiClient, connect_client_api};
 
         if let Err(err) = init_trace_log() {
             println!("Failed to initialize trace log: {:?}", err);
@@ -102,7 +105,44 @@ impl ClientService {
             tracing::warn!("failed to spawn cc-tray: {:?}", err);
         }
 
-        let api = connect_client_api().await?;
+        let try_connect = async || -> Result<ClientApiClient> {
+            let mut retry_count = 0;
+            Ok(loop {
+                match connect_client_api().await {
+                    Ok(api) => break api,
+                    Err(err) => {
+                        use std::time::Duration;
+                        use tokio::time::sleep;
+
+                        if retry_count >= MAX_CONNECT_RETRY {
+                            bail!(
+                                "Failed to connect to client API after {} attempts: {:?}",
+                                retry_count,
+                                err
+                            );
+                        }
+                        retry_count += 1;
+                        sleep(Duration::from_millis(CONNECT_RETRY_INTERVAL_MS)).await;
+                    }
+                }
+            })
+        };
+
+        let first_connect = if show_only {
+            try_connect().await
+        } else {
+            connect_client_api().await
+        };
+
+        let api = match first_connect {
+            Ok(api) => api,
+            Err(err) => {
+                tracing::debug!("waiting connection (show_only: {}) err: {:?}", show_only, err);
+                spawn_client()?;
+                try_connect().await?
+            }
+        };
+
         self.client
             .set(Arc::new(RemoteBackend(api)))
             .map_err(|_| anyhow!("client already initialized"))?;
@@ -241,5 +281,24 @@ fn spawn_tray() -> Result<()> {
     let name = if cfg!(windows) { "cc-tray.exe" } else { "cc-tray" };
     let path = dir.join(name);
     Command::new(path).spawn()?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn spawn_client() -> Result<()> {
+    use std::process::Command;
+
+    let exe = std::env::current_exe()?;
+    let dir = exe.parent().unwrap_or(exe.as_path());
+    let name = if cfg!(windows) { "cc-client.exe" } else { "cc-client" };
+    let path = dir.join(name);
+    let mut cmd = Command::new(path);
+    cmd.arg("install");
+    let elevated_cmd = elevated_command::Command::new(cmd);
+    let result = elevated_cmd.output()?;
+    if !result.status.success() {
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        bail!("Failed to spawn cc-client: {}", stderr);
+    }
     Ok(())
 }
