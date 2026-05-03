@@ -296,14 +296,21 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
 
     let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
 
+    let exe = std::env::current_exe()?;
+    let working_dir = exe.parent().map(|p| p.to_path_buf());
+
     manager
         .install(ServiceInstallCtx {
             label: label.clone(),
-            program: PathBuf::from("path/to/my-service-executable"),
-            args: vec![OsString::from("--config"), cfg_path.into(), OsString::from("start")],
+            program: exe,
+            args: vec![
+                OsString::from("--config"),
+                cfg_path.into_os_string(),
+                OsString::from("start"),
+            ],
             contents: None,
             username: None,
-            working_directory: None,
+            working_directory: working_dir,
             environment: None,
             autostart: true,
             restart_policy: RestartPolicy::Always { delay_secs: Some(10) },
