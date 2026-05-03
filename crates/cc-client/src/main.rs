@@ -16,8 +16,11 @@ use url::Url;
 
 use crate::client_controller::{ClientController, service_label};
 use client::api::{ClientApiClient, connect_client_api};
+use tokio::sync::oneshot;
 
 mod client_controller;
+#[cfg(windows)]
+mod windows_service_runtime;
 
 /// Covert-Connect client
 #[derive(Parser)]
@@ -81,8 +84,15 @@ async fn main() -> Result<()> {
         None => find_config_path()?.join("config.toml"),
     };
 
+    #[cfg(windows)]
+    if matches!(args.command, Commands::Start)
+        && windows_service_runtime::run_as_windows_service_if_needed(cfg_path.clone())?
+    {
+        return Ok(());
+    }
+
     match args.command {
-        Commands::Start => start_client(cfg_path).await,
+        Commands::Start => start_client(cfg_path, None, None).await,
         _ => process_command(args.command, cfg_path).await,
     }
 }
@@ -125,18 +135,33 @@ async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
     }
 }
 
-async fn start_client(cfg_path: PathBuf) -> Result<()> {
+pub(crate) async fn start_client(
+    cfg_path: PathBuf,
+    shutdown_signal: Option<oneshot::Receiver<()>>,
+    on_started: Option<Box<dyn FnOnce() -> Result<()> + Send>>,
+) -> Result<()> {
     init_trace_log()?;
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
     let client = Client::new(cfg_path);
     client.initialize().await?;
 
-    let client_clone = client.clone();
-    let ctrl_c_listener = tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        client_clone.shutdown().await;
-    });
+    let shutdown_listener = match shutdown_signal {
+        Some(stop_rx) => {
+            let client_clone = client.clone();
+            tokio::spawn(async move {
+                let _ = stop_rx.await;
+                client_clone.shutdown().await;
+            })
+        }
+        None => {
+            let client_clone = client.clone();
+            tokio::spawn(async move {
+                tokio::signal::ctrl_c().await.unwrap();
+                client_clone.shutdown().await;
+            })
+        }
+    };
 
     let client_clone = client.clone();
     tokio::spawn(async move {
@@ -148,10 +173,14 @@ async fn start_client(cfg_path: PathBuf) -> Result<()> {
         tracing::info!("API server stopped");
     });
 
+    if let Some(on_started) = on_started {
+        on_started()?;
+    }
+
     client.serve().await?;
     tracing::info!("Client stopped");
 
-    ctrl_c_listener.abort();
+    shutdown_listener.abort();
     Ok(())
 }
 
@@ -248,7 +277,7 @@ async fn list_servers(client: ClientApiClient) -> Result<()> {
     Ok(())
 }
 
-fn find_config_path() -> Result<PathBuf> {
+pub(crate) fn find_config_path() -> Result<PathBuf> {
     let finder = PathsBuilder::new(env!("CARGO_PKG_NAME")).build();
     if let Some(path) = finder.system_dirs().into_iter().next() {
         Ok(path)

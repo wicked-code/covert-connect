@@ -30,3 +30,4 @@ windows = { version = "0.62.2", features = [
     "Win32_Security",
     "Win32_System_SystemServices",
 ] }
+windows-service = "0.7.0"
