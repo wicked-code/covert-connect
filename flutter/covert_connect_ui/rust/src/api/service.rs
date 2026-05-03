@@ -286,19 +286,19 @@ fn spawn_tray() -> Result<()> {
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn spawn_client() -> Result<()> {
-    use std::process::Command;
+    use privesc::PrivilegedCommand;
 
     let exe = std::env::current_exe()?;
     let dir = exe.parent().unwrap_or(exe.as_path());
     let name = if cfg!(windows) { "cc-client.exe" } else { "cc-client" };
     let path = dir.join(name);
-    let mut cmd = Command::new(path);
-    cmd.arg("install");
-    let elevated_cmd = elevated_command::Command::new(cmd);
-    let result = elevated_cmd.output()?;
-    if !result.status.success() {
-        let stderr = String::from_utf8_lossy(&result.stderr);
-        bail!("Failed to spawn cc-client: {}", stderr);
+    let result = PrivilegedCommand::new(path).arg("install").run()?;
+    if !result.success() {
+        if let Some(stderr) = result.stderr_str() {
+            bail!("Failed to spawn cc-client: {}", stderr);
+        }
+
+        bail!("Failed to spawn cc-client with status: {}", result.status);
     }
     Ok(())
 }
