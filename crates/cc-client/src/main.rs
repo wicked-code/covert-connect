@@ -383,7 +383,25 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
 }
 
 async fn uninstall() -> Result<()> {
-    let client = connect_client_api().await?;
+    let client = match connect_client_api().await {
+        Ok(c) => c,
+        Err(err) => {
+            let manager = <dyn ServiceManager>::native().with_context(|| "Failed to detect management platform")?;
+            match manager.status(ServiceStatusCtx { label: service_label() })? {
+                ServiceStatus::NotInstalled => {
+                    tracing::info!("Service not installed");
+                    return Ok(());
+                }
+                ServiceStatus::Stopped(_) => {
+                    bail!("service stopped, connect error: {:?}", err);
+                }
+                ServiceStatus::Running => {
+                    bail!("service running, connect error: {:?}", err);
+                }
+            }
+        }
+    };
+
     client
         .uninstall_service(context::current())
         .await?
