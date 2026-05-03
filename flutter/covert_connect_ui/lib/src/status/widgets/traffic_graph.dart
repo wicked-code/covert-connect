@@ -1,6 +1,4 @@
 import 'package:collection/collection.dart';
-import 'package:covert_connect/di.dart';
-import 'package:covert_connect/src/services/app_state_service.dart';
 import 'package:covert_connect/src/utils/graph_interval.dart';
 import 'package:covert_connect/src/utils/text_utils.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +39,6 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
   List<TrafficSample> get data => widget.data;
   double _offsetX = 0.0;
   double _prevOffsetX = 0.0;
-  bool _smoothEnabled = true;
 
   double _minVisibleXChange = 0;
 
@@ -51,21 +48,13 @@ class _TrafficGraphState extends State<TrafficGraph> with TickerProviderStateMix
       _ticker.stop();
     }
     _offsetX = 0;
-    if (_smoothEnabled) {
-      _ticker.start();
-    }
+    _ticker.start();
     super.didUpdateWidget(oldWidget);
-  }
-
-  void _onAppStateChange() {
-    _smoothEnabled = di<AppStateService>().value == AppState.visible;
   }
 
   @override
   void initState() {
     super.initState();
-    di<AppStateService>().addListener(_onAppStateChange);
-    _onAppStateChange();
     _ticker = createTicker((Duration elapsed) {
       int useElapsed = elapsed.inMilliseconds;
       _offsetX = useElapsed.toDouble();

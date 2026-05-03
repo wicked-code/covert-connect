@@ -1,8 +1,6 @@
 import 'dart:io';
 
-import 'package:covert_connect/di.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:covert_connect/src/services/app_state_service.dart';
 import 'package:covert_connect/src/utils/child_router.dart';
 import 'package:covert_connect/src/utils/desktop/init.dart';
 import 'package:covert_connect/src/utils/svg.dart';
@@ -60,10 +58,8 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     appChildNavigator.pop();
   }
 
-  void hide() {
-    windowManager.getPosition().then((position) => WindowState.saveVisible(false));
-    di<AppStateService>().value = AppState.hidden;
-    appWindow.hide();
+  void close() {
+    appWindow.close();
   }
 
   void resizeToDefault() async {
@@ -168,7 +164,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
                     brightness: brightness,
                     isFocused: _isFocused,
                     color: captionColor,
-                    onTapClose: hide,
+                    onTapClose: close,
                     onTapBack: _canPop ? back : null,
                     onDoubleTap: resizeToDefault,
                   )
@@ -176,7 +172,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
                     brightness: brightness,
                     isFocused: _isFocused,
                     color: captionColor,
-                    onTapClose: hide,
+                    onTapClose: close,
                     onTapBack: _canPop ? back : null,
                     onDoubleTap: resizeToDefault,
                   ),
@@ -232,8 +228,6 @@ class _DesktopAppBarState extends State<DesktopAppBar>
   @override
   void onWindowFocus() {
     if (mounted) setState(() => _isFocused = true);
-    windowManager.getPosition().then((position) => WindowState.saveVisible(true));
-    di<AppStateService>().value = AppState.visible;
   }
 }
 

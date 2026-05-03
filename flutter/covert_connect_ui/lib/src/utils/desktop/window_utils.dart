@@ -14,9 +14,8 @@ Future<void> updateEffect(Brightness? brightness) async {
 }
 
 class WindowState {
-  const WindowState({required this.visible, this.position, this.size});
+  const WindowState({this.position, this.size});
 
-  static const String windowVisibleKey = 'window_visible';
   static const String windowPositionXKey = 'window_position_x';
   static const String windowPositionYKey = 'window_position_y';
   static const String windowSizeXKey = 'window_size_x';
@@ -30,7 +29,7 @@ class WindowState {
     final sizeX = await prefs.getDouble(windowSizeXKey);
     final sizeY = await prefs.getDouble(windowSizeYKey);
     final size = sizeX != null && sizeY != null ? Size(sizeX, sizeY) : null;
-    return WindowState(visible: await prefs.getBool(windowVisibleKey) ?? true, position: position, size: size);
+    return WindowState(position: position, size: size);
   }
 
   static Future<void> savePosition(Offset position) async {
@@ -43,11 +42,6 @@ class WindowState {
     await SharedPreferencesAsync().setDouble(windowSizeYKey, size.height);
   }
 
-  static Future<void> saveVisible(bool visible) async {
-    await SharedPreferencesAsync().setBool(windowVisibleKey, visible);
-  }
-
-  final bool visible;
   final Offset? position;
   final Size? size;
 }

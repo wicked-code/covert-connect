@@ -300,7 +300,6 @@ extension ServerConfigEx on ServerConfig {
   );
 }
 
-bool _autostart = true;
 int _noValueCount = 0;
 ClientState _proxyState = ClientState.all;
 List<String> _log = [

@@ -2,13 +2,11 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:covert_connect/src/services/app_state_service.dart';
 import 'package:covert_connect/src/utils/desktop/window_utils.dart';
 import 'package:covert_connect/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_acrylic/window.dart';
 import 'package:flutter_single_instance/flutter_single_instance.dart';
-import 'package:covert_connect/di.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
 
 const kDefaultWindowSize = Size(400, 600);
@@ -86,9 +84,6 @@ Future<void> initDesktop(List<String> args) async {
         windowSize.height * scale,
       );
     }
-    if (windowState.visible) {
-      appWindow.show();
-      di<AppStateService>().value = AppState.visible;
-    }
+    appWindow.show();
   });
 }

@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/rust/api/wrappers.dart';
-import 'package:covert_connect/src/services/app_state_service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/status/widgets/server_list.dart';
 import 'package:covert_connect/src/status/widgets/state_toggle.dart';
@@ -40,8 +39,6 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
 
   double _time = timeFromIndex(kTrafficGraphSamplesCount);
 
-  bool _enabled = true;
-
   DateTime? _lastSyncCheck;
 
   Future<void> _updateServers() async {
@@ -76,11 +73,10 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
     _prevSample = newSample;
     _time += kUpdateIntervalMs;
 
-    if (mounted && _enabled) setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _checkSync() async {
-    if (!_enabled) return;
     if (_lastSyncCheck != null && DateTime.now().difference(_lastSyncCheck!) < kCheckSyncInterval) {
       return;
     }
@@ -98,15 +94,8 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
     }
   }
 
-  void _onAppStateChange() {
-    _enabled = di<AppStateService>().value == AppState.visible;
-    setState(() {});
-  }
-
   @override
   void initState() {
-    di<AppStateService>().addListener(_onAppStateChange);
-    _onAppStateChange();
     _update();
     _timer = Timer.periodic(kUpdateInterval, (_) => _update());
     super.initState();

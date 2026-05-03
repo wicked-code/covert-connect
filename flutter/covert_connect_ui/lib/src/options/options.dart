@@ -1,7 +1,4 @@
-import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/log.dart';
-import 'package:covert_connect/src/options/widgets/option_switch.dart';
-import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/utils/router.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +13,6 @@ class OptionsPage extends StatefulWidget {
 
 class _OptionsPageState extends State<OptionsPage> {
   final TextEditingController _controller = TextEditingController();
-  bool _autostart = false;
 
   String _version = "";
   String _build = "";
@@ -69,8 +65,8 @@ class _OptionsPageState extends State<OptionsPage> {
                 //     ),
                 //   ],
                 // ),
-                SizedBox(height: 6),
-                Text("The app will be launched after reboot", style: grayedTextStyle),
+                // SizedBox(height: 6),
+                // Text("The app will be launched after reboot", style: grayedTextStyle),
               ],
             ),
             Expanded(child: Container()),
