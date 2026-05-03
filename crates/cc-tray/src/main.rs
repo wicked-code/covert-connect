@@ -128,14 +128,12 @@ fn show_error_dialog(message: &str) {
 }
 
 fn main() -> Result<()> {
-    logger::init();
-
     let instance = SingleInstance::new(SINGLE_INSTANCE_KEY).context("create single-instance guard")?;
     if !instance.is_single() {
-        log::info!("another tray instance is already running, exiting");
         return Ok(());
     }
 
+    logger::init();
     if let Err(e) = register_autostart() {
         log::warn!("failed to register autostart: {e:?}");
     }
