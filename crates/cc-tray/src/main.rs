@@ -2,12 +2,12 @@
 
 mod logger;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 #[cfg(target_os = "macos")]
 use auto_launch::MacOSLaunchMode;
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use single_instance::SingleInstance;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
@@ -46,7 +46,7 @@ fn ui_executable_path() -> Result<PathBuf> {
     sibling_executable_path("covert_connect")
 }
 
-fn api_executable_path() -> Result<PathBuf> {
+fn client_executable_path() -> Result<PathBuf> {
     sibling_executable_path("cc-client")
 }
 
@@ -92,22 +92,29 @@ fn unregister_autostart() -> Result<()> {
 
 fn spawn_ui(args: &[&str]) -> Result<()> {
     let path = ui_executable_path()?;
-    spawn_executable(&path, args)
-}
-
-fn spawn_api(args: &[&str]) -> Result<()> {
-    let path = api_executable_path()?;
-    spawn_executable(&path, args)
-}
-
-fn spawn_executable(path: &Path, args: &[&str]) -> Result<()> {
     if !path.exists() {
         anyhow::bail!("executable not found at {}", path.display());
     }
-    Command::new(path)
+    Command::new(&path)
         .args(args)
         .spawn()
         .with_context(|| format!("failed to launch executable at {}", path.display()))?;
+    Ok(())
+}
+
+fn spawn_api(args: &[&str]) -> Result<()> {
+    let path = client_executable_path()?;
+    if !path.exists() {
+        anyhow::bail!("executable not found at {}", path.display());
+    }
+    let status = Command::new(&path)
+        .args(args)
+        .status()
+        .with_context(|| format!("failed to launch executable at {}", path.display()))?;
+    if !status.success() {
+        bail!("executable at {} exited with status {}", path.display(), status);
+    }
+    
     Ok(())
 }
 
@@ -216,7 +223,7 @@ fn main() -> Result<()> {
                 if let Err(e) = spawn_ui(&["/exit"]) {
                     log::warn!("failed to send /exit to UI: {e:?}");
                 }
-                match spawn_api(&["Uninstall"]) {
+                match spawn_api(&["uninstall"]) {
                     Ok(_) => *control_flow = ControlFlow::Exit,
                     Err(e) => {
                         log::error!("failed to exit client: {e:?}");
