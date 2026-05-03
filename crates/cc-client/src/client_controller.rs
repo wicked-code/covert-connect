@@ -19,9 +19,13 @@ use tokio_util::sync::CancellationToken;
 
 use client::api::ClientApi;
 
-#[cfg(debug_assertions)]
+#[cfg(all(windows, debug_assertions))]
+pub const SERVICE_NAME: &str = "Covert Connect Client (Debug)";
+#[cfg(all(windows, not(debug_assertions)))]
+pub const SERVICE_NAME: &str = "Covert Connect Client";
+#[cfg(all(not(windows), debug_assertions))]
 pub const SERVICE_NAME: &str = "com.wicked-code.cc-client-dbg";
-#[cfg(not(debug_assertions))]
+#[cfg(all(not(windows), not(debug_assertions)))]
 pub const SERVICE_NAME: &str = "com.wicked-code.cc-client";
 
 pub fn service_label() -> ServiceLabel {
