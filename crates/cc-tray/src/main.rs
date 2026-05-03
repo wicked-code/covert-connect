@@ -236,7 +236,7 @@ fn main() -> Result<()> {
             while let Ok(tray_ev) = TrayIconEvent::receiver().try_recv() {
                 if let TrayIconEvent::Click {
                     button: tray_icon::MouseButton::Left,
-                    button_state: tray_icon::MouseButtonState::Up,
+                    button_state: tray_icon::MouseButtonState::Down,
                     ..
                 } = tray_ev
                     && let Err(e) = spawn_ui(&["/show"])
