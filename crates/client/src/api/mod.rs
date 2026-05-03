@@ -41,7 +41,7 @@ pub trait ClientApi {
     async fn get_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>, String>;
     async fn get_ttfb(host: String, domain: String) -> Result<usize, String>;
     async fn shutdown();
-    async fn uninstall_service();
+    async fn uninstall_service() -> Result<(), String>;
 }
 
 pub async fn connect_client_api() -> Result<ClientApiClient> {

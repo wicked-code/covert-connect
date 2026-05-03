@@ -1,13 +1,16 @@
 use std::{ffi::OsString, path::PathBuf, sync::atomic::Ordering, time::Duration};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use client::{
     client::{Client, ClientState},
     config::ServerConfig,
     log::init_trace_log,
 };
-use service_manager::{RestartPolicy, ServiceInstallCtx, ServiceManager, ServiceStartCtx};
+use service_manager::{
+    RestartPolicy, ServiceInstallCtx, ServiceManager, ServiceStartCtx, ServiceStatus, ServiceStatusCtx, ServiceStopCtx,
+    ServiceUninstallCtx,
+};
 use tarpc::context;
 use tracing_subscriber::EnvFilter;
 
@@ -323,10 +326,25 @@ async fn monitor_client() -> Result<()> {
 async fn install(cfg_path: PathBuf) -> Result<()> {
     let label = service_label();
 
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
+    let manager = <dyn ServiceManager>::native().with_context(|| "Failed to detect management platform")?;
 
     let exe = std::env::current_exe()?;
     let working_dir = exe.parent().map(|p| p.to_path_buf());
+
+    // Uninstall if existing
+    let status = manager.status(ServiceStatusCtx { label: label.clone() })?;
+    if status != ServiceStatus::NotInstalled {
+        tracing::info!("Service already exists, uninstalling first");
+        if status == ServiceStatus::Running {
+            manager
+                .stop(ServiceStopCtx { label: label.clone() })
+                .with_context(|| "Failed to stop existing service")?;
+        }
+
+        manager
+            .uninstall(ServiceUninstallCtx { label: label.clone() })
+            .with_context(|| "Failed to uninstall existing service")?;
+    }
 
     manager
         .install(ServiceInstallCtx {
@@ -342,20 +360,27 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
             working_directory: working_dir,
             environment: None,
             autostart: true,
-            restart_policy: RestartPolicy::Always { delay_secs: Some(10) },
+            restart_policy: RestartPolicy::OnFailure {
+                delay_secs: Some(5),
+                max_retries: Some(10),
+                reset_after_secs: Some(60),
+            },
         })
-        .expect("Failed to install");
+        .with_context(|| "Failed to install service")?;
 
     manager
         .start(ServiceStartCtx { label: label.clone() })
-        .expect("Failed to start");
+        .with_context(|| "Failed to start service")?;
 
     Ok(())
 }
 
 async fn uninstall() -> Result<()> {
     let client = connect_client_api().await?;
-    client.uninstall_service(context::current()).await?;
+    client
+        .uninstall_service(context::current())
+        .await?
+        .map_err(anyhow::Error::msg)?;
     client.shutdown(context::current()).await?;
     Ok(())
 }

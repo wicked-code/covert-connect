@@ -9,7 +9,7 @@ use client::{
 };
 use crypto::config::ProtocolConfig;
 use futures::StreamExt;
-use service_manager::{ServiceLabel, ServiceManager, ServiceStopCtx, ServiceUninstallCtx};
+use service_manager::{ServiceLabel, ServiceManager, ServiceUninstallCtx};
 use tarpc::{
     context, serde_transport,
     server::{self, Channel},
@@ -248,16 +248,13 @@ impl ClientApi for ClientController {
         self.client.shutdown().await;
     }
 
-    async fn uninstall_service(self, _: context::Context) {
+    async fn uninstall_service(self, _: context::Context) -> Result<(), String> {
         let label = service_label();
 
-        let manager = <dyn ServiceManager>::native().expect("Failed to detect management platform");
-        manager
-            .stop(ServiceStopCtx { label: label.clone() })
-            .expect("Failed to stop");
+        let manager = <dyn ServiceManager>::native().map_err(|e| format!("Failed to detect management platform: {e}"))?;
 
         manager
             .uninstall(ServiceUninstallCtx { label: label.clone() })
-            .expect("Failed to uninstall");
+            .map_err(|e| format!("Failed to uninstall service: {e}"))
     }
 }
