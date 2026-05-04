@@ -11,9 +11,7 @@ pub struct ItemPool<T> {
 
 impl<T> ItemPool<T> {
     pub fn new() -> Self {
-        Self {
-            items: Vec::new(),
-        }
+        Self { items: Vec::new() }
     }
 
     pub fn insert(&mut self, item: T) -> ItemId {

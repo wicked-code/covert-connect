@@ -260,7 +260,8 @@ impl ClientApi for ClientController {
     async fn uninstall_service(self, _: context::Context) -> Result<(), String> {
         let label = service_label();
 
-        let manager = <dyn ServiceManager>::native().map_err(|e| format!("Failed to detect management platform: {e}"))?;
+        let manager =
+            <dyn ServiceManager>::native().map_err(|e| format!("Failed to detect management platform: {e}"))?;
 
         manager
             .uninstall(ServiceUninstallCtx { label: label.clone() })

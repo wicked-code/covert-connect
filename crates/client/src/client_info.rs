@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, atomic::AtomicU64};
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 
 use crate::{config::ServerConfig, egress::Egress, server_connection_info::ServerConnectInfo};
 

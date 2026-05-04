@@ -1,7 +1,7 @@
 pub mod default_if;
-pub mod flush_dns;
 pub mod firewall;
+pub mod flush_dns;
 
 pub use default_if::*;
-pub use flush_dns::*;
 pub use firewall::*;
+pub use flush_dns::*;

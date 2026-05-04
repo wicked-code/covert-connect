@@ -171,14 +171,18 @@ fn get_default_if(luid: NET_LUID_LH) -> Result<DefaultIf> {
                     unicast_ptr = unicast.Next;
                 }
 
-               break;
+                break;
             }
 
             current = adapter.Next;
         }
     }
 
-    Ok(DefaultIf { ipv4, ipv6, dns: dns_addrs })
+    Ok(DefaultIf {
+        ipv4,
+        ipv6,
+        dns: dns_addrs,
+    })
 }
 
 unsafe fn sockaddr_to_ip(sa: *mut SOCKADDR, len: i32) -> Option<IpAddr> {

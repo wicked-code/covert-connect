@@ -1,6 +1,6 @@
 use parking_lot::Mutex;
 use std::future::Future;
-use tokio::{task::JoinHandle, time::timeout, sync::Mutex as AsyncMutex};
+use tokio::{sync::Mutex as AsyncMutex, task::JoinHandle, time::timeout};
 use tokio_util::sync::CancellationToken;
 
 const STOP_TASK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);

@@ -2,18 +2,12 @@ use anyhow::{Error, Result};
 use async_trait::async_trait;
 use client::log::LogLine;
 
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use std::sync::Arc;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use client::Client;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use std::sync::Arc;
 
-use client::{
-    api::ClientApiClient,
-    client::ClientState,
-    client_info::ServerInfo,
-    config::ServerConfig,
-};
+use client::{api::ClientApiClient, client::ClientState, client_info::ServerInfo, config::ServerConfig};
 use crypto::config::ProtocolConfig;
 use tarpc::context;
 

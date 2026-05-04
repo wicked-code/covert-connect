@@ -1,14 +1,14 @@
 use anyhow::Result;
 use windows::{
-    core::BSTR,
     Win32::{
         Foundation::{RPC_E_CHANGED_MODE, VARIANT_BOOL},
         NetworkManagement::WindowsFirewall::{
-            INetFwPolicy2, INetFwRule, NetFwPolicy2, NetFwRule, NET_FW_ACTION_ALLOW, NET_FW_IP_PROTOCOL_TCP,
-            NET_FW_PROFILE2_ALL, NET_FW_RULE_DIR_IN,
+            INetFwPolicy2, INetFwRule, NET_FW_ACTION_ALLOW, NET_FW_IP_PROTOCOL_TCP, NET_FW_PROFILE2_ALL,
+            NET_FW_RULE_DIR_IN, NetFwPolicy2, NetFwRule,
         },
-        System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED},
+        System::Com::{CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize},
     },
+    core::BSTR,
 };
 
 struct ComGuard;

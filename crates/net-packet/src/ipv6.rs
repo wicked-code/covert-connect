@@ -26,9 +26,9 @@
 //! +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //! ```
 
+use anyhow::{Result, bail};
 use core::fmt;
 use core::net::Ipv6Addr;
-use anyhow::{Result, bail};
 
 /// Fixed IPv6 header length in bytes.
 pub const IPV6_HEADER_LEN: usize = 40;

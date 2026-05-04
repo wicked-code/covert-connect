@@ -15,8 +15,8 @@
 //! Hdr Ext Len is the length of the header in 8-octet units, not
 //! including the first 8 octets.
 
-use core::fmt;
 use anyhow::{Result, bail};
+use core::fmt;
 
 /// Minimum Hop-by-Hop Options header length in bytes (Next Header + Hdr Ext Len + 6 padding).
 pub const HOPBYHOP_MIN_HEADER_LEN: usize = 8;

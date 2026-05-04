@@ -1,8 +1,8 @@
+pub mod api;
 pub mod client;
 pub mod client_info;
 pub mod config;
 pub mod log;
-pub mod api;
 
 mod egress;
 mod protocol;

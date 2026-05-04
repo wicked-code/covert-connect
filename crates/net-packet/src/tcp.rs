@@ -23,9 +23,9 @@
 //! ```
 
 use crate::checksum;
+use anyhow::{Result, bail};
 use core::fmt;
 use core::net::{Ipv4Addr, Ipv6Addr};
-use anyhow::{Result, bail};
 
 /// Minimum TCP header length in bytes (no options).
 pub const TCP_MIN_HEADER_LEN: usize = 20;

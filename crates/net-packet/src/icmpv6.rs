@@ -30,9 +30,9 @@
 //! (src addr, dst addr, upper-layer length, next header = 58).
 
 use crate::checksum;
+use anyhow::{Result, bail};
 use core::fmt;
 use core::net::Ipv6Addr;
-use anyhow::{Result, bail};
 
 /// Minimum ICMPv6 header length in bytes.
 pub const ICMPV6_HEADER_LEN: usize = 8;

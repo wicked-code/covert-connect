@@ -72,7 +72,10 @@ impl AppConfig {
     }
 
     fn check(self) -> Result<AppConfig> {
-        if let Some(out_v4) = self.egress.ipv4 && let SocketAddr::V4(addr_v4) = self.address && out_v4 == *addr_v4.ip() {
+        if let Some(out_v4) = self.egress.ipv4
+            && let SocketAddr::V4(addr_v4) = self.address
+            && out_v4 == *addr_v4.ip()
+        {
             anyhow::bail!(
                 "{} egress address should not be the same as listen address {}, set different egress address or remove egress",
                 out_v4.to_string().bold(),
@@ -80,7 +83,10 @@ impl AppConfig {
             )
         }
 
-        if let Some(out_v6) = self.egress.ipv6 && let SocketAddr::V6(addr_v6) = self.address && out_v6 == *addr_v6.ip() {
+        if let Some(out_v6) = self.egress.ipv6
+            && let SocketAddr::V6(addr_v6) = self.address
+            && out_v6 == *addr_v6.ip()
+        {
             anyhow::bail!(
                 "{} egress address should not be the same as listen address {}, set different egress address or remove egress",
                 out_v6.to_string().bold(),

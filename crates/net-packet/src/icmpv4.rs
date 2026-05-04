@@ -20,8 +20,8 @@
 //! ```
 
 use crate::checksum;
-use core::fmt;
 use anyhow::{Result, bail};
+use core::fmt;
 
 /// Minimum ICMPv4 header length in bytes.
 pub const ICMPV4_HEADER_LEN: usize = 8;

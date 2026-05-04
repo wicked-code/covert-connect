@@ -45,7 +45,9 @@ pub fn process_path_by_local_addr(addr: SocketAddr, protocol: Protocol) -> Resul
                 }
             }
             ProtocolSocketInfo::Udp(udp_si) => {
-                if (udp_si.local_addr.is_unspecified() || udp_si.local_addr == addr.ip()) && udp_si.local_port == addr.port() {
+                if (udp_si.local_addr.is_unspecified() || udp_si.local_addr == addr.ip())
+                    && udp_si.local_port == addr.port()
+                {
                     return path_by_pids(si.associated_pids, addr);
                 }
             }

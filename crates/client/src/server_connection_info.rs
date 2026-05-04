@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
-use serde::{Serialize, Deserialize};
 
 use anyhow::{Result, anyhow};
 use crypto::kdf::Kdf;

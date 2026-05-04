@@ -6,9 +6,7 @@ use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use crate::DefaultIf;
 
 pub fn find_default_if() -> Result<DefaultIf> {
-    let hardware_ports_output = Command::new("networksetup")
-        .args(["-listallhardwareports"])
-        .output()?;
+    let hardware_ports_output = Command::new("networksetup").args(["-listallhardwareports"]).output()?;
     let hardware_ports_str = String::from_utf8_lossy(&hardware_ports_output.stdout);
 
     let mut physical_devices = Vec::new();
@@ -40,7 +38,10 @@ pub fn find_default_if() -> Result<DefaultIf> {
     let system_interfaces = NetworkInterface::show()?;
     for device_name in ordered_physical_devices {
         if let Some(itf) = system_interfaces.iter().find(|i| i.name == device_name) {
-            let ipv4 = itf.addr.iter().find_map(|a| if a.ip().is_ipv4() { Some(a.ip()) } else { None });
+            let ipv4 = itf
+                .addr
+                .iter()
+                .find_map(|a| if a.ip().is_ipv4() { Some(a.ip()) } else { None });
             match ipv4 {
                 Some(ipv4) => {
                     return Ok(DefaultIf {

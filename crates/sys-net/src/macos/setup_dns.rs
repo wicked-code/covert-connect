@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, anyhow, bail};
 
 use std::{
     io::Write,
@@ -20,9 +20,7 @@ pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
         service_id = service_id
     );
 
-    let mut child = Command::new("scutil")
-        .stdin(Stdio::piped())
-        .spawn()?;
+    let mut child = Command::new("scutil").stdin(Stdio::piped()).spawn()?;
 
     let stdin = child.stdin.as_mut().ok_or_else(|| anyhow!("Failed to open stdin"))?;
     stdin.write_all(script.as_bytes())?;

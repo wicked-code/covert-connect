@@ -13,9 +13,9 @@
 //! ```
 
 use crate::checksum;
+use anyhow::{Result, bail};
 use core::fmt;
 use core::net::{Ipv4Addr, Ipv6Addr};
-use anyhow::{Result, bail};
 
 /// Fixed UDP header length in bytes.
 pub const UDP_HEADER_LEN: usize = 8;

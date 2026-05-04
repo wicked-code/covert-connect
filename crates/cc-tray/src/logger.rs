@@ -31,13 +31,7 @@ impl Log for FileLogger {
         }
 
         if let Ok(mut file) = self.file.lock() {
-            let _ = writeln!(
-                file,
-                "{:<5} {}: {}",
-                record.level(),
-                record.target(),
-                record.args()
-            );
+            let _ = writeln!(file, "{:<5} {}: {}", record.level(), record.target(), record.args());
         }
     }
 

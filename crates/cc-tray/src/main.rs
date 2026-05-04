@@ -114,7 +114,7 @@ fn spawn_api(args: &[&str]) -> Result<()> {
     if !status.success() {
         bail!("executable at {} exited with status {}", path.display(), status);
     }
-    
+
     Ok(())
 }
 

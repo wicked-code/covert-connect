@@ -138,26 +138,47 @@ mod tests {
 
         assert_eq!(lru.host_by_ip_and_update(&"192.168.0.1".parse().unwrap()), None);
         assert_eq!(lru.ip_by_host_and_update("host1"), None);
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()), Some("host2".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()),
+            Some("host2".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host2"), Some("192.168.0.2".parse().unwrap()));
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.3".parse().unwrap()), Some("host3".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.3".parse().unwrap()),
+            Some("host3".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host3"), Some("192.168.0.3".parse().unwrap()));
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.4".parse().unwrap()), Some("host4".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.4".parse().unwrap()),
+            Some("host4".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host4"), Some("192.168.0.4".parse().unwrap()));
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()), Some("host2".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()),
+            Some("host2".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host2"), Some("192.168.0.2".parse().unwrap()));
 
         lru.insert("host5".to_string(), "192.168.0.5".parse().unwrap());
 
         assert_eq!(lru.host_by_ip_and_update(&"192.168.0.1".parse().unwrap()), None);
         assert_eq!(lru.ip_by_host_and_update("host1"), None);
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()), Some("host2".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()),
+            Some("host2".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host2"), Some("192.168.0.2".parse().unwrap()));
         assert_eq!(lru.host_by_ip_and_update(&"192.168.0.3".parse().unwrap()), None);
         assert_eq!(lru.ip_by_host_and_update("host3"), None);
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.4".parse().unwrap()), Some("host4".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.4".parse().unwrap()),
+            Some("host4".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host4"), Some("192.168.0.4".parse().unwrap()));
-        assert_eq!(lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()), Some("host2".to_string()));
+        assert_eq!(
+            lru.host_by_ip_and_update(&"192.168.0.2".parse().unwrap()),
+            Some("host2".to_string())
+        );
         assert_eq!(lru.ip_by_host_and_update("host2"), Some("192.168.0.2".parse().unwrap()));
 
         assert_eq!(lru.tail, Some(NonZeroU32::new(3 as u32).unwrap().into()));

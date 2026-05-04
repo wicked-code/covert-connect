@@ -11,15 +11,15 @@ use hickory_server::{
     server::{Request, RequestHandler, ResponseHandler, ResponseInfo},
 };
 use parking_lot::Mutex;
-use sys_process::process_path_by_local_addr;
 use std::{
-    path::Path,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::Path,
     sync::Arc,
     time::Duration,
 };
+use sys_process::Protocol as ProcessProtocol;
+use sys_process::process_path_by_local_addr;
 use tokio::net::{TcpListener, UdpSocket};
-use sys_process::{Protocol as ProcessProtocol};
 
 static DEFAULT_DNS_SERVER_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -107,16 +107,14 @@ impl RequestHandler for DnsHandler {
                 match request.protocol() {
                     HickoryProtocol::Tcp | HickoryProtocol::Https | HickoryProtocol::Tls => ProcessProtocol::TCP,
                     HickoryProtocol::Udp | HickoryProtocol::Quic | HickoryProtocol::H3 => ProcessProtocol::UDP,
-                    _ => ProcessProtocol::UDP
+                    _ => ProcessProtocol::UDP,
                 },
             ) {
-                Ok(process_path) => {
-                    Path::new(&process_path)
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                }
+                Ok(process_path) => Path::new(&process_path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
                 Err(_) => request.src().to_string(),
             };
 
