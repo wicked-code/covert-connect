@@ -120,12 +120,20 @@ impl Egress {
             let socket = TcpSocket::new_v4()?;
             // bind socket to outbound IF
             socket.bind(**self.outbound_ipv4.load())?;
-            socket.connect(target).await
+            let stream = socket.connect(target).await?;
+            if let Err(err) = stream.set_nodelay(true) {
+                tracing::warn!("failed to set TCP_NODELAY on outbound IPv4 stream: {:?}", err);
+            }
+            Ok(stream)
         } else {
             let socket = TcpSocket::new_v6()?;
             // bind socket to outbound IF
             socket.bind(**self.outbound_ipv6.load())?;
-            socket.connect(target).await
+            let stream = socket.connect(target).await?;
+            if let Err(err) = stream.set_nodelay(true) {
+                tracing::warn!("failed to set TCP_NODELAY on outbound IPv6 stream: {:?}", err);
+            }
+            Ok(stream)
         }
     }
 

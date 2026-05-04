@@ -246,6 +246,9 @@ async fn start_tunnel(
             .connect(addr)
             .await
             .with_context(|| format!("Failed to connect TCP to {:?}", addr))?;
+        if let Err(err) = out_stream.set_nodelay(true) {
+            tracing::warn!("failed to set TCP_NODELAY on outbound stream: {:?}", err);
+        }
 
         tracing::info!(
             "CONNECT from {socket_addr} to {host} ({}) bind to {:?}",
@@ -398,6 +401,9 @@ pub async fn serve(cfg: AppConfig, url_path: String, upgrade_support: bool) -> R
 
     loop {
         let (mut stream, socket_addr) = listener.accept().await?;
+        if let Err(err) = stream.set_nodelay(true) {
+            tracing::warn!("failed to set TCP_NODELAY on accepted stream: {:?}", err);
+        }
 
         // replay protection
         let timestamp = Utc::now().timestamp_millis();

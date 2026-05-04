@@ -120,6 +120,9 @@ impl TcpProxyNat {
             };
             match result {
                 Ok((stream, client_addr)) => {
+                    if let Err(err) = stream.set_nodelay(true) {
+                        tracing::warn!("failed to set TCP_NODELAY on NAT accepted stream: {:?}", err);
+                    }
                     let self_clone = self.clone();
                     let router = router.clone();
                     tokio::task::spawn(async move {
