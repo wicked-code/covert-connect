@@ -4,7 +4,7 @@ use std::process::Command;
 use anyhow::Result;
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
-use crate::DefaultIf;
+use crate::{DefaultIf, is_ipv6_global};
 
 pub fn find_default_if() -> Result<DefaultIf> {
     let hardware_ports_output = Command::new("networksetup").args(["-listallhardwareports"]).output()?;
@@ -50,7 +50,10 @@ pub fn find_default_if() -> Result<DefaultIf> {
                         ipv6: itf
                             .addr
                             .iter()
-                            .find_map(|a| if a.ip().is_ipv6() { Some(a.ip()) } else { None })
+                            .find_map(|a| match a.ip() {
+                                IpAddr::V6(ipv6) if is_ipv6_global(ipv6) => Some(a.ip()),
+                                _ => None,
+                            })
                             .unwrap_or_else(|| IpAddr::V6(Ipv6Addr::UNSPECIFIED)),
                         dns: get_dns_servers(&device_name).unwrap_or_default(),
                     });
@@ -114,7 +117,7 @@ fn get_dns_servers(device_name: &str) -> Result<Vec<IpAddr>> {
             && curr_if_name.as_deref() == Some(device_name)
         {
             dns_servers.push(dns);
-            
+
             curr_dns = None;
             curr_if_name = None;
         }
