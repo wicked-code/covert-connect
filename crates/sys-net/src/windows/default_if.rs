@@ -14,7 +14,7 @@ use windows::Win32::{
     Networking::WinSock::{AF_INET, AF_INET6, AF_UNSPEC, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6},
 };
 
-use crate::DefaultIf;
+use crate::{DefaultIf, is_ipv6_global};
 
 struct TableGuard(*mut MIB_IPFORWARD_TABLE2);
 impl Drop for TableGuard {
@@ -162,10 +162,12 @@ fn get_default_if(luid: NET_LUID_LH) -> Result<DefaultIf> {
                 while !unicast_ptr.is_null() {
                     let unicast = &*unicast_ptr;
                     if let Some(ip) = sockaddr_to_ip(unicast.Address.lpSockaddr, unicast.Address.iSockaddrLength) {
-                        if ip.is_ipv4() && ipv4.is_unspecified() {
-                            ipv4 = ip;
-                        } else if ip.is_ipv6() && ipv6.is_unspecified() {
-                            ipv6 = ip;
+                        match ip {
+                            IpAddr::V4(_) if ipv4.is_unspecified() => ipv4 = ip,
+                            IpAddr::V6(ipv6_addr) if ipv6.is_unspecified() && is_ipv6_global(ipv6_addr) => {
+                                ipv6 = ip
+                            }
+                            _ => {}
                         }
                     }
                     unicast_ptr = unicast.Next;

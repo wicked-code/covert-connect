@@ -1,5 +1,7 @@
 #[cfg(target_os = "linux")]
 mod linux;
+use std::net::Ipv6Addr;
+
 #[cfg(target_os = "linux")]
 pub use linux::*;
 #[cfg(target_os = "macos")]
@@ -15,6 +17,15 @@ pub struct DefaultIf {
     pub ipv4: std::net::IpAddr,
     pub ipv6: std::net::IpAddr,
     pub dns: Vec<std::net::IpAddr>,
+}
+
+fn is_ipv6_global(addr: Ipv6Addr) -> bool {
+    // Exclude addresses that are strictly local or reserved
+    !addr.is_loopback() && 
+    !addr.is_unspecified() &&
+    !addr.is_unicast_link_local() && 
+    !addr.is_unique_local() &&
+    !addr.is_multicast()
 }
 
 #[cfg(test)]
