@@ -1,4 +1,5 @@
 use anyhow::{Result, anyhow, bail};
+use parking_lot::Mutex;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
@@ -7,11 +8,10 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::teardown_dns;
+use sys_net::{teardown_dns, teardown_routes};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
-    sync::Mutex,
     task::JoinSet,
     time::sleep,
 };
@@ -49,6 +49,10 @@ pub struct TunService {
     tun_loop_task: Arc<CancellableTask>,
     ipv6_serve_task: Arc<CancellableTask>,
     ipv4_serve_cancellation: Mutex<Option<CancellationToken>>,
+    #[cfg(target_os = "macos")]
+    tun_name: Mutex<Option<String>>,
+    #[cfg(target_os = "macos")]
+    enable_ipv6: Mutex<bool>,
 }
 
 impl TunService {
@@ -63,6 +67,10 @@ impl TunService {
             tun_loop_task: Arc::new(CancellableTask::new("TunServiceTunLoopTask")),
             ipv6_serve_task: Arc::new(CancellableTask::new("TunServiceIpv6ServeTask")),
             ipv4_serve_cancellation: Mutex::new(None),
+            #[cfg(target_os = "macos")]
+            tun_name: Mutex::new(None),
+            #[cfg(target_os = "macos")]
+            enable_ipv6: Mutex::new(false),
         })
     }
 
@@ -106,6 +114,17 @@ impl TunService {
             let nat = self.icmp_nat.clone();
             async move { nat.stop().await }
         });
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(tun_name) = self.tun_name.lock().clone() {
+                set.spawn({
+                    let enable_ipv6 = *self.enable_ipv6.lock();
+                    async move {
+                        teardown_routes(&tun_name, enable_ipv6);
+                    }
+                });
+            }
+        }
 
         while let Some(res) = set.join_next().await {
             if let Err(err) = res {
@@ -113,8 +132,14 @@ impl TunService {
             }
         }
 
-        if let Some(token) = self.ipv4_serve_cancellation.lock().await.take() {
+        if let Some(token) = self.ipv4_serve_cancellation.lock().take() {
             token.cancel()
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            *self.tun_name.lock() = None;
+            *self.enable_ipv6.lock() = false;
         }
 
         Self::cleanup_at_start().await;
@@ -170,7 +195,7 @@ impl TunService {
         });
 
         let token = CancellationToken::new();
-        self.ipv4_serve_cancellation.lock().await.replace(token.clone());
+        self.ipv4_serve_cancellation.lock().replace(token.clone());
 
         on_started();
 
@@ -229,18 +254,16 @@ impl TunService {
 
         wait_interface_ready(&tun_name).await?;
 
-        // setup dns
-        #[cfg(not(target_os = "windows"))]
-        setup_dns(&tun_name, IpAddr::V4(address_v4))?;
-        // TODO: use sudo networksetup -ordernetworkservices to set priority for IF on macos
-
         // remove Multicast
-        let handle = net_route::Handle::new()?;
-        let route = net_route::Route::new("224.0.0.0".parse().unwrap(), 4)
-            .with_ifindex(net_if.index)
-            .with_gateway(IpAddr::V4(address_v4));
-        if let Err(err) = handle.delete(&route).await {
-            tracing::warn!("delete multicast route error: {:?}", err);
+        #[cfg(target_os = "windows")]
+        {
+            let handle = net_route::Handle::new()?;
+            let route = net_route::Route::new("224.0.0.0".parse().unwrap(), 4)
+                .with_ifindex(net_if.index)
+                .with_gateway(IpAddr::V4(address_v4));
+            if let Err(err) = handle.delete(&route).await {
+                tracing::warn!("delete multicast route error: {:?}", err);
+            }
         }
 
         let address_v6 = net_if
@@ -252,6 +275,19 @@ impl TunService {
             })
             .unwrap_or(Ipv6Addr::UNSPECIFIED);
         let gateaway_v6 = Ipv6Addr::from(u128::from(address_v6) + 1);
+
+        // setup dns
+        #[cfg(not(target_os = "windows"))]
+        setup_dns(&tun_name, IpAddr::V4(address_v4))?;
+        #[cfg(target_os = "macos")]
+        {
+            *self.tun_name.lock() = Some(tun_name.clone());
+
+            let enable_ipv6 = address_v6 != Ipv6Addr::UNSPECIFIED;
+            *self.enable_ipv6.lock() = enable_ipv6;
+
+            setup_routes(&tun_name, enable_ipv6)?;
+        }
 
         let (writer, mut reader) = dev.split()?;
 
