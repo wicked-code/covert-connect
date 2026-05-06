@@ -68,6 +68,7 @@ impl Client {
     }
 
     pub async fn initialize(&self) -> Result<()> {
+        TunService::cleanup_at_start().await;
         self.egress.init().await?;
         self.load_config().await?;
         self.update().await;

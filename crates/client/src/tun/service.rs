@@ -6,6 +6,8 @@ use std::{
 };
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
+#[cfg(target_os = "macos")]
+use sys_net::teardown_dns;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -64,6 +66,11 @@ impl TunService {
         })
     }
 
+    pub async fn cleanup_at_start() {
+        #[cfg(target_os = "macos")]
+        teardown_dns();
+    }
+
     pub async fn stop(&self) {
         // stop in parallel and wait for all to stop
         let mut set = JoinSet::new();
@@ -109,6 +116,8 @@ impl TunService {
         if let Some(token) = self.ipv4_serve_cancellation.lock().await.take() {
             token.cancel()
         }
+
+        Self::cleanup_at_start().await;
 
         // Flush system DNS cache after stop
         if let Err(err) = flush_system_dns_cache().await {

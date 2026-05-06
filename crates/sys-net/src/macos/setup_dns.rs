@@ -6,21 +6,25 @@ use std::{
     process::{Command, Stdio},
 };
 
+/// Lower SearchOrder = higher resolver priority. System default is ~200000.
+const DNS_SEARCH_ORDER: u32 = 5000;
+
 pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
-    let service_id = format!("CustomTun_{}", utun_name);
+    let service_id = format!("CCTun_{}", utun_name);
     let dns_key = format!("State:/Network/Service/{service_id}/DNS");
 
     let dns_script = format!(
         "d.init\n\
 d.add ServerAddresses * {dns_ip}\n\
+d.add SearchOrder {order}\n\
 set {dns_key}\n\
 quit\n",
         dns_ip = dns_ip,
+        order = DNS_SEARCH_ORDER,
         dns_key = dns_key,
     );
     run_scutil_script(&dns_script)?;
 
-    // Bind the synthetic service to the utun interface so configd can expose it.
     let if_state_script = match dns_ip {
         IpAddr::V4(ipv4) => format!(
             "d.init\n\
@@ -60,6 +64,43 @@ quit\n",
     }
 
     Ok(())
+}
+
+pub fn teardown_dns() {
+    // Parse scutil --dns to find all CCTun_ resolvers and remove them
+    match Command::new("scutil").args(["--dns"]).output() {
+        Ok(output) => {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            for line in output_str.lines() {
+                if line.contains("service_id") && line.contains("CCTun_") {
+                    // Extract service_id from lines like:
+                    // resolver #N
+                    //   if_index : 18 (utun6)
+                    //   flags    : Scoped, Request A records
+                    //   nameserver[0] : 172.23.0.1
+                    //   service_id : CCTun_utun6  <- HERE
+                    if let Some(service_id) = line.split("service_id :").nth(1) {
+                        let service_id = service_id.trim().to_string();
+                        if service_id.starts_with("CCTun_") {
+                            remove_service_resolver(&service_id);
+                        }
+                    }
+                }
+            }
+        }
+        Err(_) => {} // Ignore errors
+    }
+}
+
+fn remove_service_resolver(service_id: &str) {
+    let script = format!(
+        "remove State:/Network/Service/{service_id}/DNS\n\
+remove State:/Network/Service/{service_id}/IPv4\n\
+remove State:/Network/Service/{service_id}/IPv6\n\
+quit\n",
+        service_id = service_id,
+    );
+    let _ = run_scutil_script(&script);
 }
 
 fn run_scutil_script(script: &str) -> Result<String> {
