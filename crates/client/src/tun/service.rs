@@ -8,7 +8,7 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{teardown_dns, teardown_routes};
+use sys_net::{teardown_dns, teardown_routes, setup_routes};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,

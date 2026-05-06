@@ -1,3 +1,6 @@
+use anyhow::{Context, Result, bail};
+use std::process::Command;
+
 pub fn setup_routes(utun_name: &str, enable_ipv6: bool) -> Result<()> {
     for cidr in split_default_v4() {
         add_route(utun_name, cidr, false)
