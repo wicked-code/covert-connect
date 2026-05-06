@@ -1,16 +1,20 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 
 use std::{
+    collections::BTreeSet,
     io::Write,
     net::IpAddr,
     process::{Command, Stdio},
 };
 
+const SERVICE_ID_PREFIX: &str = "CCTun_";
+const CLEANUP_SERVICE_ID_PREFIXES: &[&str] = &[SERVICE_ID_PREFIX, "CustomTun_"];
+
 /// Lower SearchOrder = higher resolver priority. System default is ~200000.
 const DNS_SEARCH_ORDER: u32 = 5000;
 
 pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
-    let service_id = format!("CCTun_{}", utun_name);
+    let service_id = format!("{SERVICE_ID_PREFIX}{utun_name}");
     let dns_key = format!("State:/Network/Service/{service_id}/DNS");
 
     let dns_script = format!(
@@ -67,28 +71,49 @@ quit\n",
 }
 
 pub fn teardown_dns() {
-    // Parse scutil --dns to find all CCTun_ resolvers and remove them
-    match Command::new("scutil").args(["--dns"]).output() {
-        Ok(output) => {
-            let output_str = String::from_utf8_lossy(&output.stdout);
-            for line in output_str.lines() {
-                if line.contains("service_id") && line.contains("CCTun_") {
-                    // Extract service_id from lines like:
-                    // resolver #N
-                    //   if_index : 18 (utun6)
-                    //   flags    : Scoped, Request A records
-                    //   nameserver[0] : 172.23.0.1
-                    //   service_id : CCTun_utun6  <- HERE
-                    if let Some(service_id) = line.split("service_id :").nth(1) {
-                        let service_id = service_id.trim().to_string();
-                        if service_id.starts_with("CCTun_") {
-                            remove_service_resolver(&service_id);
-                        }
-                    }
+    match list_service_ids() {
+        Ok(service_ids) => {
+            for service_id in service_ids {
+                remove_service_resolver(&service_id);
+            }
+        }
+        Err(err) => tracing::warn!("failed to list scutil DNS resolvers for cleanup: {:?}", err),
+    }
+}
+
+fn list_service_ids() -> Result<BTreeSet<String>> {
+    let mut service_ids = BTreeSet::new();
+
+    for prefix in CLEANUP_SERVICE_ID_PREFIXES {
+        for suffix in ["DNS", "IPv4", "IPv6"] {
+            let script = format!("list State:/Network/Service/{prefix}.*/{suffix}\nquit\n");
+            let output = run_scutil_script(&script)?;
+
+            for line in output.lines() {
+                if let Some(service_id) = parse_service_id_from_key(line) {
+                    service_ids.insert(service_id.to_string());
                 }
             }
         }
-        Err(_) => {} // Ignore errors
+    }
+
+    Ok(service_ids)
+}
+
+fn parse_service_id_from_key(line: &str) -> Option<&str> {
+    let key_prefix = "State:/Network/Service/";
+    let start = line.find(key_prefix)? + key_prefix.len();
+    let rest = &line[start..];
+    let end = rest.find('/')?;
+    let service_id = &rest[..end];
+
+    if CLEANUP_SERVICE_ID_PREFIXES
+        .iter()
+        .any(|prefix| service_id.starts_with(prefix))
+    {
+        Some(service_id)
+    } else {
+        None
     }
 }
 
