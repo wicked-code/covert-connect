@@ -105,10 +105,7 @@ fn parse_service_id_from_key(line: &str) -> Option<&str> {
     let end = rest.find('/')?;
     let service_id = &rest[..end];
 
-    if CLEANUP_SERVICE_ID_PREFIXES
-        .iter()
-        .any(|prefix| service_id.starts_with(prefix))
-    {
+    if service_id.starts_with(SERVICE_ID_PREFIX) {
         Some(service_id)
     } else {
         None
