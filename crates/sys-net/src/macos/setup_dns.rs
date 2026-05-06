@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 use std::{
     collections::BTreeSet,
@@ -8,7 +8,6 @@ use std::{
 };
 
 const SERVICE_ID_PREFIX: &str = "CCTun_";
-const CLEANUP_SERVICE_ID_PREFIXES: &[&str] = &[SERVICE_ID_PREFIX, "CustomTun_"];
 
 /// Lower SearchOrder = higher resolver priority. System default is ~200000.
 const DNS_SEARCH_ORDER: u32 = 5000;
@@ -84,15 +83,14 @@ pub fn teardown_dns() {
 fn list_service_ids() -> Result<BTreeSet<String>> {
     let mut service_ids = BTreeSet::new();
 
-    for prefix in CLEANUP_SERVICE_ID_PREFIXES {
-        for suffix in ["DNS", "IPv4", "IPv6"] {
-            let script = format!("list State:/Network/Service/{prefix}.*/{suffix}\nquit\n");
-            let output = run_scutil_script(&script)?;
+    let prefix = SERVICE_ID_PREFIX;
+    for suffix in ["DNS", "IPv4", "IPv6"] {
+        let script = format!("list State:/Network/Service/{prefix}.*/{suffix}\nquit\n");
+        let output = run_scutil_script(&script)?;
 
-            for line in output.lines() {
-                if let Some(service_id) = parse_service_id_from_key(line) {
-                    service_ids.insert(service_id.to_string());
-                }
+        for line in output.lines() {
+            if let Some(service_id) = parse_service_id_from_key(line) {
+                service_ids.insert(service_id.to_string());
             }
         }
     }
