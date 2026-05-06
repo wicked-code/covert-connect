@@ -9,8 +9,9 @@ use std::{
 
 const SERVICE_ID_PREFIX: &str = "CCTun_";
 
-/// Lower SearchOrder = higher resolver priority. System default is ~200000.
-const DNS_SEARCH_ORDER: u32 = 5000;
+/// Lower DNS order = higher resolver priority. System default is ~200000.
+const DNS_ORDER: u32 = 5000;
+const DNS_MATCH_ALL_DOMAINS: &str = "";
 
 pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
     let service_id = format!("{SERVICE_ID_PREFIX}{utun_name}");
@@ -20,10 +21,13 @@ pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
         "d.init\n\
 d.add ServerAddresses * {dns_ip}\n\
 d.add SearchOrder {order}\n\
+d.add SupplementalMatchDomains * \"{match_domain}\"\n\
+d.add SupplementalMatchOrders * {order}\n\
 set {dns_key}\n\
 quit\n",
         dns_ip = dns_ip,
-        order = DNS_SEARCH_ORDER,
+        order = DNS_ORDER,
+        match_domain = DNS_MATCH_ALL_DOMAINS,
         dns_key = dns_key,
     );
     run_scutil_script(&dns_script)?;
@@ -58,9 +62,19 @@ quit\n",
 
     let verify_script = format!("show {dns_key}\nquit\n", dns_key = dns_key);
     let verify_output = run_scutil_script(&verify_script)?;
-    if !verify_output.contains("ServerAddresses") {
+    for required_key in [
+        "ServerAddresses",
+        "SearchOrder",
+        "SupplementalMatchDomains",
+        "SupplementalMatchOrders",
+    ] {
+        if verify_output.contains(required_key) {
+            continue;
+        }
+
         bail!(
-            "DNS key exists but has no ServerAddresses (key={dns_key}). scutil output:\n{verify_output}",
+            "DNS key exists but has no {required_key} (key={dns_key}). scutil output:\n{verify_output}",
+            required_key = required_key,
             dns_key = dns_key,
             verify_output = verify_output
         );
