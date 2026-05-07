@@ -403,7 +403,7 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
-            if should_reinject_local_dns_v4(ipv4.dst_addr(), address_v4) {
+            if should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
                 return ProcessResult::WriteBack;
             }
 
@@ -484,7 +484,7 @@ impl TunService {
         udp: &mut net_packet::udp::UdpHeader,
         address_v4: Ipv4Addr,
     ) -> ProcessResult {
-        if should_reinject_local_dns_v4(ipv4.dst_addr(), address_v4) {
+        if should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
             return ProcessResult::WriteBack;
         }
 
@@ -568,7 +568,7 @@ fn is_local_v4(addr: Ipv4Addr) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn should_reinject_local_dns_v4(dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
+fn should_reinject_local_v4(dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
     // macOS can emit scoped traffic for the utun interface address onto the
     // utun device instead of delivering it directly to local sockets. A packet
     // read from utun is on the outbound side; writing it back injects it as
@@ -578,7 +578,7 @@ fn should_reinject_local_dns_v4(dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> boo
 }
 
 #[cfg(not(target_os = "macos"))]
-fn should_reinject_local_dns_v4(_: Ipv4Addr, _: Ipv4Addr) -> bool {
+fn should_reinject_local_v4(_: Ipv4Addr, _: Ipv4Addr) -> bool {
     false
 }
 
