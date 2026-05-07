@@ -8,7 +8,7 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{setup_routes, teardown_dns, teardown_routes};
+use sys_net::{setup_routes, teardown_dns, teardown_routes, reset_network};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -140,6 +140,7 @@ impl TunService {
         {
             *self.tun_name.lock() = None;
             *self.enable_ipv6.lock() = false;
+            reset_network();
         }
 
         Self::cleanup_at_start().await;
@@ -192,6 +193,9 @@ impl TunService {
                 .await
                 .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
                 .ok();
+
+            #[cfg(target_os = "macos")]
+            reset_network();
         });
 
         let token = CancellationToken::new();
