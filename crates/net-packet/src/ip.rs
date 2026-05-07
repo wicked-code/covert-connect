@@ -94,6 +94,21 @@ impl<'a> IpPacket<'a> {
         // Write transport header + payload
         let ip_len = packet.len();
         match protocol {
+            ip_protocols::TCP => {
+                packet.extend_from_slice(payload);
+                let mut tcp = TcpHeader::new(&mut packet[ip_len..])?;
+                tcp.set_src_port(src_addr.port());
+                tcp.set_dst_port(dst_addr.port());
+                if is_v4 {
+                    if let (IpAddr::V4(src), IpAddr::V4(dst)) = (src_addr.ip(), dst_addr.ip()) {
+                        tcp.compute_checksum_v4(src, dst);
+                    }
+                } else {
+                    if let (IpAddr::V6(src), IpAddr::V6(dst)) = (src_addr.ip(), dst_addr.ip()) {
+                        tcp.compute_checksum_v6(src, dst);
+                    }
+                }
+            }
             ip_protocols::UDP => {
                 packet.resize(ip_len + UDP_HEADER_LEN, 0);
                 packet.extend_from_slice(payload);

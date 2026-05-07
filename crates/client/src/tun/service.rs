@@ -8,7 +8,7 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{setup_routes, teardown_dns, teardown_routes, reset_network};
+use sys_net::{reset_network, setup_routes, teardown_dns, teardown_routes};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -24,7 +24,17 @@ use crate::{
     tun::{dns_mapper::DnsMapper, dns_server::DnsServer, tcp_proxy_nat::TcpProxyNat, udp_nat::UdpNat},
     utils::cancellable_task::CancellableTask,
 };
-use net_packet::ip::{IpHeader, IpPacket, NextHeader};
+use net_packet::{
+    icmpv4::Icmpv4Header,
+    icmpv6::Icmpv6Header,
+    igmp::IgmpHeader,
+    ip::{IpHeader, IpPacket, NextHeader},
+    ip_protocols,
+    ipv4::Ipv4Header,
+    ipv6::Ipv6Header,
+    tcp::{TCP_ACK, TCP_MIN_HEADER_LEN, TCP_RST, TcpHeader},
+    udp::UdpHeader,
+};
 
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
@@ -38,6 +48,7 @@ const WAIT_IF_READY_INTERVAL: Duration = Duration::from_millis(100);
 enum ProcessResult {
     Consume,
     WriteBack,
+    WriteBackPacket(Vec<u8>),
 }
 
 pub struct TunService {
@@ -312,11 +323,16 @@ impl TunService {
                                 }
                                 modify_buf[..n].copy_from_slice(&read_buf[..n]);
                                 let packet = &mut modify_buf[..n];
-                                if self_clone
+                                match self_clone
                                     .process_packet(packet, address_v4, gateaway_v4, address_v6, gateaway_v6)
-                                    == ProcessResult::WriteBack
                                 {
-                                    writer_clone.write_all(packet).await.ok();
+                                    ProcessResult::Consume => {}
+                                    ProcessResult::WriteBack => {
+                                        writer_clone.write_all(packet).await.ok();
+                                    }
+                                    ProcessResult::WriteBackPacket(packet) => {
+                                        writer_clone.write_all(&packet).await.ok();
+                                    }
                                 }
                             }
                             Err(err) => {
@@ -374,8 +390,8 @@ impl TunService {
 
     fn process_tcp_v4_packet(
         &self,
-        ipv4: &mut net_packet::ipv4::Ipv4Header,
-        tcp: &mut net_packet::tcp::TcpHeader,
+        ipv4: &mut Ipv4Header,
+        tcp: &mut TcpHeader,
         address_v4: Ipv4Addr,
         gateway_v4: Ipv4Addr,
     ) -> ProcessResult {
@@ -414,15 +430,20 @@ impl TunService {
             let nat_port = self.tcp_proxy_nat_v4.get_port(
                 SocketAddr::new(IpAddr::V4(ipv4.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), tcp.dst_port()),
+                tcp.syn() && !tcp.ack(),
             );
 
-            ipv4.set_src_addr(gateway_v4);
-            tcp.set_src_port(nat_port);
-            ipv4.set_dst_addr(address_v4);
-            tcp.set_dst_port(tcp_proxy_port);
+            if let Some(nat_port) = nat_port {
+                ipv4.set_src_addr(gateway_v4);
+                tcp.set_src_port(nat_port);
+                ipv4.set_dst_addr(address_v4);
+                tcp.set_dst_port(tcp_proxy_port);
 
-            ipv4.compute_checksum();
-            tcp.compute_checksum_v4(gateway_v4, address_v4);
+                ipv4.compute_checksum();
+                tcp.compute_checksum_v4(gateway_v4, address_v4);
+            } else {
+                return make_rst_packet(IpAddr::V4(ipv4.src_addr()), IpAddr::V4(ipv4.dst_addr()), tcp);
+            }
         }
 
         ProcessResult::WriteBack
@@ -430,8 +451,8 @@ impl TunService {
 
     fn process_tcp_v6_packet(
         &self,
-        ipv6: &mut net_packet::ipv6::Ipv6Header,
-        tcp: &mut net_packet::tcp::TcpHeader,
+        ipv6: &mut Ipv6Header,
+        tcp: &mut TcpHeader,
         address_v6: Ipv6Addr,
         gateway_v6: Ipv6Addr,
     ) -> ProcessResult {
@@ -465,25 +486,25 @@ impl TunService {
             let nat_port = self.tcp_proxy_nat_v6.get_port(
                 SocketAddr::new(IpAddr::V6(ipv6.src_addr()), tcp.src_port()),
                 SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), tcp.dst_port()),
+                tcp.syn() && !tcp.ack(),
             );
 
-            ipv6.set_src_addr(gateway_v6);
-            tcp.set_src_port(nat_port);
-            ipv6.set_dst_addr(address_v6);
-            tcp.set_dst_port(tcp_proxy_port);
+            if let Some(nat_port) = nat_port {
+                ipv6.set_src_addr(gateway_v6);
+                tcp.set_src_port(nat_port);
+                ipv6.set_dst_addr(address_v6);
+                tcp.set_dst_port(tcp_proxy_port);
 
-            tcp.compute_checksum_v6(gateway_v6, address_v6);
+                tcp.compute_checksum_v6(gateway_v6, address_v6);
+            } else {
+                return make_rst_packet(IpAddr::V6(ipv6.src_addr()), IpAddr::V6(ipv6.dst_addr()), tcp);
+            }
         }
 
         ProcessResult::WriteBack
     }
 
-    fn process_udp_v4_packet(
-        &self,
-        ipv4: &mut net_packet::ipv4::Ipv4Header,
-        udp: &mut net_packet::udp::UdpHeader,
-        address_v4: Ipv4Addr,
-    ) -> ProcessResult {
+    fn process_udp_v4_packet(&self, ipv4: &mut Ipv4Header, udp: &mut UdpHeader, address_v4: Ipv4Addr) -> ProcessResult {
         if should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
             return ProcessResult::WriteBack;
         }
@@ -501,7 +522,7 @@ impl TunService {
         ProcessResult::Consume
     }
 
-    fn process_udp_v6_packet(&self, ipv6: &mut net_packet::ipv6::Ipv6Header, udp: &mut net_packet::udp::UdpHeader) {
+    fn process_udp_v6_packet(&self, ipv6: &mut Ipv6Header, udp: &mut UdpHeader) {
         if is_local_v6(ipv6.dst_addr()) {
             return;
         }
@@ -513,11 +534,7 @@ impl TunService {
         );
     }
 
-    fn process_icmp_v4_packet(
-        &self,
-        ipv4: &mut net_packet::ipv4::Ipv4Header,
-        icmp: &mut net_packet::icmpv4::Icmpv4Header,
-    ) {
+    fn process_icmp_v4_packet(&self, ipv4: &mut Ipv4Header, icmp: &mut Icmpv4Header) {
         if is_local_v4(ipv4.dst_addr()) {
             return;
         }
@@ -534,11 +551,7 @@ impl TunService {
         );
     }
 
-    fn process_icmp_v6_packet(
-        &self,
-        ipv6: &mut net_packet::ipv6::Ipv6Header,
-        icmp: &mut net_packet::icmpv6::Icmpv6Header,
-    ) {
+    fn process_icmp_v6_packet(&self, ipv6: &mut Ipv6Header, icmp: &mut Icmpv6Header) {
         if is_local_v6(ipv6.dst_addr()) {
             return;
         }
@@ -554,13 +567,61 @@ impl TunService {
         );
     }
 
-    fn process_igmp_v4_packet(&self, ipv4: &mut net_packet::ipv4::Ipv4Header, igmp: &mut net_packet::igmp::IgmpHeader) {
+    fn process_igmp_v4_packet(&self, ipv4: &mut Ipv4Header, igmp: &mut IgmpHeader) {
         tracing::debug!("IGMPv4 packet: {:?}, to {}", igmp, ipv4.dst_addr());
     }
 
-    fn process_igmp_v6_packet(&self, ipv6: &mut net_packet::ipv6::Ipv6Header, igmp: &mut net_packet::igmp::IgmpHeader) {
+    fn process_igmp_v6_packet(&self, ipv6: &mut Ipv6Header, igmp: &mut IgmpHeader) {
         tracing::debug!("IGMPv6 packet: {:?}, to {}", igmp, ipv6.dst_addr());
     }
+}
+
+fn make_rst_packet(src_addr: IpAddr, dst_addr: IpAddr, tcp: &TcpHeader) -> ProcessResult {
+    if tcp.rst() {
+        return ProcessResult::Consume;
+    }
+
+    let mut data = vec![0; TCP_MIN_HEADER_LEN];
+    let mut rst_tcp = match TcpHeader::new(&mut data) {
+        Ok(header) => header,
+        Err(err) => {
+            tracing::error!("failed to create TCP header for RST packet: {:?}", err);
+            return ProcessResult::Consume;
+        }
+    };
+
+    rst_tcp.set_data_offset((TCP_MIN_HEADER_LEN / 4) as u8);
+    rst_tcp.set_window_size(0);
+    if tcp.ack() {
+        rst_tcp.set_flags(TCP_RST);
+        rst_tcp.set_seq_number(tcp.ack_number());
+        rst_tcp.set_ack_number(0);
+    } else {
+        rst_tcp.set_flags(TCP_RST | TCP_ACK);
+        let mut ack_number = tcp.seq_number().wrapping_add(tcp.payload_len() as u32);
+        if tcp.syn() {
+            ack_number = ack_number.wrapping_add(1);
+        }
+        if tcp.fin() {
+            ack_number = ack_number.wrapping_add(1);
+        }
+        rst_tcp.set_ack_number(ack_number);
+    }
+
+    let packet = match IpPacket::build(
+        ip_protocols::TCP,
+        SocketAddr::new(dst_addr, tcp.dst_port()),
+        SocketAddr::new(src_addr, tcp.src_port()),
+        &data,
+    ) {
+        Ok(packet) => packet,
+        Err(err) => {
+            tracing::error!("failed to build RST packet: {:?}", err);
+            return ProcessResult::Consume;
+        }
+    };
+
+    ProcessResult::WriteBackPacket(packet)
 }
 
 fn is_local_v4(addr: Ipv4Addr) -> bool {

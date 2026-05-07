@@ -154,6 +154,12 @@ impl<'a> TcpHeader<'a> {
         self.data_offset() as usize * 4
     }
 
+    /// Returns the payload length in bytes.
+    #[inline]
+    pub fn payload_len(&self) -> usize {
+        self.buf.len().saturating_sub(self.header_len())
+    }
+
     /// Returns the option bytes (empty if data offset == 5).
     #[inline]
     pub fn options(&self) -> &[u8] {

@@ -251,9 +251,13 @@ impl TcpProxyNat {
         MIN_NAT_PORT + self.port_index.fetch_add(1, Ordering::Relaxed) % (MAX_NAT_PORT - MIN_NAT_PORT)
     }
 
-    pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr) -> u16 {
+    pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr, create_session: bool) -> Option<u16> {
         if let Some(port) = self.ports.read().get(&src_addr) {
-            return *port;
+            return Some(*port);
+        }
+
+        if !create_session {
+            return None;
         }
 
         let mut port = self.get_new_port();
@@ -266,12 +270,12 @@ impl TcpProxyNat {
 
         let mut ports_wr = self.ports.write();
         if let Some(port) = ports_wr.get(&src_addr) {
-            return *port;
+            return Some(*port);
         }
 
         self.sessions.write().insert(port, session);
         ports_wr.insert(src_addr, port);
-        port
+        Some(port)
     }
 
     fn set_proxy_port(&self, port: u16) {
