@@ -8,7 +8,7 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{reset_network, setup_routes, teardown_dns, teardown_routes};
+use sys_net::{reset_network, setup_routes, teardown_dns};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -60,10 +60,6 @@ pub struct TunService {
     tun_loop_task: Arc<CancellableTask>,
     ipv6_serve_task: Arc<CancellableTask>,
     ipv4_serve_cancellation: Mutex<Option<CancellationToken>>,
-    #[cfg(target_os = "macos")]
-    tun_name: Mutex<Option<String>>,
-    #[cfg(target_os = "macos")]
-    enable_ipv6: Mutex<bool>,
 }
 
 impl TunService {
@@ -78,10 +74,6 @@ impl TunService {
             tun_loop_task: Arc::new(CancellableTask::new("TunServiceTunLoopTask")),
             ipv6_serve_task: Arc::new(CancellableTask::new("TunServiceIpv6ServeTask")),
             ipv4_serve_cancellation: Mutex::new(None),
-            #[cfg(target_os = "macos")]
-            tun_name: Mutex::new(None),
-            #[cfg(target_os = "macos")]
-            enable_ipv6: Mutex::new(false),
         })
     }
 
@@ -125,18 +117,6 @@ impl TunService {
             let nat = self.icmp_nat.clone();
             async move { nat.stop().await }
         });
-        #[cfg(target_os = "macos")]
-        {
-            if let Some(tun_name) = self.tun_name.lock().clone() {
-                set.spawn({
-                    let enable_ipv6 = *self.enable_ipv6.lock();
-                    async move {
-                        teardown_routes(&tun_name, enable_ipv6);
-                    }
-                });
-            }
-        }
-
         while let Some(res) = set.join_next().await {
             if let Err(err) = res {
                 tracing::error!("shutdown error: {:?}", err);
@@ -148,11 +128,7 @@ impl TunService {
         }
 
         #[cfg(target_os = "macos")]
-        {
-            *self.tun_name.lock() = None;
-            *self.enable_ipv6.lock() = false;
-            reset_network();
-        }
+        reset_network();
 
         Self::cleanup_at_start().await;
 
@@ -295,14 +271,7 @@ impl TunService {
         #[cfg(not(target_os = "windows"))]
         setup_dns(&tun_name, IpAddr::V4(address_v4))?;
         #[cfg(target_os = "macos")]
-        {
-            *self.tun_name.lock() = Some(tun_name.clone());
-
-            let enable_ipv6 = address_v6 != Ipv6Addr::UNSPECIFIED;
-            *self.enable_ipv6.lock() = enable_ipv6;
-
-            setup_routes(&tun_name, enable_ipv6)?;
-        }
+        setup_routes(&tun_name, address_v6 != Ipv6Addr::UNSPECIFIED)?;
 
         let (writer, mut reader) = dev.split()?;
 
