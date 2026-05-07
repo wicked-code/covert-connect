@@ -30,8 +30,6 @@ use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
 
 const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
-#[cfg(target_os = "macos")]
-const DNS_PORT: u16 = 53;
 
 const WAIT_IF_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const WAIT_IF_READY_INTERVAL: Duration = Duration::from_millis(100);
@@ -401,7 +399,7 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
-            if should_reinject_local_dns_v4(ipv4.dst_addr(), tcp.dst_port(), address_v4) {
+            if should_reinject_local_dns_v4(ipv4.dst_addr(), address_v4) {
                 return ProcessResult::WriteBack;
             }
 
@@ -482,7 +480,7 @@ impl TunService {
         udp: &mut net_packet::udp::UdpHeader,
         address_v4: Ipv4Addr,
     ) -> ProcessResult {
-        if should_reinject_local_dns_v4(ipv4.dst_addr(), udp.dst_port(), address_v4) {
+        if should_reinject_local_dns_v4(ipv4.dst_addr(), address_v4) {
             return ProcessResult::WriteBack;
         }
 
@@ -566,12 +564,17 @@ fn is_local_v4(addr: Ipv4Addr) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn should_reinject_local_dns_v4(dst_addr: Ipv4Addr, dst_port: u16, address_v4: Ipv4Addr) -> bool {
-    dst_addr == address_v4 && dst_port == DNS_PORT
+fn should_reinject_local_dns_v4(dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
+    // macOS can emit scoped traffic for the utun interface address onto the
+    // utun device instead of delivering it directly to local sockets. A packet
+    // read from utun is on the outbound side; writing it back injects it as
+    // inbound traffic, allowing the kernel to deliver it to listeners bound to
+    // address_v4.
+    dst_addr == address_v4
 }
 
 #[cfg(not(target_os = "macos"))]
-fn should_reinject_local_dns_v4(_: Ipv4Addr, _: u16, _: Ipv4Addr) -> bool {
+fn should_reinject_local_dns_v4(_: Ipv4Addr, _: Ipv4Addr) -> bool {
     false
 }
 
