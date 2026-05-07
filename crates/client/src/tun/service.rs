@@ -8,7 +8,7 @@ use std::{
 #[cfg(not(target_os = "windows"))]
 use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{teardown_dns, teardown_routes, setup_routes};
+use sys_net::{setup_routes, teardown_dns, teardown_routes};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -30,6 +30,8 @@ use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use sys_net::flush_system_dns_cache;
 
 const MAX_PACKET_SIZE: usize = 0xFFFF; // max IP packet size
+#[cfg(target_os = "macos")]
+const DNS_PORT: u16 = 53;
 
 const WAIT_IF_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const WAIT_IF_READY_INTERVAL: Duration = Duration::from_millis(100);
@@ -350,7 +352,7 @@ impl TunService {
                 NextHeader::Tcp(mut tcp) => {
                     return self.process_tcp_v4_packet(&mut ipv4, &mut tcp, address_v4, gateway_v4);
                 }
-                NextHeader::Udp(mut udp) => self.process_udp_v4_packet(&mut ipv4, &mut udp),
+                NextHeader::Udp(mut udp) => return self.process_udp_v4_packet(&mut ipv4, &mut udp, address_v4),
                 NextHeader::Icmpv4(mut icmp) => self.process_icmp_v4_packet(&mut ipv4, &mut icmp),
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v4_packet(&mut ipv4, &mut igmp),
                 _ => (),
@@ -399,6 +401,10 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
+            if should_reinject_local_dns_v4(ipv4.dst_addr(), tcp.dst_port(), address_v4) {
+                return ProcessResult::WriteBack;
+            }
+
             if is_local_v4(ipv4.dst_addr()) {
                 return ProcessResult::Consume;
             }
@@ -470,9 +476,18 @@ impl TunService {
         ProcessResult::WriteBack
     }
 
-    fn process_udp_v4_packet(&self, ipv4: &mut net_packet::ipv4::Ipv4Header, udp: &mut net_packet::udp::UdpHeader) {
+    fn process_udp_v4_packet(
+        &self,
+        ipv4: &mut net_packet::ipv4::Ipv4Header,
+        udp: &mut net_packet::udp::UdpHeader,
+        address_v4: Ipv4Addr,
+    ) -> ProcessResult {
+        if should_reinject_local_dns_v4(ipv4.dst_addr(), udp.dst_port(), address_v4) {
+            return ProcessResult::WriteBack;
+        }
+
         if is_local_v4(ipv4.dst_addr()) {
-            return;
+            return ProcessResult::Consume;
         }
 
         self.udp_nat.send(
@@ -480,6 +495,8 @@ impl TunService {
             SocketAddr::new(IpAddr::V4(ipv4.dst_addr()), udp.dst_port()),
             udp.payload(),
         );
+
+        ProcessResult::Consume
     }
 
     fn process_udp_v6_packet(&self, ipv6: &mut net_packet::ipv6::Ipv6Header, udp: &mut net_packet::udp::UdpHeader) {
@@ -546,6 +563,16 @@ impl TunService {
 
 fn is_local_v4(addr: Ipv4Addr) -> bool {
     addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() || addr.is_multicast()
+}
+
+#[cfg(target_os = "macos")]
+fn should_reinject_local_dns_v4(dst_addr: Ipv4Addr, dst_port: u16, address_v4: Ipv4Addr) -> bool {
+    dst_addr == address_v4 && dst_port == DNS_PORT
+}
+
+#[cfg(not(target_os = "macos"))]
+fn should_reinject_local_dns_v4(_: Ipv4Addr, _: u16, _: Ipv4Addr) -> bool {
+    false
 }
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
