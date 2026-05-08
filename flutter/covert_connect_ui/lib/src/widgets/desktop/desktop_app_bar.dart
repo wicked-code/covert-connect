@@ -102,7 +102,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     final curvedAnimation = CurvedAnimation(parent: _resizeAnimation, curve: Curves.easeInOut);
     curvedAnimation.addListener(() async {
       if (_resizeAnimationStartSize == Size.zero) return;
-      final scale = appWindow.scaleFactor;
+      final scale = Platform.isLinux ? 1.0 : appWindow.scaleFactor;
 
       final pos = await windowManager.getPosition();
       appWindow.rect = Rect.fromLTWH(pos.dx * scale, pos.dy * scale, 
