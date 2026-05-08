@@ -48,7 +48,12 @@ pub fn find_default_if() -> Result<DefaultIf> {
 
     let dns = get_dns_servers()?;
 
-    Ok(DefaultIf { ipv4, ipv6, dns })
+    Ok(DefaultIf {
+        if_name: default_if_name,
+        ipv4,
+        ipv6,
+        dns,
+    })
 }
 
 fn get_dns_servers() -> Result<Vec<IpAddr>> {

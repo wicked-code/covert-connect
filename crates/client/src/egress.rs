@@ -35,6 +35,8 @@ pub enum StreamType {
 pub struct Egress {
     outbound_ipv4: ArcSwap<SocketAddr>,
     outbound_ipv6: ArcSwap<SocketAddr>,
+    #[cfg(target_os = "linux")]
+    outbound_if_name: ArcSwap<String>,
     outbound_dns: ArcSwap<Vec<IpAddr>>,
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
@@ -58,6 +60,8 @@ impl Egress {
         Arc::new(Self {
             outbound_ipv4: ArcSwap::from_pointee(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)),
             outbound_ipv6: ArcSwap::from_pointee(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)),
+            #[cfg(target_os = "linux")]
+            outbound_if_name: ArcSwap::from_pointee(String::new()),
             outbound_dns: ArcSwap::from_pointee(Vec::new()),
             tls_cfg: Arc::new(tls_cfg),
             resolver: ArcSwap::from_pointee(
@@ -120,6 +124,11 @@ impl Egress {
             let socket = TcpSocket::new_v4()?;
             // bind socket to outbound IF
             socket.bind(**self.outbound_ipv4.load())?;
+            #[cfg(target_os = "linux")]
+            {
+                let if_name = self.outbound_if_name.load();
+                bind_socket_to_interface(&socket, if_name.as_str())?;
+            }
             let stream = socket.connect(target).await?;
             if let Err(err) = stream.set_nodelay(true) {
                 tracing::warn!("failed to set TCP_NODELAY on outbound IPv4 stream: {:?}", err);
@@ -129,6 +138,11 @@ impl Egress {
             let socket = TcpSocket::new_v6()?;
             // bind socket to outbound IF
             socket.bind(**self.outbound_ipv6.load())?;
+            #[cfg(target_os = "linux")]
+            {
+                let if_name = self.outbound_if_name.load();
+                bind_socket_to_interface(&socket, if_name.as_str())?;
+            }
             let stream = socket.connect(target).await?;
             if let Err(err) = stream.set_nodelay(true) {
                 tracing::warn!("failed to set TCP_NODELAY on outbound IPv6 stream: {:?}", err);
@@ -144,7 +158,13 @@ impl Egress {
             **self.outbound_ipv4.load()
         };
 
-        UdpSocket::bind(outbound_address).await
+        let socket = UdpSocket::bind(outbound_address).await?;
+        #[cfg(target_os = "linux")]
+        {
+            let if_name = self.outbound_if_name.load();
+            bind_socket_to_interface(&socket, if_name.as_str())?;
+        }
+        Ok(socket)
     }
 
     pub async fn connect_icmp(&self, target: SocketAddr) -> io::Result<UdpSocket> {
@@ -155,6 +175,11 @@ impl Egress {
         };
         let socket = Socket::new(domain, Type::RAW, Some(protocol))?;
         socket.set_nonblocking(true)?;
+        #[cfg(target_os = "linux")]
+        {
+            let if_name = self.outbound_if_name.load();
+            bind_socket_to_interface(&socket, if_name.as_str())?;
+        }
 
         socket.bind(&outbound_address.into())?;
 
@@ -177,12 +202,26 @@ impl Egress {
 
     async fn update(self: &Arc<Self>) -> Result<()> {
         let net_if = find_default_if()?;
-        let net_if_changed =
-            net_if.ipv4 != self.outbound_ipv4.load().ip() || net_if.ipv6 != self.outbound_ipv6.load().ip();
+        #[cfg(target_os = "linux")]
+        let current_if_name = self.outbound_if_name.load();
+        let net_if_changed = net_if.ipv4 != self.outbound_ipv4.load().ip()
+            || net_if.ipv6 != self.outbound_ipv6.load().ip()
+            || {
+                #[cfg(target_os = "linux")]
+                {
+                    net_if.if_name != current_if_name.as_str()
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    false
+                }
+            };
 
         if net_if_changed {
             self.outbound_ipv4.store(Arc::new(SocketAddr::new(net_if.ipv4, 0)));
             self.outbound_ipv6.store(Arc::new(SocketAddr::new(net_if.ipv6, 0)));
+            #[cfg(target_os = "linux")]
+            self.outbound_if_name.store(Arc::new(net_if.if_name.clone()));
         } else {
             let prev_dns = self.outbound_dns.load().clone();
             if prev_dns.len() == net_if.dns.len() && prev_dns.iter().all(|ip| net_if.dns.contains(ip)) {
@@ -232,6 +271,18 @@ impl Egress {
 
         Ok(())
     }
+}
+
+#[cfg(target_os = "linux")]
+fn bind_socket_to_interface<S>(socket: &S, if_name: &str) -> io::Result<()>
+where
+    S: std::os::fd::AsFd,
+{
+    if if_name.is_empty() {
+        return Ok(());
+    }
+
+    socket2::SockRef::from(socket).bind_device(Some(if_name.as_bytes()))
 }
 
 fn is_invalid_address(ip: IpAddr) -> bool {

@@ -14,6 +14,8 @@ mod windows;
 pub use windows::*;
 
 pub struct DefaultIf {
+    #[cfg(target_os = "linux")]
+    pub if_name: String,
     pub ipv4: std::net::IpAddr,
     pub ipv6: std::net::IpAddr,
     pub dns: Vec<std::net::IpAddr>,
