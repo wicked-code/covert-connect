@@ -2,11 +2,7 @@ use anyhow::Result;
 use tokio::process::Command;
 
 pub async fn flush_system_dns_cache() -> Result<()> {
-    match Command::new("resolvectl")
-        .args(["flush-caches"])
-        .output()
-        .await
-    {
+    match Command::new("resolvectl").args(["flush-caches"]).output().await {
         Ok(output) if output.status.success() => {
             tracing::debug!("DNS cache flushed successfully via resolvectl");
         }
@@ -17,7 +13,7 @@ pub async fn flush_system_dns_cache() -> Result<()> {
             tracing::warn!("Failed to execute resolvectl: {}", e);
         }
     }
-    
+
     match Command::new("systemctl")
         .args(["restart", "systemd-resolved"])
         .output()

@@ -5,10 +5,10 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-#[cfg(not(target_os = "windows"))]
-use sys_net::setup_dns;
 #[cfg(target_os = "macos")]
-use sys_net::{reset_network, setup_routes, teardown_dns};
+use sys_net::{reset_network, teardown_dns};
+#[cfg(not(target_os = "windows"))]
+use sys_net::{setup_dns, setup_routes};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     select,
@@ -270,8 +270,8 @@ impl TunService {
         // setup dns
         #[cfg(not(target_os = "windows"))]
         setup_dns(&tun_name, IpAddr::V4(address_v4)).await?;
-        #[cfg(target_os = "macos")]
-        setup_routes(&tun_name, address_v6 != Ipv6Addr::UNSPECIFIED)?;
+        #[cfg(not(target_os = "windows"))]
+        setup_routes(&tun_name, address_v6 != Ipv6Addr::UNSPECIFIED).await?;
 
         let (writer, mut reader) = dev.split()?;
 
