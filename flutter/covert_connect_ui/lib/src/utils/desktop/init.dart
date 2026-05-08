@@ -77,7 +77,7 @@ Future<void> initDesktop(List<String> args) async {
       if (Platform.isMacOS) {
         position += Offset(0, -appWindow.titleBarHeight);
       }
-      final scale = appWindow.scaleFactor;
+      final scale = Platform.isLinux ? 1.0 : appWindow.scaleFactor;
       appWindow.rect = Rect.fromLTWH(
         position.dx * scale,
         position.dy * scale,

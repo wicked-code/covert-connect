@@ -60,6 +60,9 @@ class _DesktopAppBarState extends State<DesktopAppBar>
 
   void close() {
     appWindow.close();
+    if (Platform.isLinux) {
+      onWindowMoved();
+    }
   }
 
   void resizeToDefault() async {
