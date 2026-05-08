@@ -76,6 +76,18 @@ impl DnsHandler {
                 let response = builder.build(header, &records, &[], &[], &[]);
                 response_handle.send_response(response).await?
             }
+            RecordType::PTR => {
+                header.set_authoritative(true);
+
+                let response = builder.build_no_records(header);
+                response_handle.send_response(response).await?
+            }
+            RecordType::SVCB => {
+                header.set_authoritative(true);
+
+                let response = builder.build_no_records(header);
+                response_handle.send_response(response).await?
+            }
             _ => self.forward_to_upstream(query, response_handle).await?,
         })
     }
