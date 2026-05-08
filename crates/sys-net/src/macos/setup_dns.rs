@@ -1,11 +1,7 @@
 use anyhow::{Result, anyhow, bail};
+use tokio::{io::AsyncWriteExt, process::Command};
 
-use std::{
-    collections::BTreeSet,
-    io::Write,
-    net::IpAddr,
-    process::{Command, Stdio},
-};
+use std::{collections::BTreeSet, net::IpAddr, process::Stdio};
 
 const SERVICE_ID_PREFIX: &str = "CCTun_";
 
@@ -13,7 +9,7 @@ const SERVICE_ID_PREFIX: &str = "CCTun_";
 const DNS_ORDER: u32 = 5000;
 const DNS_MATCH_ALL_DOMAINS: &str = "";
 
-pub fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
+pub async fn setup_dns(utun_name: &str, dns_ip: IpAddr) -> Result<()> {
     let service_id = format!("{SERVICE_ID_PREFIX}{utun_name}");
     let dns_key = format!("State:/Network/Service/{service_id}/DNS");
 
@@ -30,7 +26,7 @@ quit\n",
         match_domain = DNS_MATCH_ALL_DOMAINS,
         dns_key = dns_key,
     );
-    run_scutil_script(&dns_script)?;
+    run_scutil_script(&dns_script).await?;
 
     let if_state_script = match dns_ip {
         IpAddr::V4(ipv4) => format!(
@@ -58,10 +54,10 @@ quit\n",
             service_id = service_id,
         ),
     };
-    run_scutil_script(&if_state_script)?;
+    run_scutil_script(&if_state_script).await?;
 
     let verify_script = format!("show {dns_key}\nquit\n", dns_key = dns_key);
-    let verify_output = run_scutil_script(&verify_script)?;
+    let verify_output = run_scutil_script(&verify_script).await?;
     for required_key in [
         "ServerAddresses",
         "SearchOrder",
@@ -83,24 +79,24 @@ quit\n",
     Ok(())
 }
 
-pub fn teardown_dns() {
-    match list_service_ids() {
+pub async fn teardown_dns() {
+    match list_service_ids().await {
         Ok(service_ids) => {
             for service_id in service_ids {
-                remove_service_resolver(&service_id);
+                remove_service_resolver(&service_id).await;
             }
         }
         Err(err) => tracing::warn!("failed to list scutil DNS resolvers for cleanup: {:?}", err),
     }
 }
 
-fn list_service_ids() -> Result<BTreeSet<String>> {
+async fn list_service_ids() -> Result<BTreeSet<String>> {
     let mut service_ids = BTreeSet::new();
 
     let prefix = SERVICE_ID_PREFIX;
     for suffix in ["DNS", "IPv4", "IPv6"] {
         let script = format!("list State:/Network/Service/{prefix}.*/{suffix}\nquit\n");
-        let output = run_scutil_script(&script)?;
+        let output = run_scutil_script(&script).await?;
 
         for line in output.lines() {
             if let Some(service_id) = parse_service_id_from_key(line) {
@@ -126,7 +122,7 @@ fn parse_service_id_from_key(line: &str) -> Option<&str> {
     }
 }
 
-fn remove_service_resolver(service_id: &str) {
+async fn remove_service_resolver(service_id: &str) {
     let script = format!(
         "remove State:/Network/Service/{service_id}/DNS\n\
 remove State:/Network/Service/{service_id}/IPv4\n\
@@ -134,10 +130,10 @@ remove State:/Network/Service/{service_id}/IPv6\n\
 quit\n",
         service_id = service_id,
     );
-    let _ = run_scutil_script(&script);
+    let _ = run_scutil_script(&script).await;
 }
 
-fn run_scutil_script(script: &str) -> Result<String> {
+async fn run_scutil_script(script: &str) -> Result<String> {
     let mut child = Command::new("scutil")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -145,10 +141,10 @@ fn run_scutil_script(script: &str) -> Result<String> {
         .spawn()?;
 
     let stdin = child.stdin.as_mut().ok_or_else(|| anyhow!("Failed to open stdin"))?;
-    stdin.write_all(script.as_bytes())?;
+    stdin.write_all(script.as_bytes()).await?;
     child.stdin.take();
 
-    let output = child.wait_with_output()?;
+    let output = child.wait_with_output().await?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 

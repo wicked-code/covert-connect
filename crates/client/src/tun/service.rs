@@ -79,7 +79,7 @@ impl TunService {
 
     pub async fn cleanup_at_start() {
         #[cfg(target_os = "macos")]
-        teardown_dns();
+        teardown_dns().await;
     }
 
     pub async fn stop(&self) {

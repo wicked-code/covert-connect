@@ -1,15 +1,17 @@
 use anyhow::{Context, Result, bail};
-use std::process::Command;
+use tokio::process::Command;
 
-pub fn setup_routes(utun_name: &str, enable_ipv6: bool) -> Result<()> {
+pub async fn setup_routes(utun_name: &str, enable_ipv6: bool) -> Result<()> {
     for cidr in split_default_v4() {
         add_route(utun_name, cidr, false)
+            .await
             .with_context(|| format!("failed to add IPv4 route {cidr} via {utun_name}"))?;
     }
 
     if enable_ipv6 {
         for cidr in split_default_v6() {
             add_route(utun_name, cidr, true)
+                .await
                 .with_context(|| format!("failed to add IPv6 route {cidr} via {utun_name}"))?;
         }
     }
@@ -36,7 +38,7 @@ fn split_default_v6() -> &'static [&'static str] {
     ]
 }
 
-fn add_route(utun_name: &str, cidr: &str, ipv6: bool) -> Result<()> {
+async fn add_route(utun_name: &str, cidr: &str, ipv6: bool) -> Result<()> {
     let mut command = Command::new("route");
     command.arg("-q").arg("-n").arg("add");
 
@@ -46,7 +48,7 @@ fn add_route(utun_name: &str, cidr: &str, ipv6: bool) -> Result<()> {
 
     command.arg("-net").arg(cidr).arg("-interface").arg(utun_name);
 
-    let output = command.output()?;
+    let output = command.output().await?;
     if output.status.success() {
         return Ok(());
     }
@@ -66,4 +68,3 @@ fn add_route(utun_name: &str, cidr: &str, ipv6: bool) -> Result<()> {
         stderr.trim()
     )
 }
-
