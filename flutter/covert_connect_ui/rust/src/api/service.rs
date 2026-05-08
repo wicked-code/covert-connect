@@ -292,7 +292,7 @@ fn spawn_client() -> Result<()> {
     let dir = exe.parent().unwrap_or(exe.as_path());
     let name = if cfg!(windows) { "cc-client.exe" } else { "cc-client" };
     let path = dir.join(name);
-    let result = PrivilegedCommand::new(path).arg("install").run()?;
+    let result = PrivilegedCommand::new(path).arg("install").gui(true).run()?;
     if !result.success() {
         if let Some(stderr) = result.stderr_str() {
             bail!("Failed to spawn cc-client: {}", stderr);
