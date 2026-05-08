@@ -1,7 +1,7 @@
-#[cfg(target_os = "linux")]
-mod linux;
 use std::net::Ipv6Addr;
 
+#[cfg(target_os = "linux")]
+mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::*;
 #[cfg(target_os = "macos")]

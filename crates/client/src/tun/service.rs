@@ -245,6 +245,10 @@ impl TunService {
 
         wait_interface_ready(&tun_name).await?;
 
+        // setup dns
+        #[cfg(not(target_os = "windows"))]
+        setup_dns(&tun_name, IpAddr::V4(address_v4)).await?;
+
         // remove Multicast
         #[cfg(target_os = "windows")]
         {
