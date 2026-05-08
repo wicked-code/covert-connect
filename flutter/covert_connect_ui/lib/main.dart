@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/home.dart';
 import 'package:covert_connect/src/utils/desktop/init.dart';
@@ -32,6 +34,16 @@ class MyApp extends StatelessWidget {
         onGenerateRoute: (settings) {
           assert(settings.name == '/');
           return AppCupertinoPageRoute(builder: (context) => const HomePage());
+        },
+        builder: (context, child) {
+          if (Platform.isLinux) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+              child: child!,
+            );
+          }
+
+          return child!;
         },
       ),
     );
