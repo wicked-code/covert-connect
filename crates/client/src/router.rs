@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use arc_swap::ArcSwap;
 use std::{
     net::SocketAddr,
@@ -138,6 +138,9 @@ impl Router {
         server: Arc<ServerContext>,
         rng: impl CryptoRng + Rng,
     ) -> Result<()> {
+        if server.address.to_string() == target_host {
+            bail!("target host {} is same as server address, aborting", target_host);
+        }
         match self
             .egress
             .connect_with_upgrade(server.address, &server.host, &server.url_path)
