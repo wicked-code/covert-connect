@@ -17,8 +17,10 @@ use std::time::Duration;
 
 use tao::event::{Event, StartCause};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
+#[cfg(windows)]
+use tray_icon::TrayIconEvent;
 use tray_icon::{
-    Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
+    Icon, TrayIcon, TrayIconBuilder,
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
 };
 
