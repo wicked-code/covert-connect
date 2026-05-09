@@ -10,7 +10,7 @@ use single_instance::SingleInstance;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{
-    Arc,
+    Arc, Condvar, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 use std::time::Duration;
@@ -26,11 +26,11 @@ const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION")
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum UserEvent {
     ThemeChanged(bool),
     ExitCompleted,
-    ExitFailed,
+    ExitFailed(String),
 }
 
 #[cfg(not(debug_assertions))]
@@ -165,16 +165,26 @@ fn main() -> Result<()> {
     let initial_dark = is_dark_theme();
 
     let proxy = event_loop.create_proxy();
-    let exit_proxy = proxy.clone();
     let running = Arc::new(AtomicBool::new(true));
+    let exiting = Arc::new(AtomicBool::new(false));
+    let theme_shutdown = Arc::new((Mutex::new(()), Condvar::new()));
 
     let theme_proxy = proxy.clone();
     let theme_running = Arc::clone(&running);
+    let theme_shutdown_thread = Arc::clone(&theme_shutdown);
     std::thread::spawn(move || {
         let mut last_dark = initial_dark;
+        let (lock, cvar) = &*theme_shutdown_thread;
 
         while theme_running.load(Ordering::Relaxed) {
-            std::thread::sleep(THEME_POLL_INTERVAL);
+            let guard = match lock.lock() {
+                Ok(g) => g,
+                Err(_) => break,
+            };
+            let (_g, _res) = match cvar.wait_timeout(guard, THEME_POLL_INTERVAL) {
+                Ok(pair) => pair,
+                Err(_) => break,
+            };
             if !theme_running.load(Ordering::Relaxed) {
                 break;
             }
@@ -187,8 +197,19 @@ fn main() -> Result<()> {
         }
     });
 
+    let signal_theme_shutdown = {
+        let theme_shutdown = Arc::clone(&theme_shutdown);
+        let running = Arc::clone(&running);
+        move || {
+            running.store(false, Ordering::Relaxed);
+            theme_shutdown.1.notify_all();
+        }
+    };
+
     let show_id_for_handler = show_id.clone();
     let exit_id_for_handler = exit_id.clone();
+    let exit_proxy = proxy.clone();
+    let exiting_for_handler = Arc::clone(&exiting);
     MenuEvent::set_event_handler(Some(move |ev: MenuEvent| {
         if ev.id == show_id_for_handler {
             std::thread::spawn(move || {
@@ -197,6 +218,9 @@ fn main() -> Result<()> {
                 }
             });
         } else if ev.id == exit_id_for_handler {
+            if exiting_for_handler.swap(true, Ordering::SeqCst) {
+                return;
+            }
             let exit_proxy = exit_proxy.clone();
             std::thread::spawn(move || {
                 if let Err(e) = unregister_autostart() {
@@ -211,7 +235,7 @@ fn main() -> Result<()> {
                     }
                     Err(e) => {
                         log::error!("failed to exit client: {e:?}");
-                        let _ = exit_proxy.send_event(UserEvent::ExitFailed);
+                        let _ = exit_proxy.send_event(UserEvent::ExitFailed(format!("{e:#}")));
                     }
                 }
             });
@@ -220,7 +244,6 @@ fn main() -> Result<()> {
 
     #[cfg(windows)]
     {
-        let _tray_proxy = proxy.clone();
         TrayIconEvent::set_event_handler(Some(move |ev: TrayIconEvent| {
             if let TrayIconEvent::Click {
                 button: tray_icon::MouseButton::Left,
@@ -262,12 +285,14 @@ fn main() -> Result<()> {
                             Ok(t) => tray = Some(t),
                             Err(e) => {
                                 log::error!("failed to build tray: {e:?}");
+                                signal_theme_shutdown();
                                 *control_flow = ControlFlow::Exit;
                             }
                         }
                     }
                     Err(e) => {
                         log::error!("failed to load tray icon: {e:?}");
+                        signal_theme_shutdown();
                         *control_flow = ControlFlow::Exit;
                     }
                 }
@@ -285,11 +310,12 @@ fn main() -> Result<()> {
                 }
             }
             Event::UserEvent(UserEvent::ExitCompleted) => {
-                running.store(false, Ordering::Relaxed);
+                signal_theme_shutdown();
                 *control_flow = ControlFlow::Exit;
             }
-            Event::UserEvent(UserEvent::ExitFailed) => {
-                show_error_dialog("Failed to exit client. Check logs for details.");
+            Event::UserEvent(UserEvent::ExitFailed(msg)) => {
+                exiting.store(false, Ordering::SeqCst);
+                show_error_dialog(&format!("Failed to exit client.\n\n{msg}"));
             }
             _ => {}
         }
