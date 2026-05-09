@@ -167,7 +167,24 @@ pub(crate) async fn start_client(
             let client_clone = client.clone();
             let controller_clone = client_controller.clone();
             tokio::spawn(async move {
-                tokio::signal::ctrl_c().await.unwrap();
+                #[cfg(unix)]
+                {
+                    use tokio::signal::unix::{SignalKind, signal};
+
+                    let mut sigterm = signal(SignalKind::terminate()).unwrap();
+                    let mut sigint = signal(SignalKind::interrupt()).unwrap();
+
+                    tokio::select! {
+                        _ = sigterm.recv() => println!("Received SIGTERM (Service Stop)"),
+                        _ = sigint.recv() => println!("Received SIGINT (Ctrl+C)"),
+                    };
+                }
+
+                // Default behavior for non-Unix (e.g. Windows) if you still want Ctrl+C
+                #[cfg(not(unix))]
+                {
+                    tokio::signal::ctrl_c().await.unwrap();
+                }
                 controller_clone.stop();
                 client_clone.shutdown().await;
             })
@@ -411,6 +428,20 @@ async fn uninstall() -> Result<()> {
         .uninstall_service(context::current())
         .await?
         .map_err(anyhow::Error::msg)?;
-    client.shutdown(context::current()).await?;
+    if let Err(err) = client.shutdown(context::current()).await {
+        let manager = <dyn ServiceManager>::native().with_context(|| "Failed to detect management platform")?;
+        for _ in 0..10 {
+            match manager.status(ServiceStatusCtx { label: service_label() })? {
+                ServiceStatus::NotInstalled => return Ok(()),
+                ServiceStatus::Stopped(_) => {
+                    tracing::warn!("service not unistalled completely");
+                    return Ok(())
+                }
+                ServiceStatus::Running => {}
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        bail!("service running, after stop: {}", err);
+    }
     Ok(())
 }
