@@ -64,7 +64,7 @@ impl ClientService {
         use client::client::Client;
         use directories::ProjectDirs;
 
-        if let Err(err) = init_trace_log() {
+        if let Err(err) = init_trace_log("cc-client-ui") {
             println!("Failed to initialize trace log: {:?}", err);
             bail!("Failed to initialize trace log: {:?}", err);
         }
@@ -95,7 +95,7 @@ impl ClientService {
         use crate::api::backend::RemoteBackend;
         use client::api::{ClientApiClient, connect_client_api};
 
-        if let Err(err) = init_trace_log() {
+        if let Err(err) = init_trace_log("cc-client-ui") {
             println!("Failed to initialize trace log: {:?}", err);
             bail!("Failed to initialize trace log: {:?}", err);
         }

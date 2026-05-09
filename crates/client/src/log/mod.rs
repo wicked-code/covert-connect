@@ -1,9 +1,10 @@
 mod rev_lines_ex;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow, bail};
 use futures_util::{StreamExt, pin_mut};
 use serde::{Deserialize, Serialize};
 use std::env::temp_dir;
+use std::sync::OnceLock;
 use std::{
     fs::{File, create_dir_all, rename},
     sync::Arc,
@@ -14,14 +15,16 @@ use tracing_subscriber::{filter, prelude::*};
 use crate::log::rev_lines_ex::{RevLine, RevLines};
 
 #[cfg(debug_assertions)]
-const LOG_FILE_NAME: &str = "covert-connect.debug.log";
+const LOG_FILE_NAME_EXT: &str = ".debug.log";
 #[cfg(debug_assertions)]
-const PREV_FILE_NAME: &str = "covert-connect.debug.log.old";
+const PREV_FILE_NAME_EXT: &str = ".debug.log.old";
 
 #[cfg(not(debug_assertions))]
-const LOG_FILE_NAME: &str = "covert-connect.log";
+const LOG_FILE_NAME_EXT: &str = ".log";
 #[cfg(not(debug_assertions))]
-const PREV_FILE_NAME: &str = "covert-connect.log.old";
+const PREV_FILE_NAME_EXT: &str = ".log.old";
+
+static LOG_FILE: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LogLine {
@@ -39,7 +42,7 @@ impl From<RevLine> for LogLine {
 }
 
 pub async fn get_trace_log(start: Option<u64>, end: Option<u64>, limit: usize) -> Result<Vec<LogLine>> {
-    let path = temp_dir().join(LOG_FILE_NAME);
+    let path = temp_dir().join(LOG_FILE.get().ok_or_else(|| anyhow!("Log file not initialized"))?);
 
     let file = tokio::fs::File::open(path).await?;
     let rev_lines = RevLines::new_stream(BufReader::new(file), start).await?;
@@ -64,13 +67,23 @@ pub async fn get_trace_log(start: Option<u64>, end: Option<u64>, limit: usize) -
     Ok(result.into_iter().map(LogLine::from).collect())
 }
 
-pub fn init_trace_log() -> Result<()> {
+pub fn init_trace_log(name: &str) -> Result<()> {
+    let log_file = format!("{}{}", name, LOG_FILE_NAME_EXT);
+    if let Some(prev_file) = LOG_FILE.get() {
+        if prev_file != &log_file {
+            bail!("Log file already initialized with a different name: {}", prev_file);
+        }
+        return Ok(());
+    } else {
+        LOG_FILE.set(log_file.clone()).map_err(anyhow::Error::msg)?;
+    }
+
     let app_dir = temp_dir();
-    let path = app_dir.join(LOG_FILE_NAME);
+    let path = app_dir.join(log_file);
 
     if path.exists() {
         // rename old file
-        rename(&path, app_dir.join(PREV_FILE_NAME))?;
+        rename(&path, app_dir.join(format!("{}{}", name, PREV_FILE_NAME_EXT)))?;
     } else {
         create_dir_all(&app_dir)?;
     }

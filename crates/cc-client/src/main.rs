@@ -145,7 +145,7 @@ pub(crate) async fn start_client(
     shutdown_signal: Option<oneshot::Receiver<()>>,
     on_started: Option<Box<dyn FnOnce() -> Result<()> + Send>>,
 ) -> Result<()> {
-    init_trace_log()?;
+    init_trace_log("cc-client")?;
     tracing::info!(version = env!("CARGO_PKG_VERSION"));
 
     let client = Client::new(cfg_path);
