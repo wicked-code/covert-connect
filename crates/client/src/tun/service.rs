@@ -221,7 +221,6 @@ impl TunService {
             fix_firewall();
         }
 
-        // TODO: ??? test ensure_root_privileges on linux
         #[cfg(target_os = "linux")]
         config.platform_config(|config| {
             // requiring root privilege to acquire complete functions
