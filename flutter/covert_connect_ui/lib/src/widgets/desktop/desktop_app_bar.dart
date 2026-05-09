@@ -58,11 +58,11 @@ class _DesktopAppBarState extends State<DesktopAppBar>
     appChildNavigator.pop();
   }
 
-  void close() {
-    appWindow.close();
+  void close() async {
     if (Platform.isLinux) {
-      onWindowMoved();
+      WindowState.savePosition(await windowManager.getPosition());
     }
+    appWindow.close();
   }
 
   void resizeToDefault() async {
@@ -108,11 +108,15 @@ class _DesktopAppBarState extends State<DesktopAppBar>
       final scale = Platform.isLinux ? 1.0 : appWindow.scaleFactor;
 
       final pos = await windowManager.getPosition();
-      appWindow.rect = Rect.fromLTWH(pos.dx * scale, pos.dy * scale, 
-          (_resizeAnimationStartSize.width +
-              (kDefaultWindowSize.width - _resizeAnimationStartSize.width) * curvedAnimation.value) * scale,
-          (_resizeAnimationStartSize.height +
-              (kDefaultWindowSize.height - _resizeAnimationStartSize.height) * curvedAnimation.value) * scale,
+      appWindow.rect = Rect.fromLTWH(
+        pos.dx * scale,
+        pos.dy * scale,
+        (_resizeAnimationStartSize.width +
+                (kDefaultWindowSize.width - _resizeAnimationStartSize.width) * curvedAnimation.value) *
+            scale,
+        (_resizeAnimationStartSize.height +
+                (kDefaultWindowSize.height - _resizeAnimationStartSize.height) * curvedAnimation.value) *
+            scale,
       );
     });
 
@@ -183,12 +187,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
         ),
         Stack(
           children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(height: 1, color: theme.dividerColor),
-            ),
+            Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: theme.dividerColor)),
             Center(
               child: TabBar(
                 controller: widget.tabController,
@@ -199,7 +198,15 @@ class _DesktopAppBarState extends State<DesktopAppBar>
                   Tab(height: kTabHeight, child: Text("Status")),
                   Tab(height: kTabHeight, child: Text("Routes")),
                   Tab(height: kTabHeight, child: Text("Apps")),
-                  Tab(height: kTabHeight, child: buildSvg("assets/icons/settings2.svg", width: 20, height: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.81))),
+                  Tab(
+                    height: kTabHeight,
+                    child: buildSvg(
+                      "assets/icons/settings2.svg",
+                      width: 20,
+                      height: 20,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.81),
+                    ),
+                  ),
                 ],
               ),
             ),
