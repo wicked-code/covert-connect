@@ -48,7 +48,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
   Future<void> _setIcons() async {
     if (!isDesktop) return;
 
-    if (Platform.isWindows) {
+    if (Platform.isWindows || Platform.isLinux) {
       final icon = _brightness == Brightness.dark ? "assets/images/app-icon-dark.ico" : "assets/images/app-icon.ico";
       await windowManager.setIcon(icon);
     }
