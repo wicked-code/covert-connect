@@ -9,10 +9,14 @@ use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use single_instance::SingleInstance;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{Duration, Instant};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+use std::time::Duration;
 
 use tao::event::{Event, StartCause};
-use tao::event_loop::{ControlFlow, EventLoop};
+use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
@@ -21,6 +25,13 @@ use tray_icon::{
 const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION"));
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+#[derive(Debug, Clone, Copy)]
+enum UserEvent {
+    ThemeChanged(bool),
+    ExitCompleted,
+    ExitFailed,
+}
 
 #[cfg(not(debug_assertions))]
 const ICON_LIGHT: &[u8] = include_bytes!("../assets/app-icon.png");
@@ -138,7 +149,7 @@ fn main() -> Result<()> {
         log::warn!("failed to register autostart: {e:?}");
     }
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
 
     // Build the menu
     let menu = Menu::new();
@@ -151,15 +162,86 @@ fn main() -> Result<()> {
     let show_id = show_item.id().clone();
     let exit_id = exit_item.id().clone();
 
-    let menu_channel = MenuEvent::receiver();
+    let initial_dark = is_dark_theme();
+
+    let proxy = event_loop.create_proxy();
+    let exit_proxy = proxy.clone();
+    let running = Arc::new(AtomicBool::new(true));
+
+    let theme_proxy = proxy.clone();
+    let theme_running = Arc::clone(&running);
+    std::thread::spawn(move || {
+        let mut last_dark = initial_dark;
+
+        while theme_running.load(Ordering::Relaxed) {
+            std::thread::sleep(THEME_POLL_INTERVAL);
+            if !theme_running.load(Ordering::Relaxed) {
+                break;
+            }
+
+            let dark = is_dark_theme();
+            if dark != last_dark {
+                last_dark = dark;
+                let _ = theme_proxy.send_event(UserEvent::ThemeChanged(dark));
+            }
+        }
+    });
+
+    let show_id_for_handler = show_id.clone();
+    let exit_id_for_handler = exit_id.clone();
+    MenuEvent::set_event_handler(Some(move |ev: MenuEvent| {
+        if ev.id == show_id_for_handler {
+            std::thread::spawn(move || {
+                if let Err(e) = spawn_ui(&["/show"]) {
+                    log::error!("failed to launch UI: {e:?}");
+                }
+            });
+        } else if ev.id == exit_id_for_handler {
+            let exit_proxy = exit_proxy.clone();
+            std::thread::spawn(move || {
+                if let Err(e) = unregister_autostart() {
+                    log::warn!("failed to unregister autostart: {e:?}");
+                }
+                if let Err(e) = spawn_ui(&["/exit"]) {
+                    log::warn!("failed to send /exit to UI: {e:?}");
+                }
+                match spawn_api(&["uninstall"]) {
+                    Ok(_) => {
+                        let _ = exit_proxy.send_event(UserEvent::ExitCompleted);
+                    }
+                    Err(e) => {
+                        log::error!("failed to exit client: {e:?}");
+                        let _ = exit_proxy.send_event(UserEvent::ExitFailed);
+                    }
+                }
+            });
+        }
+    }));
+
+    #[cfg(windows)]
+    {
+        let _tray_proxy = proxy.clone();
+        TrayIconEvent::set_event_handler(Some(move |ev: TrayIconEvent| {
+            if let TrayIconEvent::Click {
+                button: tray_icon::MouseButton::Left,
+                button_state: tray_icon::MouseButtonState::Down,
+                ..
+            } = ev
+            {
+                std::thread::spawn(move || {
+                    if let Err(e) = spawn_ui(&["/show"]) {
+                        log::error!("failed to launch UI: {e:?}");
+                    }
+                });
+            }
+        }));
+    }
 
     let mut tray: Option<TrayIcon> = None;
-    let mut last_dark = is_dark_theme();
     let mut menu_holder = Some(menu);
 
     event_loop.run(move |event, _, control_flow| {
-        // Wake periodically to poll the OS theme so the icon can follow it.
-        *control_flow = ControlFlow::WaitUntil(Instant::now() + THEME_POLL_INTERVAL);
+        *control_flow = ControlFlow::Wait;
 
         match event {
             Event::NewEvents(StartCause::Init) => {
@@ -167,7 +249,7 @@ fn main() -> Result<()> {
                     Some(m) => m,
                     None => return,
                 };
-                match load_icon(last_dark) {
+                match load_icon(initial_dark) {
                     Ok(icon) => {
                         let mut builder = TrayIconBuilder::new()
                             .with_menu(Box::new(menu))
@@ -190,60 +272,26 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
-                let dark = is_dark_theme();
-                if dark != last_dark {
-                    last_dark = dark;
-                    if let Some(t) = tray.as_ref() {
-                        match load_icon(dark) {
-                            Ok(icon) => {
-                                if let Err(e) = t.set_icon(Some(icon)) {
-                                    log::warn!("failed to update tray icon: {e:?}");
-                                }
+            Event::UserEvent(UserEvent::ThemeChanged(dark)) => {
+                if let Some(t) = tray.as_ref() {
+                    match load_icon(dark) {
+                        Ok(icon) => {
+                            if let Err(e) = t.set_icon(Some(icon)) {
+                                log::warn!("failed to update tray icon: {e:?}");
                             }
-                            Err(e) => log::warn!("failed to load themed icon: {e:?}"),
                         }
+                        Err(e) => log::warn!("failed to load themed icon: {e:?}"),
                     }
                 }
+            }
+            Event::UserEvent(UserEvent::ExitCompleted) => {
+                running.store(false, Ordering::Relaxed);
+                *control_flow = ControlFlow::Exit;
+            }
+            Event::UserEvent(UserEvent::ExitFailed) => {
+                show_error_dialog("Failed to exit client. Check logs for details.");
             }
             _ => {}
-        }
-
-        while let Ok(ev) = menu_channel.try_recv() {
-            if ev.id == show_id {
-                if let Err(e) = spawn_ui(&["/show"]) {
-                    log::error!("failed to launch UI: {e:?}");
-                }
-            } else if ev.id == exit_id {
-                if let Err(e) = unregister_autostart() {
-                    log::warn!("failed to unregister autostart: {e:?}");
-                }
-                if let Err(e) = spawn_ui(&["/exit"]) {
-                    log::warn!("failed to send /exit to UI: {e:?}");
-                }
-                match spawn_api(&["uninstall"]) {
-                    Ok(_) => *control_flow = ControlFlow::Exit,
-                    Err(e) => {
-                        log::error!("failed to exit client: {e:?}");
-                        show_error_dialog(&format!("Failed to exit client.\n\n{e:#}"));
-                    }
-                }
-            }
-        }
-
-        // On Windows, a left-click should show main window
-        if cfg!(windows) {
-            while let Ok(tray_ev) = TrayIconEvent::receiver().try_recv() {
-                if let TrayIconEvent::Click {
-                    button: tray_icon::MouseButton::Left,
-                    button_state: tray_icon::MouseButtonState::Down,
-                    ..
-                } = tray_ev
-                    && let Err(e) = spawn_ui(&["/show"])
-                {
-                    log::error!("failed to launch UI: {e:?}");
-                }
-            }
         }
     });
 }
