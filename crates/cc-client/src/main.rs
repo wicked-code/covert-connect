@@ -401,6 +401,7 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
     #[cfg(windows)]
     set_failure_and_description(&label.to_qualified_name(), "Covert-Connect client backend engine").await;
 
+    tracing::info!("Service installed and started");
     Ok(())
 }
 
@@ -443,5 +444,7 @@ async fn uninstall() -> Result<()> {
         }
         bail!("service running, after stop: {}", err);
     }
+
+    tracing::info!("Service uninstalled");
     Ok(())
 }
