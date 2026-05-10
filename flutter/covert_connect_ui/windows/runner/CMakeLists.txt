@@ -38,3 +38,27 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Copy wintun, cc-client and cc-tray
+set(RUST_BIN_DEBUG   "${CMAKE_CURRENT_SOURCE_DIR}/../../../../target/debug")
+set(RUST_BIN_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../target/release-prod")
+set(WIN_TUN          "${CMAKE_CURRENT_SOURCE_DIR}/../../../../crates/client/wintun/bin/amd64/wintun.dll")
+
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<IF:$<CONFIG:Debug>,${RUST_BIN_DEBUG}/cc-client.exe,${RUST_BIN_RELEASE}/cc-client.exe>"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+)
+
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<IF:$<CONFIG:Debug>,${RUST_BIN_DEBUG}/cc-tray.exe,${RUST_BIN_RELEASE}/cc-tray.exe>"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+)
+
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${WIN_TUN}"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMENT "Copying static Rust configuration file..."
+)
