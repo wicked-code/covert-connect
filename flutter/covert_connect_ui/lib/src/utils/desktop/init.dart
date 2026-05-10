@@ -14,8 +14,8 @@ const kDefaultWindowSize = Size(400, 600);
 Future<void> initDesktop(List<String> args) async {
   if (!isDesktop) return;
 
+  final String instanceId = Platform.resolvedExecutable.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
   if (Platform.isWindows) {
-    final String instanceId = Platform.resolvedExecutable.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     await WindowsSingleInstance.ensureSingleInstance(
       args,
       instanceId,
@@ -27,6 +27,7 @@ Future<void> initDesktop(List<String> args) async {
     );
   } else {
     FlutterSingleInstance.debugMode = false;
+    FlutterSingleInstance.processName = instanceId;
     if (await FlutterSingleInstance().isFirstInstance() == false) {
       final err = await FlutterSingleInstance().focus({"args": args});
       if (err != null) {
