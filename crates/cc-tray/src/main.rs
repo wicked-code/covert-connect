@@ -165,6 +165,7 @@ fn main() -> Result<()> {
         log::warn!("failed to register autostart: {e:?}");
     }
 
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     #[cfg(target_os = "macos")]
     event_loop.set_activation_policy(ActivationPolicy::Accessory);
