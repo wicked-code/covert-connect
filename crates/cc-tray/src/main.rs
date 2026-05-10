@@ -27,6 +27,9 @@ use tray_icon::{
 };
 
 const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION"));
+#[cfg(debug_assertions)]
+const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-dbg-single-instance";
+#[cfg(not(debug_assertions))]
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -142,8 +145,17 @@ fn show_error_dialog(message: &str) {
         .show();
 }
 
+fn instance_id() -> String {
+    #[cfg(target_os = "macos")]
+    {
+    std::env::temp_dir().join(SINGLE_INSTANCE_KEY).to_string_lossy().to_string()
+    }
+    #[cfg(not(target_os = "macos"))]
+    SINGLE_INSTANCE_KEY.to_owned()
+}
+
 fn main() -> Result<()> {
-    let instance = SingleInstance::new(SINGLE_INSTANCE_KEY).context("create single-instance guard")?;
+    let instance = SingleInstance::new(&instance_id()).context("create single-instance guard")?;
     if !instance.is_single() {
         return Ok(());
     }
