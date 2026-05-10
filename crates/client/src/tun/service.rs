@@ -123,10 +123,6 @@ impl TunService {
             }
         }
 
-        if let Some(token) = self.ipv4_serve_cancellation.lock().take() {
-            token.cancel()
-        }
-
         #[cfg(target_os = "macos")]
         reset_network();
 
@@ -135,6 +131,10 @@ impl TunService {
         // Flush system DNS cache after stop
         if let Err(err) = flush_system_dns_cache().await {
             tracing::error!("flush system DNS cache error: {:?}", err);
+        }
+
+        if let Some(token) = self.ipv4_serve_cancellation.lock().take() {
+            token.cancel()
         }
     }
 

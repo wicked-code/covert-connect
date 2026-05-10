@@ -86,7 +86,7 @@ pub async fn teardown_dns() {
                 remove_service_resolver(&service_id).await;
             }
         }
-        Err(err) => tracing::warn!("failed to list scutil DNS resolvers for cleanup: {:?}", err),
+        Err(err) => tracing::error!("failed to list scutil DNS resolvers for cleanup: {:?}", err),
     }
 }
 
@@ -130,7 +130,9 @@ remove State:/Network/Service/{service_id}/IPv6\n\
 quit\n",
         service_id = service_id,
     );
-    let _ = run_scutil_script(&script).await;
+    if let Err(err) = run_scutil_script(&script).await {
+        tracing::error!("Failed to remove DNS resolver for service {}: {:?}", service_id, err);
+    }
 }
 
 async fn run_scutil_script(script: &str) -> Result<String> {
