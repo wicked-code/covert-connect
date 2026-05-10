@@ -13,8 +13,6 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - tray_manager (0.0.1):
-    - FlutterMacOS
   - window_manager (0.5.0):
     - FlutterMacOS
 
@@ -26,7 +24,6 @@ DEPENDENCIES:
   - rust_lib_covert_connect (from `Flutter/ephemeral/.symlinks/plugins/rust_lib_covert_connect/macos`)
   - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
-  - tray_manager (from `Flutter/ephemeral/.symlinks/plugins/tray_manager/macos`)
   - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
 
 EXTERNAL SOURCES:
@@ -44,8 +41,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos
   shared_preferences_foundation:
     :path: Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin
-  tray_manager:
-    :path: Flutter/ephemeral/.symlinks/plugins/tray_manager/macos
   window_manager:
     :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
 
@@ -57,7 +52,6 @@ SPEC CHECKSUMS:
   rust_lib_covert_connect: 86fce085720679eeada8521a9cf7b622f058f5a3
   screen_retriever_macos: 452e51764a9e1cdb74b3c541238795849f21557f
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
-  tray_manager: a104b5c81b578d83f3c3d0f40a997c8b10810166
   window_manager: b729e31d38fb04905235df9ea896128991cad99e
 
 PODFILE CHECKSUM: 83c493776e796ff1f7045418a0799f83b55f1c21
