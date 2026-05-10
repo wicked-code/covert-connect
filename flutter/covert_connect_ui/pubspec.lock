@@ -350,10 +350,11 @@ packages:
   flutter_single_instance:
     dependency: "direct main"
     description:
-      name: flutter_single_instance
-      sha256: "91c8a3dd16c5fc9ad8d8afc533c2f6b6318ca4905faf44f945b620f268eb094b"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "6f507f578bb4f73d7779830aedc93b0dc9ca6e29"
+      url: "https://github.com/wicked-code/flutter_single_instance"
+    source: git
     version: "1.7.0"
   flutter_svg:
     dependency: "direct main"

@@ -36,7 +36,9 @@ dependencies:
   ntp: 2.0.0
   package_info_plus: 9.0.0
   intl: ^0.20.2
-  flutter_single_instance: ^1.7.0
+  flutter_single_instance:
+      git:
+        url: https://github.com/wicked-code/flutter_single_instance
   windows_single_instance: ^1.1.0
 
 dev_dependencies:
