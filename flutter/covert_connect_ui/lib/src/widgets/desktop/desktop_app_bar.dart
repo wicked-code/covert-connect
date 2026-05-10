@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:covert_connect/src/utils/child_router.dart';
@@ -63,6 +64,9 @@ class _DesktopAppBarState extends State<DesktopAppBar>
       WindowState.savePosition(await windowManager.getPosition());
     }
     appWindow.close();
+    if (Platform.isMacOS) {
+      WidgetsBinding.instance.exitApplication(AppExitType.required);
+    }
   }
 
   void resizeToDefault() async {
