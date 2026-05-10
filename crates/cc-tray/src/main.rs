@@ -27,9 +27,6 @@ use tray_icon::{
 };
 
 const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION"));
-#[cfg(debug_assertions)]
-const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-dbg-single-instance";
-#[cfg(not(debug_assertions))]
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
