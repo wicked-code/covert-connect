@@ -18,7 +18,7 @@ use std::time::Duration;
 use tao::event::{Event, StartCause};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 #[cfg(target_os = "macos")]
-use tao::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
+use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
 #[cfg(windows)]
 use tray_icon::TrayIconEvent;
 use tray_icon::{
@@ -153,13 +153,9 @@ fn main() -> Result<()> {
         log::warn!("failed to register autostart: {e:?}");
     }
 
-    let mut event_loop_builder = EventLoopBuilder::<UserEvent>::with_user_event();
+    let mut event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     #[cfg(target_os = "macos")]
-    {
-        // Accessory apps live in the menu bar (status bar) instead of the Dock.
-        event_loop_builder.with_activation_policy(ActivationPolicy::Accessory);
-    }
-    let event_loop = event_loop_builder.build();
+    event_loop.set_activation_policy(ActivationPolicy::Accessory);
 
     // Build the menu
     let menu = Menu::new();
