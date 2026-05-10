@@ -148,7 +148,10 @@ fn show_error_dialog(message: &str) {
 fn instance_id() -> String {
     #[cfg(target_os = "macos")]
     {
-    std::env::temp_dir().join(SINGLE_INSTANCE_KEY).to_string_lossy().to_string()
+        std::env::temp_dir()
+            .join(SINGLE_INSTANCE_KEY)
+            .to_string_lossy()
+            .to_string()
     }
     #[cfg(not(target_os = "macos"))]
     SINGLE_INSTANCE_KEY.to_owned()
