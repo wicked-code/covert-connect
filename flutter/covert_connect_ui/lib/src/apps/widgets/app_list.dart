@@ -1,5 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
+import 'package:covert_connect/src/utils/svg.dart';
+import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
 import 'package:covert_connect/src/widgets/text_with_tooltip.dart';
 import 'package:flutter/material.dart';
@@ -29,8 +31,10 @@ class _AppListState extends State<AppList> {
   int _hoverIndex = -1;
 
   void _hoverRow(int index, bool hovering) {
+    final newIndex = hovering ? index : -1;
+    if (_hoverIndex == newIndex) return;
     setState(() {
-      _hoverIndex = hovering ? index : -1;
+      _hoverIndex = newIndex;
     });
   }
 
@@ -56,9 +60,16 @@ class _AppListState extends State<AppList> {
 
     final selectedColor = colorScheme.primary.withValues(alpha: 0.05);
 
+    double hPadding = isDesktop ? 7 : 0;
+
     Color rowColorEven = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
 
-    const columnSizes = <int, TableColumnWidth>{0: FixedColumnWidth(8), 1: FlexColumnWidth(), 2: FixedColumnWidth(64)};
+    const columnSizes = <int, TableColumnWidth>{
+      0: FixedColumnWidth(8),
+      1: FlexColumnWidth(),
+      2: FixedColumnWidth(63),
+      3: FixedColumnWidth(28),
+    };
 
     return Container(
       decoration: BoxDecoration(
@@ -86,6 +97,7 @@ class _AppListState extends State<AppList> {
                       alignment: Alignment.centerLeft,
                       child: Text("PID", style: headerTextStyle),
                     ),
+                    Container(),
                   ],
                 ),
               ],
@@ -108,10 +120,7 @@ class _AppListState extends State<AppList> {
                             index: idx,
                             onHover: _hoverRow,
                             onTap: _select,
-                            child: TextWithTooltip(
-                              info.path.split('/').last.split(r'\').last,
-                              style: cellTextStyle,
-                            ),
+                            child: TextWithTooltip(info.path.split('/').last.split(r'\').last, style: cellTextStyle),
                           ),
                           _Cell(
                             index: idx,
@@ -119,7 +128,33 @@ class _AppListState extends State<AppList> {
                             onTap: _select,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [Expanded(child: Text(info.pid.toString(), overflow: TextOverflow.ellipsis, style: cellTextStyle))],
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    info.pid.toString(),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: cellTextStyle,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _Cell(
+                            index: idx,
+                            onHover: _hoverRow,
+                            onTap: _select,
+                            child: Row(
+                              children: [
+                                Tooltip(
+                                  message: info.path,
+                                  child: buildSvg(
+                                    "assets/icons/open-file.svg",
+                                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.4),
+                                    height: 16,
+                                  ),
+                                ),
+                                SizedBox(width: hPadding),
+                              ],
                             ),
                           ),
                         ],
