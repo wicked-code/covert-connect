@@ -60,16 +60,9 @@ class _AppListState extends State<AppList> {
 
     final selectedColor = colorScheme.primary.withValues(alpha: 0.05);
 
-    double hPadding = isDesktop ? 7 : 0;
-
     Color rowColorEven = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
 
-    const columnSizes = <int, TableColumnWidth>{
-      0: FixedColumnWidth(8),
-      1: FlexColumnWidth(),
-      2: FixedColumnWidth(63),
-      3: FixedColumnWidth(28),
-    };
+    const columnSizes = <int, TableColumnWidth>{0: FixedColumnWidth(14), 1: FlexColumnWidth(), 2: FixedColumnWidth(67)};
 
     return Container(
       decoration: BoxDecoration(
@@ -97,7 +90,6 @@ class _AppListState extends State<AppList> {
                       alignment: Alignment.centerLeft,
                       child: Text("PID", style: headerTextStyle),
                     ),
-                    Container(),
                   ],
                 ),
               ],
@@ -115,7 +107,26 @@ class _AppListState extends State<AppList> {
                           border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),
                         ),
                         children: [
-                          _Cell(index: idx, onHover: _hoverRow, onTap: _select, child: Container(height: 28)),
+                          _Cell(
+                            index: idx,
+                            onHover: _hoverRow,
+                            onTap: _select,
+                            child: Tooltip(
+                              message: info.path,
+                              child: Container(
+                                padding: EdgeInsets.only(right: 0.5),
+                                height: 28,
+                                child: Center(
+                                  child: buildSvg(
+                                    width: 8,
+                                    height: 8,
+                                    "assets/icons/open-file.svg",
+                                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                           _Cell(
                             index: idx,
                             onHover: _hoverRow,
@@ -136,24 +147,6 @@ class _AppListState extends State<AppList> {
                                     style: cellTextStyle,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _select,
-                            child: Row(
-                              children: [
-                                Tooltip(
-                                  message: info.path,
-                                  child: buildSvg(
-                                    "assets/icons/open-file.svg",
-                                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.4),
-                                    height: 16,
-                                  ),
-                                ),
-                                SizedBox(width: hPadding),
                               ],
                             ),
                           ),
