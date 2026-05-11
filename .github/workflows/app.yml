@@ -62,7 +62,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build libgtk-3-dev libayatana-appindicator3-dev
+          sudo apt-get install -y ninja-build libgtk-3-dev libayatana-appindicator3-dev libxdo-dev
           cargo build -p cc-server --release
           cargo build -p cc-tray --release
           flutter build linux --release
@@ -70,7 +70,7 @@ jobs:
         if: matrix.os == 'arch-latest'
         run: |
           sudo pacman -Syu --noconfirm
-          sudo pacman -S --noconfirm ninja gtk3 libayatana-appindicator
+          sudo pacman -S --noconfirm ninja gtk3 libayatana-appindicator xdotool
           cargo build -p cc-server --release
           cargo build -p cc-tray --release
           flutter build linux --release
@@ -78,7 +78,7 @@ jobs:
         if: matrix.os == 'fedora-latest'
         run: |
           sudo dnf update -y
-          sudo dnf install -y ninja-build gtk3 libayatana-appindicator
+          sudo dnf install -y ninja-build gtk3 libayatana-appindicator libxdo-devel
           cargo build -p cc-server --release
           cargo build -p cc-tray --release
           flutter build linux --release
