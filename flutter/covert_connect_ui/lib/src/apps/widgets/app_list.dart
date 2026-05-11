@@ -110,7 +110,6 @@ class _AppListState extends State<AppList> {
                             onTap: _select,
                             child: TextWithTooltip(
                               info.path.split('/').last.split(r'\').last,
-                              tooltip: info.path,
                               style: cellTextStyle,
                             ),
                           ),
@@ -120,7 +119,7 @@ class _AppListState extends State<AppList> {
                             onTap: _select,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [Expanded(child: TextWithTooltip(info.pid.toString(), style: cellTextStyle))],
+                              children: [Expanded(child: Text(info.pid.toString(), overflow: TextOverflow.ellipsis, style: cellTextStyle))],
                             ),
                           ),
                         ],
