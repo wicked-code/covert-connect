@@ -24,3 +24,20 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# Copy cc-client and cc-tray
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(RUST_BIN_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../target/debug")
+else()
+    set(RUST_BIN_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../target/release-prod")
+endif()
+
+install(FILES "${RUST_BIN_SOURCE}/cc-client"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        COMPONENT Runtime)
+
+install(FILES "${RUST_BIN_SOURCE}/cc-tray"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        COMPONENT Runtime)
