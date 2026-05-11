@@ -174,8 +174,6 @@ impl TunService {
         self.dns_server.start(if_addr_v4).await?;
 
         tokio::spawn(async {
-            // TODO: ??? delay for dns start?
-            // send actual request to our DNS and continue after answer or timeout (FLUSH_DNS_DELAY)
             flush_system_dns_cache()
                 .await
                 .inspect_err(|e| tracing::error!("flush dns error: {:?}", e))
