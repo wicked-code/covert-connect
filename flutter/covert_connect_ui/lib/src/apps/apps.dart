@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/apps/add_app.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
@@ -8,6 +10,7 @@ import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:covert_connect/src/widgets/input.dart';
 import 'package:covert_connect/src/widgets/toast.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 class AppsPage extends StatefulWidget {
@@ -101,6 +104,19 @@ class _AppsPageState extends State<AppsPage> {
     }
   }
 
+  void _selectExecutable() async {
+    XTypeGroup executables = XTypeGroup(
+      label: 'Applications',
+      extensions: Platform.isWindows ? <String>['exe'] : null,
+      uniformTypeIdentifiers: <String>['public.executable', 'public.unix-executable'],
+    );
+    final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[executables]);
+    if (file != null) {
+      _inputChanged(file.path);
+      _addApp();
+    }
+  }
+
   void _updateIfMounted() {
     if (mounted) setState(() {});
   }
@@ -153,11 +169,19 @@ class _AppsPageState extends State<AppsPage> {
                   ),
                 ),
               ),
+              SizedBox(width: 2),
               AppIconButton(asset: "assets/icons/plus.svg", onPressed: inputIsNotEmpty ? _addApp : null),
+              AppIconButton(asset: "assets/icons/open-file.svg", onPressed: _selectExecutable),
+              AppIconButton(asset: "assets/icons/bullet-list.svg", onPressed: () {}),
             ],
           ),
           Flexible(
-            child: RouteList(routeName: "Application", routes: _filtered, onDeleteRoute: _deleteApp, onEditRoute: _editApp),
+            child: RouteList(
+              routeName: "Application",
+              routes: _filtered,
+              onDeleteRoute: _deleteApp,
+              onEditRoute: _editApp,
+            ),
           ),
         ],
       ),

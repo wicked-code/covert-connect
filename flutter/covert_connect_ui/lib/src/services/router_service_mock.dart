@@ -144,10 +144,11 @@ class RouterServiceMock implements RouterServiceBase {
       servers.forEachIndexed((index, srv) {
         if (srv.config.host == serverHost) {
           if (srv.config.apps == null) {
-            servers.setAll(index, [srv.copyWith(config: srv.config.copyWith(apps: []))]);
-          }
-          if (!(srv.config.apps?.contains(app) ?? false)) {
-            srv.config.apps?.add(app);
+            servers.setAll(index, [srv.copyWith(config: srv.config.copyWith(apps: [app]))]);
+          } else {
+            if (!(srv.config.apps?.contains(app) ?? false)) {
+              srv.config.apps?.add(app);
+            }
           }
         } else {
           srv.config.apps?.remove(app);

@@ -40,6 +40,7 @@ dependencies:
       git:
         url: https://github.com/wicked-code/flutter_single_instance
   windows_single_instance: ^1.1.0
+  file_selector: 1.1.0
 
 dev_dependencies:
   flutter_test:
