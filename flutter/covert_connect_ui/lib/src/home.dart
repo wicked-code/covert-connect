@@ -18,6 +18,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   static GlobalKey<ChildNavigatorState> statusPageNavigatorKey = GlobalKey<ChildNavigatorState>();
   static GlobalKey<ChildNavigatorState> optionsPageNavigatorKey = GlobalKey<ChildNavigatorState>();
+  static GlobalKey<ChildNavigatorState> appsPageNavigatorKey = GlobalKey<ChildNavigatorState>();
   late TabController _tabController;
 
   void _onTabChanged() {
@@ -54,7 +55,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   builder: (context) => StatusPage(),
                 ),
                 DomainsPage(),
-                AppsPage(),
+                ChildNavigator(
+                  key: appsPageNavigatorKey,
+                  selected: _tabController.index == 2,
+                  builder: (context) => AppsPage(),
+                ),
                 ChildNavigator(
                   key: optionsPageNavigatorKey,
                   selected: _tabController.index == 3,

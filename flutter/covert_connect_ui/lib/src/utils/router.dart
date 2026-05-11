@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 
 extension AppCupertinoNavigator on BuildContext {
-  void cupertinoGoTo(Widget page) {
-    Navigator.of(this).push(CupertinoPageRoute<void>(builder: (_) => page));
+  Future<T?> cupertinoGoTo<T>(Widget page) {
+    return Navigator.of(this).push<T>(CupertinoPageRoute<T>(builder: (_) => page));
   }
 
   void slideGoTo(Widget page, [RouteTransition transition = RouteTransition.fromRightToLeft]) {

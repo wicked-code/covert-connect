@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/apps/add_app.dart';
+import 'package:covert_connect/src/apps/processes.dart';
+import 'package:covert_connect/src/utils/router.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
@@ -117,6 +119,14 @@ class _AppsPageState extends State<AppsPage> {
     }
   }
 
+  void _selectProcess() async {
+    final process = await context.cupertinoGoTo<String?>(ProcessPage());
+    if (process != null) {
+      _inputChanged(process);
+      _addApp();
+    }
+  }
+
   void _updateIfMounted() {
     if (mounted) setState(() {});
   }
@@ -172,7 +182,7 @@ class _AppsPageState extends State<AppsPage> {
               SizedBox(width: 2),
               AppIconButton(asset: "assets/icons/plus.svg", onPressed: inputIsNotEmpty ? _addApp : null),
               AppIconButton(asset: "assets/icons/open-file.svg", onPressed: _selectExecutable),
-              AppIconButton(asset: "assets/icons/bullet-list.svg", onPressed: () {}),
+              AppIconButton(asset: "assets/icons/bullet-list.svg", onPressed: _selectProcess),
             ],
           ),
           Flexible(
