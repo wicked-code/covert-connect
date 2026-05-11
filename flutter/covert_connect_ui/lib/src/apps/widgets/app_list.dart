@@ -101,6 +101,7 @@ class _AppListState extends State<AppList> {
                   children: [
                     ...widget.apps.mapIndexed((idx, info) {
                       return TableRow(
+                        key: ValueKey(info.pid),
                         decoration: BoxDecoration(
                           color: _highlightRow(idx % 2 == 0 ? rowColorEven : colorScheme.surface, selectedColor, idx),
                           border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),
@@ -113,7 +114,7 @@ class _AppListState extends State<AppList> {
                             child: Tooltip(
                               message: info.path,
                               child: Container(
-                                padding: EdgeInsets.only(right: 0.5),
+                                padding: const EdgeInsets.only(right: 0.5),
                                 height: 28,
                                 child: Center(
                                   child: buildSvg(
