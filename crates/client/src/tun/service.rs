@@ -215,6 +215,8 @@ impl TunService {
         {
             use sys_net::fix_firewall;
 
+            // 32MB should be enough for most cases
+            config.ring_capacity(32 * 1024 * 1024);
             config.platform_config(|config| {
                 config.dns_servers(&[IpAddr::V4(address_v4)]);
             });
