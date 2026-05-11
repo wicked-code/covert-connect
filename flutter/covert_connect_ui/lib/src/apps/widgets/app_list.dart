@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:covert_connect/src/utils/svg.dart';
-import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
 import 'package:covert_connect/src/widgets/text_with_tooltip.dart';
 import 'package:flutter/material.dart';
