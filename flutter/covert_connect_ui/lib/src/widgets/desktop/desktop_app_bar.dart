@@ -61,7 +61,7 @@ class _DesktopAppBarState extends State<DesktopAppBar>
 
   void close() async {
     if (Platform.isLinux) {
-      WindowState.savePosition(await windowManager.getPosition());
+      await WindowState.savePosition(await windowManager.getPosition());
     }
     appWindow.close();
     if (Platform.isMacOS) {
