@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:covert_connect/src/utils/svg.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
@@ -61,8 +60,6 @@ class _AppListState extends State<AppList> {
 
     Color rowColorEven = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
 
-    const columnSizes = <int, TableColumnWidth>{0: FixedColumnWidth(14), 1: FlexColumnWidth(), 2: FixedColumnWidth(67)};
-
     return Container(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -73,88 +70,98 @@ class _AppListState extends State<AppList> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Table(
-              columnWidths: columnSizes,
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(color: colorScheme.surface),
-                  children: [
-                    Container(),
-                    Padding(
+            Container(
+              decoration: BoxDecoration(color: colorScheme.surface),
+              child: Row(
+                children: [
+                  Container(width: 14),
+                  Expanded(
+                    child: Padding(
                       padding: EdgeInsets.only(top: 9, bottom: 9),
                       child: Text("App", style: headerTextStyle),
                     ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("PID", style: headerTextStyle),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  SizedBox(width: 67, child: Text("PID", style: headerTextStyle)),
+                ],
+              ),
             ),
             Flexible(
-              child: SingleChildScrollView(
-                child: Table(
-                  columnWidths: columnSizes,
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    ...widget.apps.mapIndexed((idx, info) {
-                      return TableRow(
-                        key: ValueKey(info.pid),
+              child: CustomScrollView(
+                slivers: <Widget>[
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+                      final info = widget.apps[index];
+                      return Container(
                         decoration: BoxDecoration(
-                          color: _highlightRow(idx % 2 == 0 ? rowColorEven : colorScheme.surface, selectedColor, idx),
+                          color: _highlightRow(
+                            index % 2 == 0 ? rowColorEven : colorScheme.surface,
+                            selectedColor,
+                            index,
+                          ),
                           border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),
                         ),
-                        children: [
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _select,
-                            child: Tooltip(
-                              message: info.path,
-                              child: Container(
-                                padding: const EdgeInsets.only(right: 0.5),
-                                height: 28,
-                                child: Center(
-                                  child: buildSvg(
-                                    width: 8,
-                                    height: 8,
-                                    "assets/icons/open-file.svg",
-                                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.4),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _select,
+                                child: Tooltip(
+                                  message: info.path,
+                                  child: Container(
+                                    padding: const EdgeInsets.only(right: 0.5),
+                                    height: 28,
+                                    child: Center(
+                                      child: buildSvg(
+                                        width: 8,
+                                        height: 8,
+                                        "assets/icons/open-file.svg",
+                                        color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.4),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _select,
-                            child: TextWithTooltip(info.path.split('/').last.split(r'\').last, style: cellTextStyle),
-                          ),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _select,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    info.pid.toString(),
-                                    overflow: TextOverflow.ellipsis,
-                                    style: cellTextStyle,
-                                  ),
+                            Expanded(
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _select,
+                                child: TextWithTooltip(
+                                  info.path.split('/').last.split(r'\').last,
+                                  style: cellTextStyle,
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
+                            SizedBox(
+                              width: 67,
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _select,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        info.pid.toString(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: cellTextStyle,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
-                    }),
-                  ],
-                ),
+                    }, childCount: widget.apps.length),
+                  ),
+                ],
               ),
             ),
           ],
