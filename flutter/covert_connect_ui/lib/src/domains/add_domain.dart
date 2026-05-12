@@ -38,9 +38,9 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
   String _selected = kDirectHost;
   Map<String, ({double ping, int count})> pingMap = {};
 
-  void _selectServer() {
+  void _selectServer() async {
     if (_selected != widget.selectedServer) {
-      di<RouterServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
+      await di<RouterServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
