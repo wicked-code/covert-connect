@@ -36,9 +36,9 @@ class _AddAppDialogState extends State<AddAppDialog> {
 
   String _selected = kDirectHost;
 
-  void _selectServer() {
+  void _selectServer() async {
     if (_selected != widget.selectedServer) {
-      di<RouterServiceBase>().setApp(widget.app, _selected == kDirectHost ? "" : _selected);
+      await di<RouterServiceBase>().setApp(widget.app, _selected == kDirectHost ? "" : _selected);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
