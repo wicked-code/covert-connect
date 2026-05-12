@@ -126,7 +126,9 @@ class _AppTableState extends State<_AppTable> {
         SliverList(
           delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
             final info = widget.apps[index];
-            return Container(
+            return AnimatedContainer(
+              duration: Durations.short1,
+              curve: Curves.easeInOut,
               decoration: BoxDecoration(
                 color: _highlightRow(index % 2 == 0 ? rowColorEven : colorScheme.surface, selectedColor, index),
                 border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),

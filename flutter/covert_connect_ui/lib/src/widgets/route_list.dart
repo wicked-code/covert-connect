@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
@@ -15,7 +14,14 @@ class RouteInfo {
 }
 
 class RouteList extends StatefulWidget {
-  const RouteList({super.key, required this.routeName, required this.routes, required this.onDeleteRoute, required this.onEditRoute, this.decodeValue});
+  const RouteList({
+    super.key,
+    required this.routeName,
+    required this.routes,
+    required this.onDeleteRoute,
+    required this.onEditRoute,
+    this.decodeValue,
+  });
 
   final String routeName;
   final List<RouteInfo> routes;
@@ -67,13 +73,6 @@ class _RouteListState extends State<RouteList> {
 
     Color rowColorEven = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
 
-    const columnSizes = <int, TableColumnWidth>{
-      0: FixedColumnWidth(8),
-      1: FlexColumnWidth(),
-      2: FlexColumnWidth(),
-      3: FixedColumnWidth(35),
-    };
-
     return Container(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -84,83 +83,96 @@ class _RouteListState extends State<RouteList> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Table(
-              columnWidths: columnSizes,
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(color: colorScheme.surface),
-                  children: [
-                    Container(),
-                    Padding(
+            Container(
+              decoration: BoxDecoration(color: colorScheme.surface),
+              child: Row(
+                children: [
+                  Container(width: 8),
+                  Expanded(
+                    child: Padding(
                       padding: EdgeInsets.only(top: 9, bottom: 9),
                       child: Text(widget.routeName, style: headerTextStyle),
                     ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("Server", style: headerTextStyle),
-                    ),
-                    Container(),
-                  ],
-                ),
-              ],
+                  ),
+                  Expanded(child: Text("Server", style: headerTextStyle)),
+                  Container(width: 35),
+                ],
+              ),
             ),
             Flexible(
-              child: SingleChildScrollView(
-                child: Table(
-                  columnWidths: columnSizes,
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    ...widget.routes.mapIndexed((idx, info) {
-                      return TableRow(
+              child: CustomScrollView(
+                shrinkWrap: true,
+                slivers: <Widget>[
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+                      final info = widget.routes[index];
+                      return AnimatedContainer(
+                        duration: Durations.short1,
+                        curve: Curves.easeInOut,
                         decoration: BoxDecoration(
-                          color: _highlightRow(idx % 2 == 0 ? rowColorEven : colorScheme.surface, selectedColor, idx),
+                          color: _highlightRow(
+                            index % 2 == 0 ? rowColorEven : colorScheme.surface,
+                            selectedColor,
+                            index,
+                          ),
                           border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),
                         ),
-                        children: [
-                          _Cell(index: idx, onHover: _hoverRow, onTap: _edit, child: Container()),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _edit,
-                            child: TextWithTooltip(_decodeValue(info.value), style: cellTextStyle),
-                          ),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _edit,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: TextWithTooltip(
-                                    info.server.isNotEmpty ? info.server : "direct",
-                                    style: cellTextStyle,
-                                  ),
-                                ),
-                              ],
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 8,
+                              child: _Cell(index: index, onHover: _hoverRow, onTap: _edit, child: Container()),
                             ),
-                          ),
-                          _Cell(
-                            index: idx,
-                            onHover: _hoverRow,
-                            onTap: _edit,
-                            child: Row(
-                              children: [
-                                AppIconButton(
-                                  asset: "assets/icons/delete.svg",
-                                  assetColor: Colors.redAccent,
-                                  onPressed: () => widget.onDeleteRoute(info),
-                                ),
-                                SizedBox(width: hPadding),
-                              ],
+                            Expanded(
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _edit,
+                                child: TextWithTooltip(_decodeValue(info.value), style: cellTextStyle),
+                              ),
                             ),
-                          ),
-                        ],
+                            Expanded(
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _edit,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: TextWithTooltip(
+                                        info.server.isNotEmpty ? info.server : "direct",
+                                        style: cellTextStyle,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 35,
+                              child: _Cell(
+                                index: index,
+                                onHover: _hoverRow,
+                                onTap: _edit,
+                                child: Row(
+                                  children: [
+                                    AppIconButton(
+                                      asset: "assets/icons/delete.svg",
+                                      assetColor: Colors.redAccent,
+                                      onPressed: () => widget.onDeleteRoute(info),
+                                    ),
+                                    SizedBox(width: hPadding),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
-                    }),
-                  ],
-                ),
+                    }, childCount: widget.routes.length),
+                  ),
+                ],
               ),
             ),
           ],
