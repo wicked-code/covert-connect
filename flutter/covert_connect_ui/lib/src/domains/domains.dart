@@ -127,11 +127,13 @@ class _DomainsPageState extends State<DomainsPage> {
     }
   }
 
+  static String _lastClipboardChecked = "";
   void _checkClipboard() async {
     ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (data?.text == null) return;
+    if (data?.text == null || data!.text == _lastClipboardChecked) return;
 
-    _tryParseUrl(data!.text!, (host) async {
+    _lastClipboardChecked = data.text!;
+    _tryParseUrl(data.text!, (host) async {
       final reducedHost = host.split(".").reversed.take(3).toList().reversed.join(".").removeIfStartWith("www.");
       if (reducedHost == _lastHostFromClipboard) return;
       if (!(await di<RouterServiceBase>().checkDomain(reducedHost))) return;
