@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:covert_connect/src/apps/widgets/app_list.dart';
-import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:covert_connect/src/widgets/app_theme.dart';
 import 'package:covert_connect/src/widgets/input.dart';
@@ -19,7 +18,7 @@ class _ProcessPageState extends State<ProcessPage> {
   List<AppInfo> _filtered = [];
 
   final TextEditingController _inputController = TextEditingController();
-  String get _inputValue => _inputController.text.encodePunycode();
+  String get _inputValue => _inputController.text;
 
   Future<List<AppInfo>> getRunningProcesses() async {
     List<AppInfo> apps = [];
