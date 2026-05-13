@@ -101,31 +101,30 @@ impl Router {
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, CancellableTaskHandle)>> {
         let mut rng = ChaCha20Rng::from_entropy();
 
-        let mut process_name = String::from("");
-        match process_path_by_local_addr(
-            client_addr,
-            match data_protocol {
-                DataProtocol::Tcp => Protocol::TCP,
-                DataProtocol::Udp => Protocol::UDP,
-                DataProtocol::Icmp => Protocol::UDP,
-            },
-        ) {
-            Ok(process_path) => {
-                tracing::info!("{} connecting to {}", process_path, target_host);
-                let a = Path::new(&process_path)
+        let (protocol_str, search_protocol) = match data_protocol {
+            DataProtocol::Tcp => (String::from(""), Protocol::TCP),
+            DataProtocol::Udp => (String::from("(UDP)"), Protocol::UDP),
+            DataProtocol::Icmp => (String::from("(ICMP)"), Protocol::UDP),
+        };
+        let (process_name, process_path) = match process_path_by_local_addr(client_addr, search_protocol) {
+            Ok(process_path) => (
+                Path::new(&process_path)
                     .file_name()
                     .unwrap_or_default()
-                    .to_string_lossy();
-                process_name = a.into_owned();
-            }
-            Err(err) => tracing::warn!("unknown connecting to {}\n{}", target_host, err),
-        }
+                    .to_string_lossy()
+                    .into_owned(),
+                process_path,
+            ),
+            Err(_) => (String::new(), String::from("unknown")),
+        };
 
         if let Some(server) = self.select_server(&target_host, &process_name, &mut rng) {
+            tracing::info!("{} connecting to {}{}", process_path, target_host, protocol_str);
             self.start_tunnel_with_server(client, data_protocol, target_host, server, rng)
                 .await?;
             Ok(None)
         } else {
+            tracing::info!("{} direct connecting to {}{}", process_path, target_host, protocol_str);
             Ok(Some((client, self.cancel_watcher.create_handle())))
         }
     }

@@ -194,8 +194,6 @@ impl UdpNat {
         host: String,
         cancel_handle: CancellableTaskHandle,
     ) {
-        tracing::info!("Direct connection (UDP) to {} ({})", target, host);
-
         let out_socket = match self.egress.bind_udp(target.is_ipv6()).await {
             Ok(socket) => socket,
             Err(err) => {

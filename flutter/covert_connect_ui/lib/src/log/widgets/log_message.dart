@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 
 final thinTextStyle = GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300, height: 1.0);
 final regexColors = RegExp(r'\x1B\[([0-9;]+)m');
-final connectingMessageRegex = RegExp(r'^(.+?) connecting to ([^:]+):(\d+)$', caseSensitive: false);
+final connectingMessageRegex = RegExp(r'^(.+?) connecting to ([^:]+):(\d+)(.*)?$', caseSensitive: false);
+final directConnectingMessageRegex = RegExp(r'^(.+?) direct connecting to ([^:]+):(\d+)(.*)?$', caseSensitive: false);
 final pathDelimeter = RegExp(r'[\\/]');
 
 class LogMessage extends StatelessWidget {
@@ -23,7 +24,13 @@ class LogMessage extends StatelessWidget {
 
     void addSpanEx(String text, TextStyle style) {
       // check for connecting message
-      final match = connectingMessageRegex.firstMatch(text);
+      bool direct = true;
+      var match = directConnectingMessageRegex.firstMatch(text);
+      if (match == null) {
+        match = connectingMessageRegex.firstMatch(text);
+        direct = false;
+      }
+
       if (match == null) {
         addSpan(text, style);
         return;
@@ -32,16 +39,20 @@ class LogMessage extends StatelessWidget {
       final path = match.group(1);
       final domain = match.group(2);
       final port = match.group(3);
+      final suffix = match.group(4);
       if (path == null || domain == null) {
         addSpan(text, style);
         return;
       }
 
       addSpan(path.substring(path.lastIndexOf(pathDelimeter) + 1), thinTextStyle);
-      addSpan(' -> ', style);
+      addSpan(direct ? ' => ' : ' -> ', style);
       addSpan(domain, thinTextStyle);
       if (port != null && port.isNotEmpty && port != "443") {
         addSpan(':$port', thinTextStyle);
+      }
+      if (suffix != null && suffix.isNotEmpty) {
+        addSpan(suffix, style);
       }
     }
 

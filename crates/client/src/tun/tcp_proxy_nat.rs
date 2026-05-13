@@ -189,8 +189,6 @@ impl TcpProxyNat {
         host: String,
         cancel_handle: CancellableTaskHandle,
     ) {
-        tracing::info!("Direct connection to {} ({})", target, host);
-
         let mut server = match self.egress.connect_tcp(target).await {
             Ok(stream) => stream,
             Err(err) => {
