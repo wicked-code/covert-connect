@@ -84,7 +84,7 @@ class _StatusPageState extends State<StatusPage> with AutomaticKeepAliveClientMi
     _lastSyncCheck = DateTime.now();
     DateTime startDate = DateTime.now().toLocal();
     int offset = await NTP.getNtpOffset(localTime: startDate);
-    if (mounted && offset > kMaxSyncOffsetMs) {
+    if (mounted && offset.abs() > kMaxSyncOffsetMs) {
       Toast.warning(
         context,
         caption: "Time is not synchronized",
