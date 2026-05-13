@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 final thinTextStyle = GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300, height: 1.0);
 final regexColors = RegExp(r'\x1B\[([0-9;]+)m');
-final connectingMessageRegex = RegExp(r'^(.+?) connecting to ([a-zA-Z0-9.-]+):(\d+)$', caseSensitive: false);
+final connectingMessageRegex = RegExp(r'^(.+?) connecting to ([^:]+):(\d+)$', caseSensitive: false);
 final pathDelimeter = RegExp(r'[\\/]');
 
 class LogMessage extends StatelessWidget {
