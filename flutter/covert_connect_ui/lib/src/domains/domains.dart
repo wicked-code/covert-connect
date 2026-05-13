@@ -38,9 +38,9 @@ class _DomainsPageState extends State<DomainsPage> {
       di<RouterServiceBase>().getDomains(),
       di<RouterServiceBase>().getStatus(),
     ]);
-    _domains = rootDomains.map((d) => RouteInfo(d, "")).toList();
+    _domains = rootDomains.map((d) => RouteInfo(d.encodePunycode(), "")).toList();
     for (final srv in status.servers) {
-      _domains.addAll(srv.config.domains?.map((d) => RouteInfo(d, srv.config.host)) ?? []);
+      _domains.addAll(srv.config.domains?.map((d) => RouteInfo(d.encodePunycode(), srv.config.host)) ?? []);
     }
 
     _filterDomains(_inputValue);

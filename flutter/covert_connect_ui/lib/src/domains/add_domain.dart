@@ -40,7 +40,10 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
 
   void _selectServer() async {
     if (_selected != widget.selectedServer) {
-      await di<RouterServiceBase>().setDomain(widget.domain, _selected == kDirectHost ? "" : _selected);
+      await di<RouterServiceBase>().setDomain(
+        widget.domain.decodePunycode(),
+        _selected == kDirectHost ? "" : _selected,
+      );
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -104,10 +107,7 @@ class _AddDomainDialogState extends State<AddDomainDialog> {
                 style: textTheme.labelLarge?.copyWith(color: textTheme.labelLarge?.color?.withValues(alpha: 0.75)),
                 children: [
                   TextSpan(text: "select server for: "),
-                  TextSpan(
-                    text: widget.domain.decodePunycode(),
-                    style: thinTextStyle,
-                  ),
+                  TextSpan(text: widget.domain.decodePunycode(), style: thinTextStyle),
                 ],
               ),
             ),
