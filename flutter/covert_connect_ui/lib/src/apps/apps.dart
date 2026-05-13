@@ -7,7 +7,6 @@ import 'package:covert_connect/src/utils/router.dart';
 import 'package:covert_connect/src/widgets/route_list.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
-import 'package:covert_connect/src/utils/extensions.dart';
 import 'package:covert_connect/src/utils/utils.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:covert_connect/src/widgets/input.dart';
@@ -27,7 +26,7 @@ class _AppsPageState extends State<AppsPage> {
   List<RouteInfo> _filtered = [];
 
   final TextEditingController _inputController = TextEditingController();
-  String get _inputValue => _inputController.text.encodePunycode();
+  String get _inputValue => _inputController.text;
 
   Future<void> _loadApps() async {
     final [rootApps as List<String>, status as ClientStatus] = await Future.wait([
