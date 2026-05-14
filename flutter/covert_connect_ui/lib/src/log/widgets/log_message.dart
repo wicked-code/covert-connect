@@ -52,7 +52,7 @@ class LogMessage extends StatelessWidget {
         addSpan(':$port', thinTextStyle);
       }
       if (suffix != null && suffix.isNotEmpty) {
-        addSpan(suffix, style);
+        addSpan(suffix, thinTextStyle);
       }
     }
 
