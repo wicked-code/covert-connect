@@ -31,3 +31,5 @@ windows = { version = "0.62.2", features = [
     "Win32_System_SystemServices",
 ] }
 windows-service = "0.7.0"
+sntpc = { version = "0.9.0", features = ["std"] }
+sntpc-net-tokio = "1.1.0"

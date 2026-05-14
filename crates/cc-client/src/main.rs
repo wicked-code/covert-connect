@@ -26,6 +26,8 @@ use tokio::sync::oneshot;
 mod client_controller;
 #[cfg(windows)]
 mod windows_service_runtime;
+#[cfg(windows)]
+mod windows_time;
 
 /// Covert-Connect client
 #[derive(Parser)]
@@ -152,6 +154,8 @@ pub(crate) async fn start_client(
     client.initialize().await?;
 
     let client_controller = ClientController::new(client.clone());
+    #[cfg(windows)]
+    let mut windows_time_sync = windows_time::WindowsTimeSync::new();
 
     let shutdown_listener = match shutdown_signal {
         Some(stop_rx) => {
@@ -161,6 +165,8 @@ pub(crate) async fn start_client(
                 let _ = stop_rx.await;
                 controller_clone.stop();
                 client_clone.shutdown().await;
+                #[cfg(windows)]
+                windows_time_sync.stop().await;
             })
         }
         None => {
@@ -180,13 +186,14 @@ pub(crate) async fn start_client(
                     };
                 }
 
-                // Default behavior for non-Unix (e.g. Windows) if you still want Ctrl+C
                 #[cfg(not(unix))]
                 {
                     tokio::signal::ctrl_c().await.unwrap();
                 }
                 controller_clone.stop();
                 client_clone.shutdown().await;
+                #[cfg(windows)]
+                windows_time_sync.stop().await;
             })
         }
     };
