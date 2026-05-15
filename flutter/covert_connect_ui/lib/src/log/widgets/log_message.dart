@@ -127,7 +127,7 @@ class LogMessage extends StatelessWidget {
       TextSpan(
         children: [
           TextSpan(
-            text: DateFormat("HH:mm:ss${isSmall ? '.SSS' : ''} ").format(message.timestamp),
+            text: DateFormat("HH:mm:ss${isSmall ? '.SSS' : ''} ").format(message.timestamp.toLocal()),
             style: thinTextStyle.copyWith(color: Colors.grey[600]),
           ),
           TextSpan(
