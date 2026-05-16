@@ -18,12 +18,13 @@ class _StateToggleState extends State<StateToggle> {
   ClientState? _state;
 
   void _setProxyState(ClientState state) async {
+    await _update(state);
+    Future.delayed(Duration(seconds: 2), () => _update(null));
     await di<RouterServiceBase>().setState(state);
-    _update();
   }
 
-  void _update() async {
-    _state = await di<RouterServiceBase>().getState();
+  Future<void> _update(ClientState? state) async {
+    _state = state ?? await di<RouterServiceBase>().getState();
     widget.onChanged?.call(_state!);
     if (mounted) setState(() {});
   }
@@ -34,7 +35,7 @@ class _StateToggleState extends State<StateToggle> {
 
   @override
   void initState() {
-    _update();
+    _update(null);
     super.initState();
   }
 
