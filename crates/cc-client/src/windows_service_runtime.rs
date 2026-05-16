@@ -160,42 +160,36 @@ fn stop_pending_status(checkpoint: u32) -> ServiceStatus {
 }
 
 static SC_EXE: &str = "sc.exe";
-pub async fn set_failure_and_description(service_name: &str, description: &str) {
-    let mut command = Command::new(SC_EXE);
-    command
-        .arg("failure")
-        .arg(service_name)
-        .arg("reset=")
-        .arg("60")
-        .arg("actions=")
-        .arg("restart/3000/restart/5000/restart/10000/restart/30000/restart/60000");
-    match command.output() {
-        Ok(output) => {
-            if !output.status.success() {
-                tracing::error!(
-                    "Failed to set service failure actions: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-        }
-        Err(err) => {
-            tracing::error!("Failed to execute sc.exe to set service failure actions: {err}");
-        }
-    }
+pub fn set_failure_and_description(service_name: &str, description: &str) {
+    run_sc(
+        &[
+            "failure",
+            service_name,
+            "reset=",
+            "60",
+            "actions=",
+            "restart/3000/restart/5000/restart/10000/restart/30000/restart/60000",
+        ],
+        "failure actions",
+    );
+    run_sc(&["failureflag", service_name, "1"], "failure flag");
+    run_sc(&["description", service_name, description], "description");
+}
 
+fn run_sc(args: &[&str], action: &str) {
     let mut command = Command::new(SC_EXE);
-    command.arg("description").arg(service_name).arg(description);
+    command.args(args);
     match command.output() {
         Ok(output) => {
             if !output.status.success() {
                 tracing::error!(
-                    "Failed to set service description: {}",
+                    "Failed to set service {action}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
             }
         }
         Err(err) => {
-            tracing::error!("Failed to execute sc.exe to set service description: {err}");
+            tracing::error!("Failed to execute sc.exe to set service {action}: {err}");
         }
     }
 }

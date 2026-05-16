@@ -134,7 +134,7 @@ async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
         }
         Commands::Monitor => monitor_client().await,
         Commands::State { state } => show_or_set_state(state).await,
-        Commands::Install => install(cfg_path).await,
+        Commands::Install => install(cfg_path),
         Commands::Uninstall => uninstall().await,
         Commands::Start => {
             panic!("Start command should be handled in main");
@@ -356,7 +356,7 @@ async fn monitor_client() -> Result<()> {
     Ok(())
 }
 
-async fn install(cfg_path: PathBuf) -> Result<()> {
+fn install(cfg_path: PathBuf) -> Result<()> {
     let label = service_label();
 
     let manager = <dyn ServiceManager>::native().with_context(|| "Failed to detect management platform")?;
@@ -406,7 +406,7 @@ async fn install(cfg_path: PathBuf) -> Result<()> {
         .with_context(|| "Failed to start service")?;
 
     #[cfg(windows)]
-    set_failure_and_description(&label.to_qualified_name(), "Covert-Connect client backend engine").await;
+    set_failure_and_description(&label.to_qualified_name(), "Covert-Connect client backend engine");
 
     tracing::info!("Service installed and started");
     Ok(())
