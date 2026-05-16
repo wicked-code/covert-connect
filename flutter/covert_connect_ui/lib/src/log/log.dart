@@ -44,7 +44,6 @@ class _LogPageState extends State<LogPage> {
       final newMessages = await di<RouterServiceBase>().getLog(lastPosition, null, kReadChunkSize);
       if (newMessages.length < kReadChunkSize) {
         _endReached = true;
-        return;
       }
 
       _oldMessages.addAll(newMessages);
