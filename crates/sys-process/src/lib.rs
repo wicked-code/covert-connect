@@ -13,7 +13,7 @@ pub use macos::*;
 pub use windows::*;
 
 use anyhow::{Result, bail};
-use netstat2::{AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo, get_sockets_info};
+use netstat2::{AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo, iterate_sockets_info};
 use std::net::SocketAddr;
 
 /// The network protocol used by a socket.
@@ -35,9 +35,10 @@ pub fn process_path_by_local_addr(addr: SocketAddr, protocol: Protocol) -> Resul
         Protocol::TCP => ProtocolFlags::TCP,
         Protocol::UDP => ProtocolFlags::UDP,
     };
-    let sockets = get_sockets_info(af_flags, proto_flags)?;
+    let sockets = iterate_sockets_info(af_flags, proto_flags)?;
 
     for si in sockets {
+        let Ok(si) = si else { continue };
         match si.protocol_socket_info {
             ProtocolSocketInfo::Tcp(tcp_si) => {
                 if tcp_si.local_addr == addr.ip() && tcp_si.local_port == addr.port() {
