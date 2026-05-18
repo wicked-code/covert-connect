@@ -8,6 +8,7 @@ use net_packet::{
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use std::{
+    collections::VecDeque,
     io,
     net::SocketAddr,
     pin::Pin,
@@ -29,7 +30,7 @@ pub enum AddressOrHostWithOrig {
 }
 
 pub struct UdpStreamData {
-    packets_to_send: Mutex<Vec<Vec<u8>>>,
+    packets_to_send: Mutex<VecDeque<Vec<u8>>>,
     waker: Mutex<Option<Waker>>,
     done: Mutex<bool>,
     last_active: Mutex<Instant>,
@@ -61,7 +62,7 @@ impl AddressOrHostWithOrig {
 impl UdpStreamData {
     pub fn new() -> Self {
         Self {
-            packets_to_send: Mutex::new(Vec::new()),
+            packets_to_send: Mutex::new(VecDeque::new()),
             waker: Mutex::new(None),
             done: Mutex::new(false),
             last_active: Mutex::new(Instant::now()),
@@ -128,7 +129,8 @@ impl UdpStreamData {
 
     fn send_packet(&self, mut packet: Vec<u8>, prefix: Vec<u8>) {
         packet.splice(0..0, prefix);
-        self.packets_to_send.lock().push(packet);
+        self.packets_to_send.lock().push_back(packet);
+        *self.last_active.lock() = Instant::now();
         let waker = self.waker.lock();
         if let Some(waker) = &*waker {
             waker.wake_by_ref();
@@ -174,7 +176,7 @@ impl<W: AsyncWrite + Clone + Unpin> AsyncRead for UdpStream<W> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
         if this.read_state == ReadState::Wait {
-            if let Some(packet) = this.data.packets_to_send.lock().pop() {
+            if let Some(packet) = this.data.packets_to_send.lock().pop_front() {
                 this.read_state = ReadState::Read { pos: 0, packet };
             } else {
                 if *this.data.done.lock() {
@@ -603,7 +605,7 @@ mod tests {
         assert_eq!(&buf[..n], &[0x04, 0xD2, 0x7F, 0x00, 0x00, 0x01, 0xAA, 0xBB, 0xCC, 0xDD]);
     }
 
-    // 3e. Multiple packets are consumed sequentially (LIFO from Vec::pop)
+    // 3e. Multiple packets are consumed sequentially (FIFO from VecDeque::pop_front)
     #[tokio::test]
     async fn poll_read_multiple_packets_sequential() {
         let mut stream = new_stream();
@@ -612,14 +614,14 @@ mod tests {
 
         let mut buf = vec![0u8; 64];
 
-        // pop() returns last pushed first
-        let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
-        assert_eq!(n, 10);
-        assert_eq!(buf[9], 0x22);
-
+        // pop_front() returns first pushed first
         let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
         assert_eq!(n, 10);
         assert_eq!(buf[9], 0x11);
+
+        let n = Pin::new(&mut stream).read(&mut buf).await.unwrap();
+        assert_eq!(n, 10);
+        assert_eq!(buf[9], 0x22);
     }
 
     // 3f. Packets are drained before signaling EOF
