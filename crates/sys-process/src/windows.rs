@@ -1,14 +1,28 @@
 use anyhow::Result;
 use windows::Win32::{
-    Foundation::MAX_PATH,
+    Foundation::{CloseHandle, HANDLE, MAX_PATH},
     System::Threading::{
         OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
     },
 };
 
+struct HandleGuard(HANDLE);
+impl Drop for HandleGuard {
+    fn drop(&mut self) {
+        if !self.0.is_invalid() {
+            unsafe {
+                if let Err(err) = CloseHandle(self.0) {
+                    tracing::error!("Failed to close handle: {:?}", err);
+                }
+            };
+        }
+    }
+}
+
 pub fn path_by_pid(pid: u32) -> Result<String> {
     unsafe {
-        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?;
+        let _guard = HandleGuard(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)?);
+        let process = _guard.0;
 
         const DEFAULT_BUFFER: u32 = MAX_PATH + 1;
         let mut buffer_size: u32 = DEFAULT_BUFFER;
