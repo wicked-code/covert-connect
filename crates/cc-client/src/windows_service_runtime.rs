@@ -59,15 +59,15 @@ fn windows_service_entry() -> Result<()> {
     let status_handle = service_control_handler::register(SERVICE_NAME, move |control_event| match control_event {
         ServiceControl::Stop | ServiceControl::Shutdown => {
             stopping_for_handler.store(true, Ordering::SeqCst);
-            if let Ok(status_guard) = status_handle_slot_for_handler.lock() {
-                if let Some(status_handle) = *status_guard {
-                    let _ = status_handle.set_service_status(stop_pending_status(2));
-                }
+            if let Ok(status_guard) = status_handle_slot_for_handler.lock()
+                && let Some(status_handle) = *status_guard
+            {
+                let _ = status_handle.set_service_status(stop_pending_status(2));
             }
-            if let Ok(mut tx_guard) = stop_tx_for_handler.lock() {
-                if let Some(tx) = tx_guard.take() {
-                    let _ = tx.send(());
-                }
+            if let Ok(mut tx_guard) = stop_tx_for_handler.lock()
+                && let Some(tx) = tx_guard.take()
+            {
+                let _ = tx.send(());
             }
             ServiceControlHandlerResult::NoError
         }

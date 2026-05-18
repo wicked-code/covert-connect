@@ -247,10 +247,8 @@ impl Router {
         let srv_count = servers.len();
         let avr_weight = if total_weight > 0 {
             total_weight / (srv_count - unweighted_count)
-        } else if unweighted_count > 0 {
-            100 / unweighted_count
         } else {
-            return None;
+            100_usize.checked_div(unweighted_count)?
         };
 
         let rnd_val = rng.gen_range(0..avr_weight * srv_count);

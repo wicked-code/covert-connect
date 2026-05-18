@@ -55,10 +55,10 @@ impl WindowsTimeSync {
 async fn check_and_sync() {
     for &server in SERVERS {
         if let Some(offset) = try_get_offset(server).await {
-            if offset > MAX_OFFSET {
-                if let Err(err) = sync_time().await {
-                    tracing::error!("Failed to sync time: {:?}", err);
-                }
+            if offset > MAX_OFFSET
+                && let Err(err) = sync_time().await
+            {
+                tracing::error!("Failed to sync time: {:?}", err);
             }
             return;
         }
