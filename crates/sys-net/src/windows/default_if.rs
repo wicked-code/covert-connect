@@ -164,9 +164,7 @@ fn get_default_if(luid: NET_LUID_LH) -> Result<DefaultIf> {
                     if let Some(ip) = sockaddr_to_ip(unicast.Address.lpSockaddr, unicast.Address.iSockaddrLength) {
                         match ip {
                             IpAddr::V4(_) if ipv4.is_unspecified() => ipv4 = ip,
-                            IpAddr::V6(ipv6_addr) if ipv6.is_unspecified() && is_ipv6_global(ipv6_addr) => {
-                                ipv6 = ip
-                            }
+                            IpAddr::V6(ipv6_addr) if ipv6.is_unspecified() && is_ipv6_global(ipv6_addr) => ipv6 = ip,
                             _ => {}
                         }
                     }

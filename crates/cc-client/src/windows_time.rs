@@ -91,15 +91,15 @@ async fn sync_time() -> Result<()> {
     if !was_running {
         start_service().await?;
     }
- 
+
     run_command("w32tm", &["/resync", "/force"])
         .await
         .with_context(|| "w32tm /resync /force")?;
- 
+
     if !was_running {
         stop_service().await.with_context(|| "stop time service")?;
     }
- 
+
     Ok(())
 }
 

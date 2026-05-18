@@ -204,9 +204,8 @@ impl Egress {
         let net_if = find_default_if()?;
         #[cfg(target_os = "linux")]
         let current_if_name = self.outbound_if_name.load();
-        let net_if_changed = net_if.ipv4 != self.outbound_ipv4.load().ip()
-            || net_if.ipv6 != self.outbound_ipv6.load().ip()
-            || {
+        let net_if_changed =
+            net_if.ipv4 != self.outbound_ipv4.load().ip() || net_if.ipv6 != self.outbound_ipv6.load().ip() || {
                 #[cfg(target_os = "linux")]
                 {
                     net_if.if_name != current_if_name.as_str()

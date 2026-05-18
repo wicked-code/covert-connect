@@ -23,11 +23,11 @@ pub struct DefaultIf {
 
 fn is_ipv6_global(addr: Ipv6Addr) -> bool {
     // Exclude addresses that are strictly local or reserved
-    !addr.is_loopback() && 
-    !addr.is_unspecified() &&
-    !addr.is_unicast_link_local() && 
-    !addr.is_unique_local() &&
-    !addr.is_multicast()
+    !addr.is_loopback()
+        && !addr.is_unspecified()
+        && !addr.is_unicast_link_local()
+        && !addr.is_unique_local()
+        && !addr.is_multicast()
 }
 
 #[cfg(test)]

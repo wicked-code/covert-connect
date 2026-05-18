@@ -443,7 +443,7 @@ async fn uninstall() -> Result<()> {
                 ServiceStatus::NotInstalled => return Ok(()),
                 ServiceStatus::Stopped(_) => {
                     tracing::warn!("service not unistalled completely");
-                    return Ok(())
+                    return Ok(());
                 }
                 ServiceStatus::Running => {}
             }
