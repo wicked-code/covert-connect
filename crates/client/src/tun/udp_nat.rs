@@ -107,7 +107,6 @@ impl UdpNat {
             let self_clone = self.clone();
             async move {
                 let is_icmp = self_clone.is_icmp;
-                let session = self_clone.sessions.read().get(&src_addr).cloned();
 
                 let host = match self_clone.dns_mapper.host_by_ip(dst_addr.ip()).await {
                     Ok(value) => value,
@@ -122,22 +121,36 @@ impl UdpNat {
                     None => AddressOrHostWithOrig::Address(dst_addr),
                 };
 
-                if let Some(session) = session {
+                let send_packet = |session: &Arc<UdpStreamData>| {
                     if is_icmp {
                         session.send_icmp_packet(payload);
                     } else {
                         session.send_udp_packet(payload, dst_address_or_host);
                     }
+                };
+
+                let session = self_clone.sessions.read().get(&src_addr).cloned();
+                if let Some(session) = session {
+                    send_packet(&session);
                     return;
                 }
 
                 let stream = UdpStream::new(writer.clone(), src_addr, dst_addr, is_icmp);
-                let data = stream.data();
-                self_clone.sessions.write().insert(src_addr, data.clone());
-                if is_icmp {
-                    data.send_icmp_packet(payload);
-                } else {
-                    data.send_udp_packet(payload, dst_address_or_host);
+                let new_session = stream.data();
+
+                {
+                    let mut sessions = self_clone.sessions.write();
+                    if let Some(session) = sessions.get(&src_addr).cloned() {
+                        drop(sessions);
+
+                        send_packet(&session);
+                        return;
+                    }
+
+                    sessions.insert(src_addr, new_session.clone());
+                    drop(sessions);
+
+                    send_packet(&new_session);
                 }
 
                 let host = host.unwrap_or_else(|| dst_addr.ip().to_string());
@@ -182,7 +195,7 @@ impl UdpNat {
                     }
                 }
 
-                data.last_active_expire(SESSION_CLOSE_TIMEOUT);
+                new_session.last_active_expire(SESSION_CLOSE_TIMEOUT);
             }
         });
     }
