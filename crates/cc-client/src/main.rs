@@ -29,6 +29,14 @@ mod windows_service_runtime;
 #[cfg(windows)]
 mod windows_time;
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(target_os = "linux")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 /// Covert-Connect client
 #[derive(Parser)]
 #[command(version, about = "Covert-Connect client", long_about = None)]

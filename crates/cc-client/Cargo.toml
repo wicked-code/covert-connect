@@ -33,3 +33,9 @@ windows = { version = "0.62.2", features = [
 windows-service = "0.7.0"
 sntpc = { version = "0.9.0", features = ["std"] }
 sntpc-net-tokio = "1.1.0"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
+mimalloc.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator.workspace = true

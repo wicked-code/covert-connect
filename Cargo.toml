@@ -62,6 +62,9 @@ client = { path = "crates/client" }
 cc-server = { path = "crates/cc-server" }
 net-packet = { path = "crates/net-packet" }
 
+mimalloc = "0.1"
+tikv-jemallocator = "0.6"
+
 [profile.release-prod]
 inherits = "release"
 strip = "symbols"
