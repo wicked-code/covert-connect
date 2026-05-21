@@ -7,10 +7,6 @@ use is_terminal::IsTerminal;
 use std::{net::SocketAddr, path::Path};
 use tracing_subscriber::EnvFilter;
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 #[cfg(target_os = "linux")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
