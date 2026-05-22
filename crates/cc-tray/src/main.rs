@@ -334,7 +334,7 @@ fn main() -> Result<()> {
             }
             #[cfg(not(target_os = "macos"))]
             Event::UserEvent(UserEvent::ThemeChanged(dark)) => {
-                if let Some(t) = tray.as_ref() {
+                if let Some(t) = _tray.as_ref() {
                     match load_icon(dark) {
                         Ok(icon) => {
                             if let Err(e) = t.set_icon(Some(icon)) {
