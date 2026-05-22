@@ -13,6 +13,7 @@ use std::sync::{
     Arc, Condvar, Mutex,
     atomic::{AtomicBool, Ordering},
 };
+#[cfg(not(target_os = "macos"))]
 use std::time::Duration;
 
 use tao::event::{Event, StartCause};
@@ -31,10 +32,12 @@ const APP_NAME: &str = concat!("covert-connect-tray-", env!("CARGO_PKG_VERSION")
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-single-instance";
 #[cfg(debug_assertions)]
 const SINGLE_INSTANCE_KEY: &str = "covert-connect-tray-dbg-single-instance";
+#[cfg(not(target_os = "macos"))]
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone)]
 enum UserEvent {
+    #[cfg(not(target_os = "macos"))]
     ThemeChanged(bool),
     ExitCompleted,
     ExitFailed(String),
@@ -57,7 +60,14 @@ fn load_icon(dark: bool) -> Result<Icon> {
 }
 
 fn is_dark_theme() -> bool {
-    matches!(dark_light::detect(), Ok(dark_light::Mode::Dark))
+    #[cfg(target_os = "macos")]
+    {
+        true
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        matches!(dark_light::detect(), Ok(dark_light::Mode::Dark))
+    }
 }
 
 fn ui_executable_path() -> Result<PathBuf> {
@@ -191,33 +201,36 @@ fn main() -> Result<()> {
     let exiting = Arc::new(AtomicBool::new(false));
     let theme_shutdown = Arc::new((Mutex::new(()), Condvar::new()));
 
-    let theme_proxy = proxy.clone();
-    let theme_running = Arc::clone(&running);
-    let theme_shutdown_thread = Arc::clone(&theme_shutdown);
-    std::thread::spawn(move || {
-        let mut last_dark = initial_dark;
-        let (lock, cvar) = &*theme_shutdown_thread;
+    #[cfg(not(target_os = "macos"))]
+    {
+        let theme_proxy = proxy.clone();
+        let theme_running = Arc::clone(&running);
+        let theme_shutdown_thread = Arc::clone(&theme_shutdown);
+        std::thread::spawn(move || {
+            let mut last_dark = initial_dark;
+            let (lock, cvar) = &*theme_shutdown_thread;
 
-        while theme_running.load(Ordering::Relaxed) {
-            let guard = match lock.lock() {
-                Ok(g) => g,
-                Err(_) => break,
-            };
-            let (_g, _res) = match cvar.wait_timeout(guard, THEME_POLL_INTERVAL) {
-                Ok(pair) => pair,
-                Err(_) => break,
-            };
-            if !theme_running.load(Ordering::Relaxed) {
-                break;
-            }
+            while theme_running.load(Ordering::Relaxed) {
+                let guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => break,
+                };
+                let (_g, _res) = match cvar.wait_timeout(guard, THEME_POLL_INTERVAL) {
+                    Ok(pair) => pair,
+                    Err(_) => break,
+                };
+                if !theme_running.load(Ordering::Relaxed) {
+                    break;
+                }
 
-            let dark = is_dark_theme();
-            if dark != last_dark {
-                last_dark = dark;
-                let _ = theme_proxy.send_event(UserEvent::ThemeChanged(dark));
+                let dark = is_dark_theme();
+                if dark != last_dark {
+                    last_dark = dark;
+                    let _ = theme_proxy.send_event(UserEvent::ThemeChanged(dark));
+                }
             }
-        }
-    });
+        });
+    }
 
     let signal_theme_shutdown = {
         let theme_shutdown = Arc::clone(&theme_shutdown);
@@ -282,7 +295,7 @@ fn main() -> Result<()> {
         }));
     }
 
-    let mut tray: Option<TrayIcon> = None;
+    let mut _tray: Option<TrayIcon> = None;
     let mut menu_holder = Some(menu);
 
     event_loop.run(move |event, _, control_flow| {
@@ -304,7 +317,7 @@ fn main() -> Result<()> {
                             builder = builder.with_menu_on_left_click(false);
                         }
                         match builder.build() {
-                            Ok(t) => tray = Some(t),
+                            Ok(t) => _tray = Some(t),
                             Err(e) => {
                                 log::error!("failed to build tray: {e:?}");
                                 signal_theme_shutdown();
@@ -319,6 +332,7 @@ fn main() -> Result<()> {
                     }
                 }
             }
+            #[cfg(not(target_os = "macos"))]
             Event::UserEvent(UserEvent::ThemeChanged(dark)) => {
                 if let Some(t) = tray.as_ref() {
                     match load_icon(dark) {
