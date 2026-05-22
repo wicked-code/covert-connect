@@ -86,8 +86,7 @@ enum Commands {
     Start,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args: Cli = Cli::parse();
 
     let cfg_path = match args.config {
@@ -102,10 +101,13 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    match args.command {
-        Commands::Start => start_client(cfg_path, None, None).await,
-        _ => process_command(args.command, cfg_path).await,
-    }
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    runtime.block_on(async move {
+        match args.command {
+            Commands::Start => start_client(cfg_path, None, None).await,
+            _ => process_command(args.command, cfg_path).await,
+        }
+    })
 }
 
 async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
