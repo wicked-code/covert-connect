@@ -135,8 +135,18 @@ fn spawn_api(args: &[&str]) -> Result<()> {
     if !path.exists() {
         anyhow::bail!("executable not found at {}", path.display());
     }
-    let status = Command::new(&path)
-        .args(args)
+
+    let mut cmd = Command::new(&path);
+    cmd.args(args);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let status = cmd
         .status()
         .with_context(|| format!("failed to launch executable at {}", path.display()))?;
     if !status.success() {
