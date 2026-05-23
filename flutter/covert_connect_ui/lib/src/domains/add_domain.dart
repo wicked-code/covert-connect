@@ -186,18 +186,7 @@ class _Server extends StatelessWidget {
                 Expanded(
                   child: Text(host, overflow: TextOverflow.ellipsis, style: textStyle),
                 ),
-                if (ping != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text("ping: ", style: textStyle),
-                      SizedBox(
-                        width: 27,
-                        child: Center(child: Text("${ping! > 0 ? ping?.toStringAsFixed(0) : "..."}", style: pingStyle)),
-                      ),
-                      Text(" ms", style: textStyle),
-                    ],
-                  ),
+                if (ping != null) Text("${ping! > 0 ? ping?.toStringAsFixed(0) : "..."} ms", style: pingStyle),
               ],
             ),
           ),
