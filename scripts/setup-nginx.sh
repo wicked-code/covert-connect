@@ -25,13 +25,39 @@ else
 	echo "nginx installation complete."
 fi
 
+configure_selinux_nginx_proxy() {
+	if ! command -v getenforce >/dev/null 2>&1; then
+		return 0
+	fi
+
+	SELINUX_STATUS=$(getenforce 2>/dev/null || true)
+	if [ "$SELINUX_STATUS" = "Disabled" ]; then
+		return 0
+	fi
+
+	if ! command -v setsebool >/dev/null 2>&1; then
+		echo "SELinux is $SELINUX_STATUS, but setsebool was not found. Skipping httpd_can_network_connect setup."
+		return 0
+	fi
+
+	if command -v getsebool >/dev/null 2>&1 && getsebool httpd_can_network_connect 2>/dev/null | grep -Eq -- '--> on$'; then
+		echo "SELinux httpd_can_network_connect is already enabled."
+		return 0
+	fi
+
+	echo "Enabling SELinux httpd_can_network_connect for nginx proxy connections..."
+	sudo setsebool -P httpd_can_network_connect 1
+}
+
+configure_selinux_nginx_proxy
+
 SCRIPT_DIR=$( cd "$( dirname "$0" )" && pwd )
 cd $SCRIPT_DIR
 cd ..
 echo "pwd: $(pwd)"
-cargo build --release -p cc-server
+cargo build -p cc-server --profile release-prod
 
-NGINX_BLOCK=$(./target/release/cc-server -u -c /etc/covert-connect/server.yaml 2>&1 | awk 'found { print } /nginx config example:/ { found=1 }')
+NGINX_BLOCK=$(./target/release-prod/cc-server -u -c /etc/covert-connect/server.yaml 2>&1 | awk 'found { print } /nginx config example:/ { found=1 }')
 
 if [ -z "$NGINX_BLOCK" ]; then
 	echo "Failed to extract nginx config block from cc-server output."
@@ -54,6 +80,8 @@ if [ -f /etc/nginx/sites-available/default ]; then
 	NGINX_DEFAULT_CONF=/etc/nginx/sites-available/default
 elif [ -f /etc/nginx/conf.d/default.conf ]; then
 	NGINX_DEFAULT_CONF=/etc/nginx/conf.d/default.conf
+elif [ -f /etc/nginx/nginx.conf ]; then
+	NGINX_DEFAULT_CONF=/etc/nginx/nginx.conf
 else
 	echo "Could not find nginx default server config file."
 	exit 1
@@ -151,7 +179,12 @@ echo "Updated $NGINX_DEFAULT_CONF with generated location block."
 
 sudo nginx -t
 if command -v systemctl >/dev/null 2>&1; then
-	sudo systemctl reload nginx
+	if systemctl is-active --quiet nginx; then
+		sudo systemctl reload nginx
+	else
+		echo "nginx service is not active. Starting nginx..."
+		sudo systemctl start nginx
+	fi
 else
 	sudo nginx -s reload
 fi
@@ -221,6 +254,7 @@ if ! command -v certbot >/dev/null 2>&1; then
 		sudo apt-get update
 		sudo apt-get install -y certbot python3-certbot-nginx
 	elif command -v dnf >/dev/null 2>&1; then
+		sudo dnf install epel-release -y
 		sudo dnf install -y certbot python3-certbot-nginx
 	elif command -v yum >/dev/null 2>&1; then
 		sudo yum install -y certbot python3-certbot-nginx

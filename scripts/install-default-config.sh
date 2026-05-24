@@ -13,6 +13,8 @@ cp "$SCRIPT_DIR/../conf/default_server.yaml" "/etc/covert-connect/server.yaml"
 cd $SCRIPT_DIR
 cd ..
 echo "pwd: $(pwd)"
-cargo build --release -p cc-server
+cargo build -p cc-server --profile release-prod
 
-./target/release/cc-server -n -c "/etc/covert-connect/server.yaml"
+./target/release-prod/cc-server -n -c "/etc/covert-connect/server.yaml"
+
+sudo cp ./target/release-prod/cc-server /usr/local/bin/cc-server
