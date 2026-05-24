@@ -4,7 +4,7 @@ use std::process::Command;
 use anyhow::Result;
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
-use crate::{DefaultIf, is_ipv6_global};
+use crate::{DefaultIf, NoInterfaceFoundError, is_ipv6_global};
 
 pub fn find_default_if() -> Result<DefaultIf> {
     let hardware_ports_output = Command::new("networksetup").args(["-listallhardwareports"]).output()?;
@@ -63,7 +63,7 @@ pub fn find_default_if() -> Result<DefaultIf> {
         }
     }
 
-    anyhow::bail!("No default interface found")
+    Err(NoInterfaceFoundError.into())
 }
 
 fn get_dns_servers(device_name: &str) -> Result<Vec<IpAddr>> {

@@ -25,7 +25,7 @@ use tokio_rustls::{
 const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
 
 use crate::{streams::upgrade_stream::UpgradeStream, utils::cancellable_task::CancellableTask};
-use sys_net::find_default_if;
+use sys_net::{NoInterfaceFoundError, find_default_if};
 
 pub enum StreamType {
     TcpStream(TcpStream),
@@ -72,7 +72,13 @@ impl Egress {
     }
 
     pub async fn init(self: &Arc<Self>) -> Result<()> {
-        self.update().await?;
+        if let Err(err) = self.update().await {
+            if !err.is::<NoInterfaceFoundError>() {
+                return Err(err);
+            }
+            // it's ok if no outbound at start, egress will keep trying to find a suitable interface in background
+            tracing::warn!("No suitable default interface found");
+        }
 
         let self_clone = self.clone();
         self.update_task.spawn(|token| async move {

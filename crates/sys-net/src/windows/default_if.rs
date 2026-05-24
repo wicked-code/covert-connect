@@ -14,7 +14,7 @@ use windows::Win32::{
     Networking::WinSock::{AF_INET, AF_INET6, AF_UNSPEC, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6},
 };
 
-use crate::{DefaultIf, is_ipv6_global};
+use crate::{DefaultIf, NoInterfaceFoundError, is_ipv6_global};
 
 struct TableGuard(*mut MIB_IPFORWARD_TABLE2);
 impl Drop for TableGuard {
@@ -105,7 +105,7 @@ pub fn find_default_if() -> Result<DefaultIf> {
     let luid = match lowest_luid {
         Some(luid) => luid,
         None => {
-            anyhow::bail!("No suitable default interface found");
+            return Err(NoInterfaceFoundError.into());
         }
     };
 

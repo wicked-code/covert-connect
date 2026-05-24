@@ -4,7 +4,7 @@ use std::process::Command;
 use anyhow::Result;
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
-use crate::{DefaultIf, is_ipv6_global};
+use crate::{DefaultIf, NoInterfaceFoundError, is_ipv6_global};
 
 pub fn find_default_if() -> Result<DefaultIf> {
     let output = Command::new("ip").args(["route", "show", "default"]).output()?;
@@ -23,13 +23,13 @@ pub fn find_default_if() -> Result<DefaultIf> {
         }
     }
 
-    let default_if_name = default_if_name.ok_or_else(|| anyhow::anyhow!("No default route found"))?;
+    let default_if_name = default_if_name.ok_or_else(|| NoInterfaceFoundError)?;
 
     let system_interfaces = NetworkInterface::show()?;
     let itf = system_interfaces
         .into_iter()
         .find(|i| i.name == default_if_name)
-        .ok_or_else(|| anyhow::anyhow!("Default interface not found in system interfaces"))?;
+        .ok_or_else(|| NoInterfaceFoundError)?;
 
     let ipv4 = itf
         .addr

@@ -21,6 +21,10 @@ pub struct DefaultIf {
     pub dns: Vec<std::net::IpAddr>,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("No suitable default interface found")]
+pub struct NoInterfaceFoundError;
+
 fn is_ipv6_global(addr: Ipv6Addr) -> bool {
     // Exclude addresses that are strictly local or reserved
     !addr.is_loopback()
