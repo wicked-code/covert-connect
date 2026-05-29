@@ -79,15 +79,37 @@ fn client_executable_path() -> Result<PathBuf> {
 }
 
 fn sibling_executable_path(base_name: &str) -> Result<PathBuf> {
-    let dir = std::env::current_exe()?
-        .parent()
-        .context("tray exe has no parent directory")?
-        .to_path_buf();
     let name = if cfg!(windows) {
         format!("{base_name}.exe")
     } else {
         base_name.to_owned()
     };
+
+    let exe = std::env::current_exe()?;
+
+    // On macOS the tray ships as its own helper .app inside
+    //   /Contents/Library/LoginItems/CovertConnectTray.app/Contents/MacOS/cc-tray
+    // while the UI and service live at
+    //   /Contents/MacOS/
+    #[cfg(target_os = "macos")]
+    {
+        let mut outermost_app: Option<PathBuf> = None;
+        for ancestor in exe.ancestors() {
+            if ancestor.extension().map(|e| e == "app").unwrap_or(false) {
+                outermost_app = Some(ancestor.to_path_buf());
+            }
+        }
+        if let Some(parent_app) = outermost_app {
+            let macos_dir = parent_app.join("Contents/MacOS");
+            if macos_dir.is_dir() {
+                return Ok(macos_dir.join(name));
+            }
+        }
+    }
+
+    let dir = exe
+        .parent()
+        .context("tray exe has no parent directory")?;
     Ok(dir.join(name))
 }
 
@@ -123,11 +145,40 @@ fn spawn_ui(args: &[&str]) -> Result<()> {
     if !path.exists() {
         anyhow::bail!("executable not found at {}", path.display());
     }
-    Command::new(&path)
-        .args(args)
-        .spawn()
-        .with_context(|| format!("failed to launch executable at {}", path.display()))?;
-    Ok(())
+
+    #[cfg(target_os = "macos")]
+    if args.contains(&"/show") {
+        // Run Covert Connect.app bundle.
+        // It fixes activate and focus behavior if it already running.
+        let mut app_bundle: Option<PathBuf> = None;
+        for ancestor in path.ancestors() {
+            if ancestor.extension().map(|e| e == "app").unwrap_or(false) {
+                app_bundle = Some(ancestor.to_path_buf());
+            }
+        }
+
+        let mut cmd = Command::new("/usr/bin/open");
+        if let Some(bundle) = app_bundle {
+            cmd.arg("-a").arg(bundle);
+        } else {
+            cmd.arg(&path);
+        }
+        if !args.is_empty() {
+            cmd.arg("--args").args(args);
+        }
+        cmd.spawn()
+            .with_context(|| format!("failed to launch UI via `open` for {}", path.display()))?;
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Command::new(&path)
+            .args(args)
+            .spawn()
+            .with_context(|| format!("failed to launch executable at {}", path.display()))?;
+        Ok(())
+    }
 }
 
 fn spawn_api(args: &[&str]) -> Result<()> {

@@ -341,7 +341,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#!/bin/bash\n\nRUST_PROJECT_PATH=\"${SRCROOT}/../../../\"\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}/Contents/MacOS\"\n\nmkdir -p \"${DEST_DIR}\"\n\ncopy_and_sign_tool() {\n    local tool_name=\"$1\"\n    local src_path=\"\"\n    \n    if [ \"$CONFIGURATION\" = \"Debug\" ] || [ \"$CONFIGURATION\" = \"DebugDevelopment\" ]; then\n        src_path=\"${RUST_PROJECT_PATH}/target/debug/${tool_name}\"\n        SIGN_IDENTITY=\"-\"\n    else\n        src_path=\"${RUST_PROJECT_PATH}/target/release-prod/${tool_name}\"\n        SIGN_IDENTITY=\"-\" #uncomment when have signing \"${EXPANDED_CODE_SIGN_IDENTITY}\"\n    fi\n    \n    if [ -f \"${src_path}\" ]; then\n        cp -f \"${src_path}\" \"${DEST_DIR}/${tool_name}\"\n        chmod +x \"${DEST_DIR}/${tool_name}\"\n        \n        echo \"Copied ${tool_name}\"\n        \n        if [ -n \"${SIGN_IDENTITY}\" ]; then\n            echo \"Signing ${tool_name} with ${SIGN_IDENTITY}\"\n            codesign --force --timestamp --sign \"${SIGN_IDENTITY}\" \\\n                     \"${DEST_DIR}/${tool_name}\"\n        fi\n    else\n        echo \"error: ${tool_name} not found!\"\n        return 1\n    fi\n}\n\ncopy_and_sign_tool \"cc-client\"\ncopy_and_sign_tool \"cc-tray\"\n";
+			shellScript = "\"${SRCROOT}/Scripts/package_helpers.sh\"\n";
 		};
 		3399D490228B24CF009A79C7 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;

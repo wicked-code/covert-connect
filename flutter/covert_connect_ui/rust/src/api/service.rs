@@ -278,10 +278,36 @@ fn spawn_tray() -> Result<()> {
 
     let exe = std::env::current_exe()?;
     let dir = exe.parent().unwrap_or(exe.as_path());
-    let name = if cfg!(windows) { "cc-tray.exe" } else { "cc-tray" };
-    let path = dir.join(name);
-    Command::new(path).spawn()?;
-    Ok(())
+
+    #[cfg(target_os = "macos")]
+    {
+        // The tray is packaged as its own helper .app bundle inside
+        //   /Contents/Library/LoginItems/CovertConnectTray.app
+        // so that it has a distinct CFBundleIdentifier from the parent app
+        let helper_app = exe
+            .ancestors()
+            .find(|p| p.extension().map(|e| e == "app").unwrap_or(false))
+            .map(|app| app.join("Contents/Library/LoginItems/CovertConnectTray.app"));
+
+        if let Some(helper) = helper_app
+            && helper.exists()
+        {
+            Command::new("/usr/bin/open").arg("-a").arg(&helper).spawn()?;
+            return Ok(());
+        }
+
+        let path = dir.join("cc-tray");
+        Command::new(path).spawn()?;
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let name = if cfg!(windows) { "cc-tray.exe" } else { "cc-tray" };
+        let path = dir.join(name);
+        Command::new(path).spawn()?;
+        Ok(())
+    }
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
