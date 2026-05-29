@@ -107,9 +107,7 @@ fn sibling_executable_path(base_name: &str) -> Result<PathBuf> {
         }
     }
 
-    let dir = exe
-        .parent()
-        .context("tray exe has no parent directory")?;
+    let dir = exe.parent().context("tray exe has no parent directory")?;
     Ok(dir.join(name))
 }
 
@@ -171,14 +169,11 @@ fn spawn_ui(args: &[&str]) -> Result<()> {
         return Ok(());
     }
 
-    #[cfg(not(target_os = "macos"))]
-    {
-        Command::new(&path)
-            .args(args)
-            .spawn()
-            .with_context(|| format!("failed to launch executable at {}", path.display()))?;
-        Ok(())
-    }
+    Command::new(&path)
+        .args(args)
+        .spawn()
+        .with_context(|| format!("failed to launch executable at {}", path.display()))?;
+    Ok(())
 }
 
 fn spawn_api(args: &[&str]) -> Result<()> {
