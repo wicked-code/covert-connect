@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
     sync::{
-        Arc,
+        Arc, Weak,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -18,7 +18,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     client_info::{ClientInfo, ServerInfo},
     config::{ClientConfig, ServerConfig},
-    egress::Egress,
+    egress::{Egress, EgressListener},
     router::Router,
     router_table::RouterTable,
     tun::service::TunService,
@@ -67,9 +67,11 @@ impl Client {
         })
     }
 
-    pub async fn initialize(&self) -> Result<()> {
+    pub async fn initialize(self: &Arc<Self>) -> Result<()> {
         TunService::cleanup_at_start().await;
-        self.egress.init().await?;
+        self.egress
+            .init(Arc::downgrade(self) as Weak<dyn EgressListener>)
+            .await?;
         self.load_config().await?;
         self.update().await;
         self.initialized.store(true, Ordering::Relaxed);
@@ -194,6 +196,7 @@ impl Client {
     }
 
     pub async fn shutdown(&self) {
+        self.egress.shutdown().await;
         self.cancel_token.cancel();
         self.set_state_internal(ClientState::Off, false).await;
     }
@@ -208,10 +211,7 @@ impl Client {
 
                 // wait for state change
                 tokio::select! {
-                    _ = self.cancel_token.cancelled() => {
-                        self.egress.shutdown().await;
-                        return Ok(())
-                    },
+                    _ = self.cancel_token.cancelled() => return Ok(()),
                     _ = self.state_notify.notified() => {}
                 }
                 continue;
@@ -281,5 +281,12 @@ impl Client {
         if let Err(err) = cfg.save_to_file(self.cfg_path.clone()).await {
             tracing::error!("Failed to save config: {:?}", err);
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl EgressListener for Client {
+    async fn on_egress_updated(&self) {
+        self.update().await;
     }
 }

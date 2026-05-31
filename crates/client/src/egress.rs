@@ -9,7 +9,7 @@ use hickory_resolver::{
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 use tokio::{
     io,
@@ -32,6 +32,12 @@ pub enum StreamType {
     UpgradeStream(Box<UpgradeStream<TlsStream<TcpStream>>>),
 }
 
+/// Listener notified when the egress changes its outbound network interface or DNS.
+#[async_trait::async_trait]
+pub trait EgressListener: Send + Sync {
+    async fn on_egress_updated(&self);
+}
+
 pub struct Egress {
     outbound_ipv4: ArcSwap<SocketAddr>,
     outbound_ipv6: ArcSwap<SocketAddr>,
@@ -41,6 +47,7 @@ pub struct Egress {
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
     update_task: CancellableTask,
+    listener: parking_lot::Mutex<Option<Weak<dyn EgressListener>>>,
 }
 
 impl Egress {
@@ -68,10 +75,12 @@ impl Egress {
                 Resolver::builder_with_config(ResolverConfig::new(), TokioConnectionProvider::default()).build(),
             ),
             update_task: CancellableTask::new("EgressUpdateTask"),
+            listener: parking_lot::Mutex::new(None),
         })
     }
 
-    pub async fn init(self: &Arc<Self>) -> Result<()> {
+    pub async fn init(self: &Arc<Self>, listener: Weak<dyn EgressListener>) -> Result<()> {
+        *self.listener.lock() = Some(listener);
         if let Err(err) = self.update().await {
             if !err.is::<NoInterfaceFoundError>() {
                 return Err(err);
@@ -97,6 +106,7 @@ impl Egress {
     }
 
     pub async fn shutdown(&self) {
+        *self.listener.lock() = None;
         self.update_task.stop().await;
     }
 
@@ -237,7 +247,16 @@ impl Egress {
         self.outbound_dns.store(Arc::new(net_if.dns.clone()));
         self.update_resolver(net_if.dns, net_if.ipv4, net_if.ipv6).await?;
 
+        self.notify_listener().await;
+
         Ok(())
+    }
+
+    async fn notify_listener(&self) {
+        let listener = self.listener.lock().clone();
+        if let Some(listener) = listener.and_then(|weak| weak.upgrade()) {
+            listener.on_egress_updated().await;
+        }
     }
 
     async fn update_resolver(self: &Arc<Self>, dns_list: Vec<IpAddr>, if_ipv4: IpAddr, if_ipv6: IpAddr) -> Result<()> {
