@@ -136,6 +136,10 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
         return;
       }
 
+      if (!data!.text!.startsWith("http")) {
+        return;
+      }
+
       final uriData = data!.text!.tryParseUri();
       if (uriData != null) {
         _hostController.text = uriData.host;
