@@ -7,8 +7,12 @@ String exceptionToString(dynamic e) {
   if (e is PanicException) {
     return e.message;
   }
-  if (e.message != null) {
-    return e.message;
+  try {
+    if (e.message != null) {
+      return e.message;
+    }
+  } on NoSuchMethodError {
+    // Ignore
   }
 
   return e.toString();

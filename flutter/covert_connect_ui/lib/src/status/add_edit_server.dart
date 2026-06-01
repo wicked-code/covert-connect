@@ -32,7 +32,9 @@ class AddEditServerPage extends StatefulWidget {
 class _AddEditServerPageState extends State<AddEditServerPage> {
   ServerInfo? get server => widget.server;
 
+  int _protocolRequestGeneration = 0;
   ProtocolConfig? _protocol;
+
   bool _waitingProtocol = false;
 
   final TextEditingController _hostController = TextEditingController();
@@ -45,6 +47,7 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
   void _onChangedConnection() async {
     _hostError = "";
     _keyError = "";
+    final currentRequestGeneration = ++_protocolRequestGeneration;
 
     final key = _keyController.text;
     final host = _hostController.text;
@@ -59,10 +62,17 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
 
     _waitingProtocol = true;
     try {
-      _protocol = await di<RouterServiceBase>().getServerProtocol(host, key);
+      _updateIfMounted();
+
+      final protocol = await di<RouterServiceBase>().getServerProtocol(host, key);
+      if (currentRequestGeneration != _protocolRequestGeneration) return;
+      
+      _protocol = protocol;
     } catch (e) {
       final errMsg = exceptionToString(e);
       log("getServerProtocol error: $errMsg", level: Level.SEVERE.value);
+
+      if (currentRequestGeneration != _protocolRequestGeneration) return;
 
       final errMsgLower = errMsg.toLowerCase();
       if (["connection", "host", "peer"].any((word) => errMsgLower.contains(word))) {
@@ -72,10 +82,10 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
       } else {
         _keyError = errMsg;
       }
-
-      // TODO: ??? try reconnect after some delay
     } finally {
-      _waitingProtocol = false;
+      if (currentRequestGeneration == _protocolRequestGeneration) {
+        _waitingProtocol = false;
+      }
     }
 
     _updateIfMounted();
@@ -140,7 +150,7 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
         return;
       }
 
-      final uriData = data!.text!.tryParseUri();
+      final uriData = data.text!.tryParseUri();
       if (uriData != null) {
         _hostController.text = uriData.host;
         _keyController.text = uriData.key;
@@ -225,8 +235,8 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
               onChanged: _onChangedConnection,
             ),
             _Input(caption: "Name", controller: _nameController),
-            if (_protocol != null) protocolWidget,
-            if (_protocol == null && _waitingProtocol)
+            if (!_waitingProtocol) protocolWidget,
+            if (_waitingProtocol)
               Shimmer.fromColors(
                 enabled: _waitingProtocol,
                 baseColor: theme.colorScheme.onSurface.withValues(alpha: dark ? 0.3 : 0.7),

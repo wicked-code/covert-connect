@@ -73,14 +73,16 @@ class RouterServiceMock implements RouterServiceBase {
     }
 
     if (server == null) {
+      await Future.delayed(Duration(milliseconds: 1000 + Random().nextInt(4) * 1000));
       throw "Invalid host";
     }
 
     if (server.config.protocol.key != key) {
+      await Future.delayed(Duration(milliseconds: 1000 + Random().nextInt(4) * 1000));
       throw "Invalid key";
     }
 
-    await Future.delayed(Duration(milliseconds: 3000));
+    await Future.delayed(Duration(milliseconds: 500));
     return server.config.protocol;
   }
 
