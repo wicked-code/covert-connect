@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 extension AppCupertinoNavigator on BuildContext {
   Future<T?> cupertinoGoTo<T>(Widget page) {
-    return Navigator.of(this).push<T>(CupertinoPageRoute<T>(builder: (_) => page));
+    if (Platform.isIOS || Platform.isMacOS) {
+      return Navigator.of(this).push<T>(CupertinoPageRoute<T>(builder: (_) => page));
+    } else {
+      return slideGoTo<T>(page);
+    }
   }
 
-  void slideGoTo(Widget page, [RouteTransition transition = RouteTransition.fromRightToLeft]) {
-    Navigator.of(this).push(buildRouteSlide<void>(page, transition));
+  Future<T?> slideGoTo<T>(Widget page, [RouteTransition transition = RouteTransition.fromRightToLeft]) {
+    return Navigator.of(this).push<T>(buildRouteSlide<T>(page, transition));
   }
 }
 
@@ -21,28 +28,48 @@ Offset _offsetFromTransition(RouteTransition transition) {
   }
 }
 
+double _sizeAlignmentFromTransition(RouteTransition transition) {
+  switch (transition) {
+    case RouteTransition.fromLeftToRight:
+      return 1.0;
+    case RouteTransition.fromRightToLeft:
+      return -1.0;
+  }
+}
+
 Route<T> buildRouteSlide<T>(Widget page, RouteTransition transition) {
   return _CustomPageRouteBuilder(
-    transitionDuration: Duration(milliseconds: 500),
-    reverseTransitionDuration: Duration(milliseconds: 500),
+    transitionDuration: Durations.medium3,
+    reverseTransitionDuration: Durations.medium3,
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      var begin = _offsetFromTransition(transition);
+      final begin = _offsetFromTransition(transition);
       const end = Offset.zero;
-      final curve = CurveTween(curve: Curves.ease);
+      final curve = CurveTween(curve: Curves.easeInOut);
 
-      var tweenEnter = Tween(begin: begin, end: end).chain(curve);
+      final tweenEnter = Tween(begin: begin, end: end).chain(curve);
 
       return SlideTransition(position: animation.drive(tweenEnter), child: child);
     },
     prevTransitionBuilder: (context, animation, secondaryAnimation, bool allowSnapshotting, child) {
       const begin = Offset.zero;
-      var end = -_offsetFromTransition(transition);
-      final curve = CurveTween(curve: Curves.ease);
+      final end = -_offsetFromTransition(transition) * 2.0 / 3.0;
+      final curve = CurveTween(curve: Curves.easeInOut);
 
-      var tweenExit = Tween(begin: begin, end: end).chain(curve);
+      final tweenExit = Tween(begin: begin, end: end).chain(curve);
+      final tweenExitSize = Tween(begin: 1.0, end: 1.0 / 3.0).chain(curve);
 
-      return SlideTransition(position: secondaryAnimation.drive(tweenExit), child: child);
+      return SlideTransition(
+        position: secondaryAnimation.drive(tweenExit),
+        child: Align(
+          child: SizeTransition(
+            axis: Axis.horizontal,
+            axisAlignment: _sizeAlignmentFromTransition(transition),
+            sizeFactor: secondaryAnimation.drive(tweenExitSize),
+            child: child,
+          ),
+        ),
+      );
     },
   );
 }

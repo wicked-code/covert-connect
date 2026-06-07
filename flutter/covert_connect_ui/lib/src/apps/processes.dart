@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:covert_connect/src/apps/widgets/app_list.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
-import 'package:covert_connect/src/widgets/app_theme.dart';
 import 'package:covert_connect/src/widgets/input.dart';
 import 'package:flutter/material.dart';
 
@@ -129,7 +128,6 @@ class _ProcessPageState extends State<ProcessPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.appColors.scaffoldBackgroundSecondary,
       body: Padding(
         padding: EdgeInsets.all(8),
         child: Column(

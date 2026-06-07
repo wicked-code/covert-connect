@@ -77,7 +77,7 @@ class _OptionsPageState extends State<OptionsPage> {
                 AppIconButton(
                   asset: "assets/icons/log.svg",
                   assetColor: grayedColor,
-                  onPressed: () => context.slideGoTo(LogPage()),
+                  onPressed: () => context.cupertinoGoTo(LogPage()),
                 ),
               ],
             ),

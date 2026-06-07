@@ -6,9 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 typedef ThemeBuilder = Widget Function(BuildContext context, ThemeData theme, ThemeData darkTheme);
 
-const kScaffoldBackgroundColor = Color(0xfff3f3f3);
-const kScaffoldBackgroundColorDark = Color(0xff1C1C1C);
-
 class AppTheme extends StatelessWidget {
   const AppTheme({super.key, required this.builder});
 
@@ -28,7 +25,6 @@ class AppTheme extends StatelessWidget {
         surface: Color(0xB0FBFBFB),
         outline: Color(0x15000000),
       ),
-      extensions: const <ThemeExtension<dynamic>>[AppColors(scaffoldBackgroundSecondary: kScaffoldBackgroundColor)],
     );
     final themeDataDark = ThemeData(
       brightness: Brightness.dark,
@@ -42,17 +38,14 @@ class AppTheme extends StatelessWidget {
         surface: Color(0xC02C2B26),
         outline: Color(0x15FFFFFF),
       ),
-      extensions: const <ThemeExtension<dynamic>>[AppColors(scaffoldBackgroundSecondary: kScaffoldBackgroundColorDark)],
     );
     final textTheme = Theme.of(context).textTheme.merge(themeData.textTheme);
     final textThemeDark = Theme.of(context).textTheme.merge(themeDataDark.textTheme);
     final theme = themeData.copyWith(
       textTheme: GoogleFonts.interTextTheme(textTheme),
-      scaffoldBackgroundColor: kScaffoldBackgroundColor,
     );
     final darkTheme = themeDataDark.copyWith(
       textTheme: GoogleFonts.interTextTheme(textThemeDark),
-      scaffoldBackgroundColor: kScaffoldBackgroundColorDark,
     );
 
     if (isDesktop) {
@@ -61,34 +54,4 @@ class AppTheme extends StatelessWidget {
       return MobileTheme(theme: theme, darkTheme: darkTheme, builder: builder);
     }
   }
-}
-
-extension AppColorsExtension on BuildContext {
-  AppColors get appColors => Theme.of(this).extension<AppColors>()!;
-}
-
-@immutable
-class AppColors extends ThemeExtension<AppColors> {
-  const AppColors({required this.scaffoldBackgroundSecondary});
-
-  final Color? scaffoldBackgroundSecondary;
-
-  @override
-  AppColors copyWith({Color? scaffoldBackgroundSecondary}) {
-    return AppColors(scaffoldBackgroundSecondary: scaffoldBackgroundSecondary ?? this.scaffoldBackgroundSecondary);
-  }
-
-  @override
-  AppColors lerp(AppColors? other, double t) {
-    if (other is! AppColors) {
-      return this;
-    }
-    return AppColors(
-      scaffoldBackgroundSecondary: Color.lerp(scaffoldBackgroundSecondary, other.scaffoldBackgroundSecondary, t),
-    );
-  }
-
-  // Optional
-  @override
-  String toString() => 'AppColors(scaffoldBackgroundSecondary: $scaffoldBackgroundSecondary)';
 }

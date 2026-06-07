@@ -10,7 +10,6 @@ import 'package:covert_connect/src/utils/exception_helper.dart';
 import 'package:covert_connect/src/utils/svg.dart';
 import 'package:covert_connect/src/utils/uri.dart';
 import 'package:covert_connect/src/utils/utils.dart';
-import 'package:covert_connect/src/widgets/app_theme.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/toast.dart';
 import 'package:covert_connect/src/widgets/input.dart';
@@ -211,7 +210,6 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
 
     final protocolWidget = _Expandable(caption: "Protocol Settings", body: buildProtocolData());
     return Scaffold(
-      backgroundColor: context.appColors.scaffoldBackgroundSecondary,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
