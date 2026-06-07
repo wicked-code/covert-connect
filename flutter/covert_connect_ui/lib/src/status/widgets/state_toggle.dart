@@ -67,7 +67,11 @@ class _StateToggleState extends State<StateToggle> {
         loading: false,
         iconAnimationType: AnimationType.onHover,
         styleAnimationType: AnimationType.onHover,
-        style: ToggleStyle(borderColor: Colors.transparent, borderRadius: borderRadius),
+        style: ToggleStyle(
+          borderColor: Colors.transparent,
+          borderRadius: borderRadius,
+          backgroundColor: Colors.transparent,
+        ),
         allowUnlistedValues: true,
         indicatorAppearingDuration: Durations.short4,
         indicatorAppearingBuilder: (BuildContext context, double value, Widget indicator) {

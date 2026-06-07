@@ -92,7 +92,12 @@ class _ServerListState extends State<ServerList> {
 
     double hPadding = isDesktop ? 7 : 0;
 
-    Color rowColorEven = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
+    Color rowColorEven = darken(
+      colorScheme.surface,
+      0.95,
+      1.05,
+      theme.brightness,
+    ).withValues(alpha: theme.brightness == Brightness.dark ? 0.33: 0.57);
 
     const columnSizes = <int, TableColumnWidth>{
       0: FixedColumnWidth(40),
