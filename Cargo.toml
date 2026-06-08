@@ -48,7 +48,7 @@ aes-gcm = "0.10.3"
 aws-lc-rs = "1.6"
 chacha20poly1305 = "0.10.1"
 ring = "0.17"
-parking_lot = { version = "0.12.3", features = ["hardware-lock-elision"] }
+parking_lot = { version = "0.12.3", features = ["hardware-lock-elision", "serde"] }
 const_format = "0.2.32"
 num_enum = "0.7.2"
 socket2 = "0.6.3"

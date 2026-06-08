@@ -7,7 +7,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::client_info::ServerState;
+use crate::server_state::ServerState;
 
 pin_project! {
     /// A stream wrapper that add rnd padding  and encrypt data
@@ -48,7 +48,7 @@ where
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => {
                 if !*this.success {
-                    this.state.success_count.fetch_add(1, Ordering::Relaxed);
+                    this.state.success_count.lock().inc();
                     *this.success = true;
                 }
 

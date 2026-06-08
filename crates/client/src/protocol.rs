@@ -1,5 +1,5 @@
 use crate::{
-    client_info::ServerState, streams::monitor_stream::MonitorStream, utils::cancel_watcher::CancellableTaskHandle,
+    server_state::ServerState, streams::monitor_stream::MonitorStream, utils::cancel_watcher::CancellableTaskHandle,
 };
 use anyhow::{Result, bail};
 use bytes::{Buf, BufMut, BytesMut};
@@ -13,10 +13,7 @@ use crypto::{
 };
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use std::{
-    mem,
-    sync::{Arc, atomic::Ordering},
-};
+use std::{mem, sync::Arc};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     select,
@@ -278,7 +275,7 @@ pub async fn process_tunnel(
     };
 
     if !server.is_success() {
-        state.err_count.fetch_add(1, Ordering::Relaxed);
+        state.err_count.lock().inc();
     }
 
     result?;

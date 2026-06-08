@@ -177,8 +177,8 @@ impl ClientService {
                 state: ServerState {
                     rx_total: s.state.rx_total.load(Ordering::Relaxed),
                     tx_total: s.state.tx_total.load(Ordering::Relaxed),
-                    err_count: s.state.err_count.load(Ordering::Relaxed),
-                    success_count: s.state.success_count.load(Ordering::Relaxed),
+                    err_count: s.state.err_count.lock().value(),
+                    success_count: s.state.success_count.lock().value(),
                 },
                 config: s.config.clone().into(),
                 ip: s.connect_info.as_ref().map(|info| info.address.ip().to_string()),

@@ -351,8 +351,8 @@ async fn monitor_client() -> Result<()> {
                 },
                 srv.state.rx_total.load(Ordering::Relaxed),
                 srv.state.tx_total.load(Ordering::Relaxed),
-                srv.state.success_count.load(Ordering::Relaxed),
-                srv.state.err_count.load(Ordering::Relaxed),
+                srv.state.success_count.lock().value(),
+                srv.state.err_count.lock().value(),
                 if idx < servers.len() - 1 { "\n" } else { "" }
             );
         }
