@@ -1,4 +1,6 @@
+import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
+import 'package:covert_connect/src/services/option_service.dart';
 import 'package:covert_connect/src/status/widgets/traffic_graph.dart';
 import 'package:covert_connect/src/utils/text_utils.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,8 @@ class TrafficCell extends StatelessWidget {
     final showTxSpeed = !showNothing && rxChanged < txChanged;
     final msPassed = BigInt.from(kUpdateInterval.inMilliseconds);
     final msInSec = BigInt.from(1000);
+
+    final showTotal = di<OptionService>().showTotalTransfer;
     return Padding(
       padding: EdgeInsets.only(top: 6, bottom: 6),
       child: Column(
@@ -45,9 +49,9 @@ class TrafficCell extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(toDataSize(state.rxTotal), style: subStyle),
+              Text(showTotal ? toDataSize(state.rxTotal) : toDataSize((rxChanged * msInSec) ~/ msPassed, true), style: subStyle),
               Text("↓", style: rxChanged > BigInt.zero ? subStyle.merge(TextStyle(color: Colors.green)) : subStyle),
-              Text(toDataSize(state.txTotal), style: subStyle),
+              Text(showTotal ? toDataSize(state.txTotal) : toDataSize((txChanged * msInSec) ~/ msPassed, true), style: subStyle),
               Text("↑", style: rxChanged > BigInt.zero ? subStyle.merge(TextStyle(color: Colors.red)) : subStyle),
             ],
           ),

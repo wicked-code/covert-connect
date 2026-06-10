@@ -1,4 +1,7 @@
+import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/log/log.dart';
+import 'package:covert_connect/src/options/widgets/option_switch.dart';
+import 'package:covert_connect/src/services/option_service.dart';
 import 'package:covert_connect/src/utils/router.dart';
 import 'package:covert_connect/src/widgets/app_icon_button.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +24,11 @@ class _OptionsPageState extends State<OptionsPage> {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     _version = packageInfo.version;
     _build = packageInfo.buildNumber;
+    _updateIfMounted();
+  }
+
+  Future<void> _setShowTotalTransfer(bool value) async {
+    await di<OptionService>().setShowTotalTransfer(value);
     _updateIfMounted();
   }
 
@@ -55,18 +63,20 @@ class _OptionsPageState extends State<OptionsPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // TODO: ??? add more options here
-                // Row(
-                //   children: [
-                //     Expanded(child: Text("Start on boot", style: TextStyle(height: 1.0))),
-                //     OptionSwitch(
-                //       value: _autostart,
-                //       onToggle: setAutostart,
-                //     ),
-                //   ],
-                // ),
-                // SizedBox(height: 6),
-                // Text("The app will be launched after reboot", style: grayedTextStyle),
+                Row(
+                  children: [
+                    Expanded(child: Text("Show Total Transfer", style: TextStyle(height: 1.0))),
+                    OptionSwitch(
+                      value: di<OptionService>().showTotalTransfer,
+                      onToggle: (value) => _setShowTotalTransfer(value),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6),
+                Text(
+                  "Show the total transfer amount. Show current transfer speed if not enabled.",
+                  style: grayedTextStyle,
+                ),
               ],
             ),
             Expanded(child: Container()),

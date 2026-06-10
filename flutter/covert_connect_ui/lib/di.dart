@@ -1,3 +1,4 @@
+import 'package:covert_connect/src/services/option_service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
 import 'package:covert_connect/src/services/router_service_impl.dart';
 import 'package:covert_connect/src/services/router_service_mock.dart';
@@ -17,4 +18,11 @@ void setupDI() {
       dispose: (service) => service.dispose(),
     );
   }
+  di.registerSingletonAsync<OptionService>(
+    () async {
+      final service = OptionService();
+      await service.init();
+      return service;
+    },
+  );
 }

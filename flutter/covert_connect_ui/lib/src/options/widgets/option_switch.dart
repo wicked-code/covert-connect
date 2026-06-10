@@ -1,4 +1,3 @@
-import 'package:covert_connect/src/utils/color_utils.dart';
 import 'package:flutter/material.dart';
 
 class OptionSwitch extends StatefulWidget {
@@ -55,8 +54,10 @@ class _OptionSwitchState extends State<OptionSwitch> with SingleTickerProviderSt
 
     final activeColor = colorScheme.secondary;
     final activeToggleColor = colorScheme.onSecondary;
-    final inactiveToggleColor = colorScheme.outline;
-    final inactiveColor = darken(colorScheme.surface, 0.95, 1.05, theme.brightness).withValues(alpha: 0.57);
+    final inactiveToggleColor = colorScheme.onSecondary;
+    final inactiveColor = theme.brightness == Brightness.dark
+        ? colorScheme.outline
+        : colorScheme.outline.withValues(alpha: 0.33);
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -76,7 +77,7 @@ class _OptionSwitchState extends State<OptionSwitch> with SingleTickerProviderSt
               }
             },
             child: Opacity(
-              opacity: widget.disabled ? 0.6 : 1,
+              opacity: widget.disabled ? 0.7 : 1,
               child: Container(
                 width: 48,
                 height: 25,
