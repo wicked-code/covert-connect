@@ -1,6 +1,7 @@
 import 'package:covert_connect/di.dart';
 import 'package:covert_connect/src/rust/api/service.dart';
 import 'package:covert_connect/src/services/router_service.dart';
+import 'package:covert_connect/src/widgets/app_dialog.dart';
 import 'package:covert_connect/src/widgets/button.dart';
 import 'package:covert_connect/src/widgets/hover.dart';
 import 'package:flutter/material.dart';
@@ -62,57 +63,52 @@ class _AddAppDialogState extends State<AddAppDialog> {
       height: 1.0,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.63),
     );
-    return Center(
-      child: Container(
-        margin: EdgeInsets.all(16),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(8)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "${widget.selectedServer == null ? "Add" : "Edit"} application",
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return AppDialog(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "${widget.selectedServer == null ? "Add" : "Edit"} application",
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          RichText(
+            text: TextSpan(
+              style: textTheme.labelLarge?.copyWith(color: textTheme.labelLarge?.color?.withValues(alpha: 0.75)),
+              children: [
+                TextSpan(text: "select server for: "),
+                TextSpan(text: widget.app, style: thinTextStyle),
+              ],
             ),
-            RichText(
-              text: TextSpan(
-                style: textTheme.labelLarge?.copyWith(color: textTheme.labelLarge?.color?.withValues(alpha: 0.75)),
-                children: [
-                  TextSpan(text: "select server for: "),
-                  TextSpan(text: widget.app, style: thinTextStyle),
-                ],
+          ),
+          SizedBox(height: 16),
+          ListView(
+            shrinkWrap: true,
+            children: [
+              _Server(
+                host: kDirectHost,
+                selected: _selected == kDirectHost,
+                onSelect: () => setState(() => _selected = kDirectHost),
               ),
-            ),
-            SizedBox(height: 16),
-            ListView(
-              shrinkWrap: true,
-              children: [
-                _Server(
-                  host: kDirectHost,
-                  selected: _selected == kDirectHost,
-                  onSelect: () => setState(() => _selected = kDirectHost),
+              ...servers.map(
+                (server) => _Server(
+                  host: server.config.host,
+                  selected: _selected == server.config.host,
+                  onSelect: () => setState(() => _selected = server.config.host),
                 ),
-                ...servers.map(
-                  (server) => _Server(
-                    host: server.config.host,
-                    selected: _selected == server.config.host,
-                    onSelect: () => setState(() => _selected = server.config.host),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Row(
-              spacing: 8,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Button(label: "Cancel", onTap: () => Navigator.of(context).pop(false)),
-                Button(label: "Select", onTap: _selectServer, primary: true),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            spacing: 8,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Button(label: "Cancel", onTap: () => Navigator.of(context).pop(false)),
+              Button(label: "Select", onTap: _selectServer, primary: true),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -172,7 +172,7 @@ class _MenuItem extends StatelessWidget {
       builder: (context, setState) {
         var color = selected ? theme.colorScheme.primary : theme.colorScheme.surface;
         if (hovered) {
-          color = darken(color, 1.2, 1.2, theme.brightness);
+          color = darken(color, selected ? 1.3 : 0.77, 1.3, theme.brightness);
         }
         return MouseRegion(
           onExit: (value) => setState(() => hovered = false),
