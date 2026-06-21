@@ -21,6 +21,7 @@ class TextWithTooltip extends StatelessWidget {
 
         return Tooltip(
           message: useTooltip,
+          waitDuration: Durations.long4,
           child: Text(text, overflow: TextOverflow.ellipsis, style: style),
         );
       },

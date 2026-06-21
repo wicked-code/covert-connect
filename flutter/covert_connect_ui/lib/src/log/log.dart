@@ -35,6 +35,10 @@ class _LogPageState extends State<LogPage> {
 
   Timer? _updateTimer;
 
+  final prototypeLogItem = LogMessage(
+    message: LogMessageDto(timestamp: DateTime.now(), level: LogLevel.INFO, message: "Prototype message"),
+  );
+
   void _loadMore() async {
     if (_endReached || _loadMoreInProgress || _oldMessages.isEmpty) return;
 
@@ -63,7 +67,7 @@ class _LogPageState extends State<LogPage> {
       _oldMessages.addAll(messages.sublist(splitIndex));
       messages = messages.sublist(0, splitIndex);
     }
-    _newMessages.insertAll(0, messages.reversed);      
+    _newMessages.insertAll(0, messages.reversed);
 
     _updateTimer ??= Timer.periodic(kLogUpdateInterval, (timer) {
       _updateLog();
@@ -157,7 +161,8 @@ class _LogPageState extends State<LogPage> {
           center: _centerKey,
           controller: _scrollController,
           slivers: <Widget>[
-            SliverList(
+            SliverPrototypeExtentList(
+              prototypeItem: prototypeLogItem,
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
                 if (index < kLoadMoreThreshold) {
                   _loadMore();
@@ -165,8 +170,9 @@ class _LogPageState extends State<LogPage> {
                 return buildLogMessage(_oldMessages[index].line);
               }, childCount: _oldMessages.length),
             ),
-            SliverList(
+            SliverPrototypeExtentList(
               key: _centerKey,
+              prototypeItem: prototypeLogItem,
               delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
                 return buildLogMessage(_newMessages[index].line);
               }, childCount: _newMessages.length),

@@ -10,7 +10,7 @@ enum LogLevel {
 }
 
 class LogMessageDto {
-  LogMessageDto({required this.timestamp, required this.level, required this.message, required this.target});
+  LogMessageDto({required this.timestamp, required this.level, required this.message, this.target});
 
   final DateTime timestamp;
   final LogLevel level;

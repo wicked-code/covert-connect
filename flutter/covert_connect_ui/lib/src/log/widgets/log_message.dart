@@ -1,4 +1,5 @@
 import 'package:covert_connect/src/log/utils/ansi_utils.dart';
+import 'package:covert_connect/src/utils/text_width.dart';
 import 'package:flutter/material.dart';
 import 'package:covert_connect/src/log/utils/log_message.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -120,30 +121,65 @@ class LogMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isSmall = width < 430;
-    final brightness = Theme.of(context).brightness;
-    return SelectableText.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: DateFormat("HH:mm:ss${isSmall ? '.SSS' : ''} ").format(message.timestamp.toLocal()),
-            style: thinTextStyle.copyWith(color: Colors.grey[600]),
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
+    final textStyle = theme.textTheme.bodySmall?.copyWith(overflow: TextOverflow.ellipsis);
+
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final invertedBrightness = brightness == Brightness.dark ? Brightness.light : Brightness.dark;
+        final span = TextSpan(children: _parseAnsi(message.message, brightness), style: textStyle);
+        final spanWidth = calcSpanWidth(span, context);
+        final overflow = spanWidth > constraints.maxWidth;
+
+        return SelectionArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: DateFormat("HH:mm:ss.SSS ").format(message.timestamp.toLocal()),
+                      style: thinTextStyle.copyWith(color: Colors.grey[600]),
+                    ),
+                    TextSpan(
+                      text: message.level.name,
+                      style: TextStyle(
+                        color: switch (message.level) {
+                          LogLevel.INFO => basicColor(2, brightness),
+                          LogLevel.WARN => basicColor(3, brightness),
+                          LogLevel.ERROR => basicColor(1, brightness),
+                        },
+                      ),
+                    ),
+                  ],
+                  style: textStyle,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (!overflow) Text.rich(span, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (overflow)
+                Tooltip(
+                  margin: const EdgeInsets.all(8),
+                  richMessage: WidgetSpan(
+                    child: RichText(
+                      textWidthBasis: TextWidthBasis.longestLine,
+                      text: TextSpan(
+                        children: _parseAnsi(message.message, invertedBrightness),
+                        style: textStyle?.copyWith(color: theme.colorScheme.onPrimary),
+                      ),
+                    ),
+                  ),
+                  waitDuration: Durations.long4,
+                  child: Text.rich(span, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.start),
+                ),
+            ],
           ),
-          TextSpan(
-            text: "${message.level.name}${isSmall ? '\n' : ' '}",
-            style: TextStyle(
-              color: switch (message.level) {
-                LogLevel.INFO => basicColor(2, brightness),
-                LogLevel.WARN => basicColor(3, brightness),
-                LogLevel.ERROR => basicColor(1, brightness),
-              },
-            ),
-          ),
-          ..._parseAnsi(message.message, brightness),
-        ],
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+        );
+      },
     );
   }
 }
