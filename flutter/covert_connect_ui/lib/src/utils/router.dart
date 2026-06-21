@@ -28,12 +28,12 @@ Offset _offsetFromTransition(RouteTransition transition) {
   }
 }
 
-double _sizeAlignmentFromTransition(RouteTransition transition) {
+AlignmentGeometry _sizeAlignmentFromTransition(RouteTransition transition) {
   switch (transition) {
     case RouteTransition.fromLeftToRight:
-      return 1.0;
+      return Alignment.topRight;
     case RouteTransition.fromRightToLeft:
-      return -1.0;
+      return Alignment.topLeft;
   }
 }
 
@@ -64,7 +64,7 @@ Route<T> buildRouteSlide<T>(Widget page, RouteTransition transition) {
         child: Align(
           child: SizeTransition(
             axis: Axis.horizontal,
-            axisAlignment: _sizeAlignmentFromTransition(transition),
+            alignment: _sizeAlignmentFromTransition(transition),
             sizeFactor: secondaryAnimation.drive(tweenExitSize),
             child: child,
           ),
