@@ -25,6 +25,13 @@ class AppTheme extends StatelessWidget {
         surface: Color(0xB0FBFBFB),
         outline: Color(0x15000000),
       ),
+      tooltipTheme: const TooltipThemeData(
+        waitDuration: Durations.long4,
+        decoration: BoxDecoration(
+          color: Color(0xFA3B3933),
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+        ),
+      ),
     );
     final themeDataDark = ThemeData(
       brightness: Brightness.dark,
@@ -38,6 +45,13 @@ class AppTheme extends StatelessWidget {
         surface: Color(0xC02C2B26),
         outline: Color(0x15FFFFFF),
       ),
+      tooltipTheme: const TooltipThemeData(
+        waitDuration: Durations.long4,
+        decoration: BoxDecoration(
+          color: Color(0xF5F0F0F0),
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+        ),
+      ),
     );
     final textTheme = Theme.of(context).textTheme.merge(themeData.textTheme);
     final textThemeDark = Theme.of(context).textTheme.merge(themeDataDark.textTheme);
@@ -47,7 +61,6 @@ class AppTheme extends StatelessWidget {
     final darkTheme = themeDataDark.copyWith(
       textTheme: GoogleFonts.interTextTheme(textThemeDark),
     );
-
     if (isDesktop) {
       return DesktopTheme(theme: theme, darkTheme: darkTheme, builder: builder);
     } else {

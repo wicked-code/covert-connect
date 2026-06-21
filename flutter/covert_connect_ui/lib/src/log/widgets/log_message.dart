@@ -173,7 +173,6 @@ class LogMessage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  waitDuration: Durations.long4,
                   child: Text.rich(span, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.start),
                 ),
             ],
