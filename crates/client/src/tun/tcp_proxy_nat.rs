@@ -144,7 +144,7 @@ impl TcpProxyNat {
                         let endpoint = format!("{host}:{}", dst_addr.port());
 
                         match router
-                            .start_tunnel(stream, DataProtocol::Tcp, endpoint, session.src_addr)
+                            .start_tunnel(stream, DataProtocol::Tcp, &endpoint, session.src_addr)
                             .await
                         {
                             Ok(Some((stream, cancel_handle))) => {
@@ -160,7 +160,7 @@ impl TcpProxyNat {
                                     }
                                 };
                                 self_clone
-                                    .direct_transfer(stream, use_dst_addr, host, cancel_handle)
+                                    .direct_transfer(stream, use_dst_addr, &endpoint, cancel_handle)
                                     .await;
                             }
                             Ok(None) => {}
@@ -186,13 +186,13 @@ impl TcpProxyNat {
         self: &Arc<Self>,
         mut client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
-        host: String,
+        endpoint: &str,
         cancel_handle: CancellableTaskHandle,
     ) {
         let mut server = match self.egress.connect_tcp(target).await {
             Ok(stream) => stream,
             Err(err) => {
-                tracing::warn!("Direct connection to {} ({}) failed, err: {:?}", target, host, err);
+                tracing::warn!("Direct connection to {} failed, err: {:?}", endpoint, err);
                 return;
             }
         };
@@ -201,7 +201,7 @@ impl TcpProxyNat {
             _ = cancel_handle.token.cancelled() => {},
             result = tokio::io::copy_bidirectional(&mut client, &mut server) => {
                 if let Err(err) = result {
-                    tracing::warn!("Direct connection io error: {:?}, target: {} ({})", err, target, host);
+                    tracing::warn!("Direct io error: {:?}, target: {}", err, endpoint);
                 }
             }
         }

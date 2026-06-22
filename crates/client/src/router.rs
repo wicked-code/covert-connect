@@ -86,7 +86,8 @@ impl Router {
         let req_stream = TtfbStream::new(ttfb.clone());
 
         let rng = ChaCha20Rng::from_entropy();
-        self.start_tunnel_with_server(req_stream, DataProtocol::Tcp, domain.to_owned() + ":80", server, rng)
+        let endpoint = domain.to_owned() + ":80";
+        self.start_tunnel_with_server(req_stream, DataProtocol::Tcp, &endpoint, server, rng)
             .await?;
 
         Ok(ttfb.load(Ordering::Relaxed) as usize)
@@ -96,7 +97,7 @@ impl Router {
         &self,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         data_protocol: DataProtocol,
-        target_host: String,
+        target_host: &str,
         client_addr: SocketAddr,
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, CancellableTaskHandle)>> {
         let mut rng = ChaCha20Rng::from_entropy();
@@ -118,7 +119,7 @@ impl Router {
             Err(_) => (String::new(), String::from("unknown")),
         };
 
-        if let Some(server) = self.select_server(&target_host, &process_name, &mut rng) {
+        if let Some(server) = self.select_server(target_host, &process_name, &mut rng) {
             tracing::info!("{} connecting to {}{}", process_path, target_host, protocol_str);
             self.start_tunnel_with_server(client, data_protocol, target_host, server, rng)
                 .await?;
@@ -133,7 +134,7 @@ impl Router {
         &self,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         data_protocol: DataProtocol,
-        target_host: String,
+        target_host: &str,
         server: Arc<ServerContext>,
         rng: impl CryptoRng + Rng,
     ) -> Result<()> {

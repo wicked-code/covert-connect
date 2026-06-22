@@ -161,7 +161,7 @@ impl UdpNat {
                 } else {
                     DataProtocol::Udp
                 };
-                match router.start_tunnel(stream, data_protocol, endpoint, src_addr).await {
+                match router.start_tunnel(stream, data_protocol, &endpoint, src_addr).await {
                     Ok(Some((stream, cancel_handle))) => {
                         let use_dst_addr = match self_clone.egress.lookup_host(&host).await {
                             Ok(Some(ip)) => SocketAddr::new(ip, dst_addr.port()),
@@ -176,11 +176,11 @@ impl UdpNat {
                         };
                         if self_clone.is_icmp {
                             self_clone
-                                .direct_transfer_icmp(stream, use_dst_addr, host, cancel_handle)
+                                .direct_transfer_icmp(stream, use_dst_addr, &endpoint, cancel_handle)
                                 .await;
                         } else {
                             self_clone
-                                .direct_transfer(stream, use_dst_addr, host, cancel_handle)
+                                .direct_transfer(stream, use_dst_addr, &endpoint, cancel_handle)
                                 .await;
                         }
                     }
@@ -204,18 +204,13 @@ impl UdpNat {
         self: &Arc<Self>,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
-        host: String,
+        endpoint: &str,
         cancel_handle: CancellableTaskHandle,
     ) {
         let out_socket = match self.egress.bind_udp(target.is_ipv6()).await {
             Ok(socket) => socket,
             Err(err) => {
-                tracing::warn!(
-                    "Direct connection (UDP) to {} ({}) failed, err: {:?}",
-                    target,
-                    host,
-                    err
-                );
+                tracing::warn!("Direct connection (UDP) to {} failed, err: {:?}", endpoint, err);
                 return;
             }
         };
@@ -231,7 +226,7 @@ impl UdpNat {
                 Ok(SocketAddr::new(address, port))
             }) => {
                 if let Err(err) = result {
-                    tracing::warn!("Direct connection (UDP) io error: {:?}, target: {} ({})", err, target, host);
+                    tracing::warn!("Direct (UDP) io error: {:?}, target: {}", err, endpoint);
                 }
             }
         }
@@ -241,18 +236,17 @@ impl UdpNat {
         self: &Arc<Self>,
         client: impl AsyncWriteExt + Unpin + AsyncRead,
         target: SocketAddr,
-        host: String,
+        endpoint: &str,
         cancel_handle: CancellableTaskHandle,
     ) {
-        tracing::info!("Direct connection (ICMP) to {} ({})", target, host);
+        tracing::info!("Direct connection (ICMP) to {}", endpoint);
 
         let out_socket = match self.egress.connect_icmp(target).await {
             Ok(socket) => socket,
             Err(err) => {
                 tracing::warn!(
-                    "Direct connection (ICMP) to {} ({}) failed, err: {:?}",
-                    target,
-                    host,
+                    "Direct connection (ICMP) to {} failed, err: {:?}",
+                    endpoint,
                     err
                 );
                 return;
@@ -263,7 +257,7 @@ impl UdpNat {
             _ = cancel_handle.token.cancelled() => {},
             result = icmp_transfer(client, out_socket) => {
                 if let Err(err) = result {
-                    tracing::warn!("Direct connection (ICMP) io error: {:?}, target: {} ({})", err, target, host);
+                    tracing::warn!("Direct (ICMP) io error: {:?}, target: {}", err, endpoint);
                 }
             }
         }

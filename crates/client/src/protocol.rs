@@ -178,7 +178,7 @@ pub async fn process_tunnel(
     mut server: impl AsyncWriteExt + Unpin + AsyncRead,
     mut client: impl AsyncWriteExt + Unpin + AsyncRead,
     data_protocol: DataProtocol,
-    mut host: String,
+    host: &str,
     mut rng: impl CryptoRng + Rng,
     protocol: &ProtocolConfig,
     state: Arc<ServerState>,
@@ -192,6 +192,7 @@ pub async fn process_tunnel(
         ..
     } = protocol;
 
+    let mut host = host.to_string();
     match data_protocol {
         DataProtocol::Tcp => (),
         DataProtocol::Udp => host.insert(rng.gen_range(0..host.len() - 1), '!'),
