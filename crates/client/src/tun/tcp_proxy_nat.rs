@@ -165,7 +165,7 @@ impl TcpProxyNat {
                             }
                             Ok(None) => {}
                             Err(err) => {
-                                tracing::warn!("server io error: {:?}", err);
+                                tracing::warn!("server io error ({}): {:?}", endpoint, err);
                             }
                         }
 

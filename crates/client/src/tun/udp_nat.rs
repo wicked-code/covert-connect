@@ -187,7 +187,8 @@ impl UdpNat {
                     Ok(None) => {}
                     Err(err) => {
                         tracing::warn!(
-                            "server io error: {:?}, udp: src_addr={}, dst_addr={}",
+                            "server io error ({}): {:?}, udp: src_addr={}, dst_addr={}",
+                            endpoint,
                             err,
                             src_addr,
                             dst_addr
