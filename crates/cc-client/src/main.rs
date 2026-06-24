@@ -111,6 +111,8 @@ fn main() -> Result<()> {
 }
 
 async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
+    enable_ansi_support::enable_ansi_support().ok();
+    
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
@@ -330,6 +332,7 @@ pub(crate) fn find_config_path() -> Result<PathBuf> {
 
 async fn monitor_client() -> Result<()> {
     let client = connect_client_api().await?;
+    let mut max_servers = 0;
     loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -338,17 +341,25 @@ async fn monitor_client() -> Result<()> {
             }
             _ = tokio::time::sleep(Duration::from_millis(500)) => {}
         }
+
+        if max_servers > 0 {
+            print!("\r\x1b[{}F", max_servers * 2);
+        }
+
         let state = client.get_state(context::current()).await?;
-        println!("State: {:?}          ", state);
+        println!("\x1b[KState: {:?}          ", state);
         let servers = client.get_servers(context::current()).await?;
         for (idx, srv) in servers.iter().enumerate() {
             print!(
-                "{} ({}) In: {} \tOut: {} \tSuccess: {} \tErrors: {}                    {}",
+                "\x1b[K{} ({})\n",
                 srv.config.host,
                 match &srv.connect_info {
                     Some(info) => info.address.to_string(),
                     None => "not connected".to_string(),
                 },
+            );
+            print!(
+                "\x1b[K\tIn: {} \tOut: {} \tSuccess: {} \tErrors: {} {}",
                 srv.state.rx_total.load(Ordering::Relaxed),
                 srv.state.tx_total.load(Ordering::Relaxed),
                 srv.state.success_count.lock().value(),
@@ -356,7 +367,12 @@ async fn monitor_client() -> Result<()> {
                 if idx < servers.len() - 1 { "\n" } else { "" }
             );
         }
-        print!("\r\x1B[{}F", servers.len());
+        if max_servers > servers.len() {
+            for _ in servers.len()..max_servers {
+                println!("\n\n");
+            }
+        }
+        max_servers = servers.len();
     }
 
     Ok(())
