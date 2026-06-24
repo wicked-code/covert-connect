@@ -26,6 +26,11 @@ class ServerStateIndicator extends StatelessWidget {
       }
     } else if (server.state.errCount <= server.state.successCount) {
       color = Colors.green;
+    } else if (server.state.errCount <= BigInt.from(3) * server.state.successCount) {
+      final double t =
+          (server.state.errCount.toDouble() - server.state.successCount.toDouble()) /
+          (2 * server.state.successCount.toDouble());
+      color = Color.lerp(Colors.green, darken(Colors.yellow, 0.67, 0.9, theme.brightness), t)!;
     } else {
       color = darken(Colors.yellow, 0.67, 0.9, theme.brightness);
     }
