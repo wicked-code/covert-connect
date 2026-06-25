@@ -5,7 +5,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     sync::{
         Arc,
-        atomic::{AtomicU16, Ordering},
+        atomic::{AtomicU16, AtomicU64, Ordering},
     },
     time::Duration,
 };
@@ -25,7 +25,7 @@ use crate::{
     utils::{cancel_watcher::CancellableTaskHandle, cancellable_task::CancellableTask},
 };
 
-const MIN_NAT_PORT: u16 = 10000;
+const MIN_NAT_PORT: u16 = 2000;
 const MAX_NAT_PORT: u16 = 65535;
 const BIND_TIMEOUT: Duration = Duration::from_millis(1000);
 const MAX_BIND_ATTEMPTS: u32 = 15;
@@ -48,7 +48,7 @@ pub struct TcpProxyNat {
     closed_sessions: Mutex<Vec<TcpProxyClosedSession>>,
     session_closer: CancellableTask,
     ports: RwLock<FxHashMap<SocketAddr, u16>>,
-    port_index: AtomicU16,
+    port_index: AtomicU64,
     tcp_proxy_port: AtomicU16,
     dns_mapper: Arc<DnsMapper>,
     egress: Arc<Egress>,
@@ -61,7 +61,7 @@ impl TcpProxyNat {
             closed_sessions: Mutex::new(Vec::new()),
             session_closer: CancellableTask::new("TcpProxyNatSessionCloser"),
             ports: RwLock::new(FxHashMap::default()),
-            port_index: AtomicU16::new(MIN_NAT_PORT),
+            port_index: AtomicU64::new(0),
             tcp_proxy_port: AtomicU16::new(0),
             dns_mapper,
             egress,
@@ -246,7 +246,7 @@ impl TcpProxyNat {
     }
 
     fn get_new_port(&self) -> u16 {
-        MIN_NAT_PORT + self.port_index.fetch_add(1, Ordering::Relaxed) % (MAX_NAT_PORT - MIN_NAT_PORT)
+        MIN_NAT_PORT + (self.port_index.fetch_add(1, Ordering::Relaxed) % u64::from(MAX_NAT_PORT - MIN_NAT_PORT)) as u16
     }
 
     pub fn get_port(&self, src_addr: SocketAddr, dst_addr: SocketAddr, create_session: bool) -> Option<u16> {
