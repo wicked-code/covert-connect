@@ -111,6 +111,7 @@ fn main() -> Result<()> {
 }
 
 async fn process_command(command: Commands, cfg_path: PathBuf) -> Result<()> {
+    #[cfg(windows)]
     enable_ansi_support::enable_ansi_support().ok();
     
     tracing_subscriber::fmt()
