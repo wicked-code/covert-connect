@@ -32,13 +32,37 @@ class _ProcessPageState extends State<ProcessPage> {
         '/format:csv',
       ]);
       apps = _parseWindowsCsv(result.stdout as String);
-    } else {
-      final result = await Process.run('ps', ['-eo', 'pid,args']);
+    } else if (Platform.isMacOS) {
+      final result = await Process.run('ps', ['-axo', 'pid,comm']);
       apps = _parsePosix(result.stdout as String);
+    } else {
+      apps = await _getLinuxProcesses();
     }
 
     final seenPaths = <String>{};
     return apps.where((app) => seenPaths.add(app.path)).toList();
+  }
+
+  Future<List<AppInfo>> _getLinuxProcesses() async {
+    final List<AppInfo> results = [];
+    final procDir = Directory('/proc');
+
+    if (!procDir.existsSync()) return results;
+
+    for (final entry in procDir.listSync()) {
+      final pid = int.tryParse(entry.path.split('/').last);
+      if (pid == null) continue;
+
+      try {
+        final path = Link('${entry.path}/exe').resolveSymbolicLinksSync();
+        if (path.isNotEmpty) {
+          results.add(AppInfo(path: path, pid: pid));
+        }
+      } catch (_) {
+        // Skip processes we can't read (permissions, kernel threads, etc.).
+      }
+    }
+    return results;
   }
 
   List<AppInfo> _parseWindowsCsv(String output) {
@@ -66,12 +90,11 @@ class _ProcessPageState extends State<ProcessPage> {
     final List<AppInfo> results = [];
     final lines = output.trim().split('\n');
 
-    // Skip header line
-    for (var i = 1; i < lines.length; i++) {
-      final line = lines[i].trim();
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
       if (line.isEmpty) continue;
 
-      // Split by first space: [PID, Path+Args]
+      // Split by first space: [PID, Path]
       final firstSpace = line.indexOf(' ');
       if (firstSpace != -1) {
         final pidStr = line.substring(0, firstSpace).trim();
