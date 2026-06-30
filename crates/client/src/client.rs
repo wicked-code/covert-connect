@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
     sync::{
-        Arc, Weak,
+        Arc,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -18,13 +18,15 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     client_info::{ClientInfo, ServerInfo},
     config::{ClientConfig, ServerConfig},
-    egress::{Egress, EgressListener},
+    egress::Egress,
     router::Router,
     router_table::RouterTable,
     tun::service::TunService,
+    utils::cancellable_task::CancellableTask,
 };
 
 const DEFAULT_ERROR_RETRY_INTERVAL_SEC: u64 = 1;
+const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq)]
 pub enum ClientState {
@@ -47,6 +49,8 @@ pub struct Client {
     tun_service: Arc<TunService>,
     egress: Arc<Egress>,
 
+    update_task: CancellableTask,
+
     cfg_path: PathBuf,
 }
 
@@ -62,6 +66,7 @@ impl Client {
             initialized: AtomicBool::new(false),
             working: AtomicBool::new(false),
             router: Router::new(egress.clone()),
+            update_task: CancellableTask::new("update_connection_info"),
             egress,
             cfg_path,
         })
@@ -69,11 +74,10 @@ impl Client {
 
     pub async fn initialize(self: &Arc<Self>) -> Result<()> {
         TunService::cleanup_at_start().await;
-        self.egress
-            .init(Arc::downgrade(self) as Weak<dyn EgressListener>)
-            .await?;
+        self.egress.init().await?;
         self.load_config().await?;
         self.update().await;
+        self.check_servers_initialized().await;
         self.initialized.store(true, Ordering::Relaxed);
         Ok(())
     }
@@ -86,27 +90,27 @@ impl Client {
         self.info.get_direct_domains().await
     }
 
-    pub async fn set_domain(&self, domain: String, server_host: String) -> Result<()> {
+    pub async fn set_domain(self: &Arc<Self>, domain: String, server_host: String) -> Result<()> {
         self.info.set_domain(domain, server_host).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         Ok(())
     }
 
-    pub async fn remove_domain(&self, domain: String) -> Result<()> {
+    pub async fn remove_domain(self: &Arc<Self>, domain: String) -> Result<()> {
         self.info.remove_domain(&domain).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         Ok(())
     }
 
-    pub async fn set_app(&self, app: String, server_host: String) -> Result<()> {
+    pub async fn set_app(self: &Arc<Self>, app: String, server_host: String) -> Result<()> {
         self.info.set_app(app, server_host).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         Ok(())
     }
 
-    pub async fn remove_app(&self, app: String) -> Result<()> {
+    pub async fn remove_app(self: &Arc<Self>, app: String) -> Result<()> {
         self.info.remove_app(&app).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         Ok(())
     }
 
@@ -114,14 +118,14 @@ impl Client {
         *self.state.read().await
     }
 
-    pub async fn add_server(&self, config: ServerConfig) {
+    pub async fn add_server(self: &Arc<Self>, config: ServerConfig) {
         self.info.add_server(config, &self.egress).await;
-        self.update_and_safe().await;
+        self.update_and_save().await;
     }
 
-    pub async fn del_server(&self, host: &str) -> Result<()> {
+    pub async fn del_server(self: &Arc<Self>, host: &str) -> Result<()> {
         let srv_count = self.info.del_server(host).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         if srv_count == 0 {
             // turn off proxy if we have no servers
             self.set_state(ClientState::Off).await;
@@ -129,16 +133,16 @@ impl Client {
         Ok(())
     }
 
-    pub async fn set_enabled(&self, host: &str, value: bool) -> Result<()> {
+    pub async fn set_enabled(self: &Arc<Self>, host: &str, value: bool) -> Result<()> {
         self.info.set_enabled(host, value).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         // TODO: ??? terminate all connections
         Ok(())
     }
 
-    pub async fn update_server(&self, orig_host: &str, config: ServerConfig) -> Result<()> {
+    pub async fn update_server(self: &Arc<Self>, orig_host: &str, config: ServerConfig) -> Result<()> {
         self.info.update_server(orig_host, config, &self.egress).await?;
-        self.update_and_safe().await;
+        self.update_and_save().await;
         Ok(())
     }
 
@@ -196,6 +200,7 @@ impl Client {
     }
 
     pub async fn shutdown(&self) {
+        self.update_task.stop().await;
         self.egress.shutdown().await;
         self.cancel_token.cancel();
         self.set_state_internal(ClientState::Off, false).await;
@@ -241,9 +246,32 @@ impl Client {
         }
     }
 
-    async fn update_and_safe(&self) {
+    async fn update_and_save(self: &Arc<Self>) {
         self.update().await;
+        self.check_servers_initialized().await;
         self.save_config().await;
+    }
+
+    async fn check_servers_initialized(self: &Arc<Self>) {
+        if !self.info.has_uninitialized_servers().await || self.update_task.is_running() {
+            return;
+        }
+
+        tracing::warn!("not all servers are initialized");
+        let self_clone = self.clone();
+        self.update_task.spawn(|token| async move {
+            loop {
+                tokio::select! {
+                    _ = token.cancelled() => return,
+                    _ = tokio::time::sleep(UPDATE_INTERVAL) => {}
+                }
+                self_clone.update().await;
+                if !self_clone.info.has_uninitialized_servers().await {
+                    tracing::info!("all servers are initialized");
+                    return;
+                }
+            }
+        });
     }
 
     async fn update(&self) {
@@ -281,12 +309,5 @@ impl Client {
         if let Err(err) = cfg.save_to_file(self.cfg_path.clone()).await {
             tracing::error!("Failed to save config: {:?}", err);
         }
-    }
-}
-
-#[async_trait::async_trait]
-impl EgressListener for Client {
-    async fn on_egress_updated(&self) {
-        self.update().await;
     }
 }

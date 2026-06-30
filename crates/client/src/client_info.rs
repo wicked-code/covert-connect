@@ -175,6 +175,11 @@ impl ClientInfo {
         }
     }
 
+    pub async fn has_uninitialized_servers(&self) -> bool {
+        let servers = self.servers.read().await;
+        servers.iter().any(|s| s.connect_info.is_none())
+    }
+
     async fn new_connection_info(&self, config: &ServerConfig, egress: &Arc<Egress>) -> Option<ServerConnectInfo> {
         match ServerConnectInfo::new(&config.host, &config.protocol.key, egress).await {
             Ok(info) => Some(info),

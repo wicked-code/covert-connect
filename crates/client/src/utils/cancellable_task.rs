@@ -38,7 +38,7 @@ impl CancellableTask {
             }
         };
 
-        if self.handle.lock().is_some() {
+        if self.is_running() {
             tracing::error!("task {} is already running, second start ignored", self.name);
             return;
         }
@@ -47,6 +47,10 @@ impl CancellableTask {
         let task = tokio::spawn(task_fn(token.clone()));
 
         *self.handle.lock() = Some(TaskHandle { task, token });
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.handle.lock().as_ref().is_some_and(|h| !h.task.is_finished())
     }
 
     pub async fn stop(&self) {
