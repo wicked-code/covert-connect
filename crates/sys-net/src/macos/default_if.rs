@@ -46,6 +46,7 @@ pub fn find_default_if() -> Result<DefaultIf> {
             match ipv4 {
                 Some(ipv4) => {
                     return Ok(DefaultIf {
+                        if_index: itf.index,
                         ipv4,
                         ipv6: itf
                             .addr

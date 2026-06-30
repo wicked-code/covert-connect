@@ -16,6 +16,8 @@ pub use windows::*;
 pub struct DefaultIf {
     #[cfg(target_os = "linux")]
     pub if_name: String,
+    #[cfg(target_os = "macos")]
+    pub if_index: u32,
     pub ipv4: std::net::IpAddr,
     pub ipv6: std::net::IpAddr,
     pub dns: Vec<std::net::IpAddr>,

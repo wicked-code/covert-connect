@@ -37,6 +37,8 @@ pub struct Egress {
     outbound_ipv6: ArcSwap<SocketAddr>,
     #[cfg(target_os = "linux")]
     outbound_if_name: ArcSwap<String>,
+    #[cfg(target_os = "macos")]
+    outbound_if_index: ArcSwap<u32>,
     outbound_dns: ArcSwap<Vec<IpAddr>>,
     tls_cfg: Arc<rustls::ClientConfig>,
     resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
@@ -62,6 +64,8 @@ impl Egress {
             outbound_ipv6: ArcSwap::from_pointee(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)),
             #[cfg(target_os = "linux")]
             outbound_if_name: ArcSwap::from_pointee(String::new()),
+            #[cfg(target_os = "macos")]
+            outbound_if_index: ArcSwap::from_pointee(0),
             outbound_dns: ArcSwap::from_pointee(Vec::new()),
             tls_cfg: Arc::new(tls_cfg),
             resolver: ArcSwap::from_pointee(
@@ -135,6 +139,8 @@ impl Egress {
                 let if_name = self.outbound_if_name.load();
                 bind_socket_to_interface(&socket, if_name.as_str())?;
             }
+            #[cfg(target_os = "macos")]
+            bind_socket_to_interface(&socket, **self.outbound_if_index.load(), false)?;
             let stream = socket.connect(target).await?;
             if let Err(err) = stream.set_nodelay(true) {
                 tracing::warn!("failed to set TCP_NODELAY on outbound IPv4 stream: {:?}", err);
@@ -149,6 +155,8 @@ impl Egress {
                 let if_name = self.outbound_if_name.load();
                 bind_socket_to_interface(&socket, if_name.as_str())?;
             }
+            #[cfg(target_os = "macos")]
+            bind_socket_to_interface(&socket, **self.outbound_if_index.load(), true)?;
             let stream = socket.connect(target).await?;
             if let Err(err) = stream.set_nodelay(true) {
                 tracing::warn!("failed to set TCP_NODELAY on outbound IPv6 stream: {:?}", err);
@@ -170,6 +178,8 @@ impl Egress {
             let if_name = self.outbound_if_name.load();
             bind_socket_to_interface(&socket, if_name.as_str())?;
         }
+        #[cfg(target_os = "macos")]
+        bind_socket_to_interface(&socket, **self.outbound_if_index.load(), is_ipv6)?;
         Ok(socket)
     }
 
@@ -186,6 +196,8 @@ impl Egress {
             let if_name = self.outbound_if_name.load();
             bind_socket_to_interface(&socket, if_name.as_str())?;
         }
+        #[cfg(target_os = "macos")]
+        bind_socket_to_interface(&socket, **self.outbound_if_index.load(), target.is_ipv6())?;
 
         socket.bind(&outbound_address.into())?;
 
@@ -210,13 +222,19 @@ impl Egress {
         let net_if = find_default_if()?;
         #[cfg(target_os = "linux")]
         let current_if_name = self.outbound_if_name.load();
+        #[cfg(target_os = "macos")]
+        let current_if_index = **self.outbound_if_index.load();
         let net_if_changed =
             net_if.ipv4 != self.outbound_ipv4.load().ip() || net_if.ipv6 != self.outbound_ipv6.load().ip() || {
                 #[cfg(target_os = "linux")]
                 {
                     net_if.if_name != current_if_name.as_str()
                 }
-                #[cfg(not(target_os = "linux"))]
+                #[cfg(target_os = "macos")]
+                {
+                    net_if.if_index != current_if_index
+                }
+                #[cfg(not(any(target_os = "linux", target_os = "macos")))]
                 {
                     false
                 }
@@ -227,6 +245,8 @@ impl Egress {
             self.outbound_ipv6.store(Arc::new(SocketAddr::new(net_if.ipv6, 0)));
             #[cfg(target_os = "linux")]
             self.outbound_if_name.store(Arc::new(net_if.if_name.clone()));
+            #[cfg(target_os = "macos")]
+            self.outbound_if_index.store(Arc::new(net_if.if_index));
         } else {
             let prev_dns = self.outbound_dns.load().clone();
             if prev_dns.len() == net_if.dns.len() && prev_dns.iter().all(|ip| net_if.dns.contains(ip)) {
@@ -288,6 +308,23 @@ where
     }
 
     socket2::SockRef::from(socket).bind_device(Some(if_name.as_bytes()))
+}
+
+#[cfg(target_os = "macos")]
+fn bind_socket_to_interface<S>(socket: &S, if_index: u32, is_ipv6: bool) -> io::Result<()>
+where
+    S: std::os::fd::AsFd,
+{
+    let Some(if_index) = std::num::NonZeroU32::new(if_index) else {
+        return Ok(());
+    };
+
+    let socket = socket2::SockRef::from(socket);
+    if is_ipv6 {
+        socket.bind_device_by_index_v6(Some(if_index))
+    } else {
+        socket.bind_device_by_index_v4(Some(if_index))
+    }
 }
 
 fn is_invalid_address(ip: IpAddr) -> bool {
