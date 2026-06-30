@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 extension AppCupertinoNavigator on BuildContext {
   Future<T?> cupertinoGoTo<T>(Widget page) {
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS || Platform.isAndroid) {
       return Navigator.of(this).push<T>(CupertinoPageRoute<T>(builder: (_) => page));
     } else {
       return slideGoTo<T>(page);
