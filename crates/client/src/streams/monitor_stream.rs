@@ -48,7 +48,7 @@ where
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => {
                 if !*this.success {
-                    this.state.success_count.lock().inc();
+                    this.state.counter.lock().inc_success();
                     *this.success = true;
                 }
 

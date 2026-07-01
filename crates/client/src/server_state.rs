@@ -11,17 +11,24 @@ pub struct ServerState {
     pub rx_total: AtomicU64,
     pub tx_total: AtomicU64,
 
-    // connections with zero data or error returned from server
-    // aprox in last BUFFERED_COUNTER_SLOT_INTERVAL * BUFFERED_COUNTER_SLOT_COUNT seconds
-    pub err_count: Mutex<BufferedCounter>,
-    // connections with no zero data returned from server
-    // aprox in last BUFFERED_COUNTER_SLOT_INTERVAL * BUFFERED_COUNTER_SLOT_COUNT seconds
-    pub success_count: Mutex<BufferedCounter>,
+    // err_count: connections with zero data or error returned from server
+    // success_count: connections with non-zero data returned from server
+    // both aprox in last BUFFERED_COUNTER_SLOT_INTERVAL * BUFFERED_COUNTER_SLOT_COUNT seconds.
+    pub counter: Mutex<BufferedCounter>,
+}
+
+impl ServerState {
+    /// Locks the counter once and returns `(err, success)` values together.
+    pub fn counter_values(&self) -> (u64, u64) {
+        let counter = self.counter.lock();
+        (counter.err_value(), counter.success_value())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BufferedCounter {
-    slot: [u64; BUFFERED_COUNTER_SLOT_COUNT],
+    err_slot: [u64; BUFFERED_COUNTER_SLOT_COUNT],
+    success_slot: [u64; BUFFERED_COUNTER_SLOT_COUNT],
     current_slot: usize,
     #[serde(skip, default = "Instant::now")]
     current_slot_start: Instant,
@@ -30,7 +37,8 @@ pub struct BufferedCounter {
 impl Default for BufferedCounter {
     fn default() -> Self {
         Self {
-            slot: [0; BUFFERED_COUNTER_SLOT_COUNT],
+            err_slot: [0; BUFFERED_COUNTER_SLOT_COUNT],
+            success_slot: [0; BUFFERED_COUNTER_SLOT_COUNT],
             current_slot: 0,
             current_slot_start: Instant::now(),
         }
@@ -38,16 +46,30 @@ impl Default for BufferedCounter {
 }
 
 impl BufferedCounter {
-    pub fn inc(&mut self) {
+    fn rotate(&mut self) {
         if self.current_slot_start.elapsed().as_secs() >= BUFFERED_COUNTER_SLOT_INTERVAL as u64 {
             self.current_slot = (self.current_slot + 1) % BUFFERED_COUNTER_SLOT_COUNT;
-            self.slot[self.current_slot] = 0;
+            self.err_slot[self.current_slot] = 0;
+            self.success_slot[self.current_slot] = 0;
             self.current_slot_start = Instant::now();
         }
-        self.slot[self.current_slot] += 1;
     }
 
-    pub fn value(&self) -> u64 {
-        self.slot.iter().sum()
+    pub fn inc_err(&mut self) {
+        self.rotate();
+        self.err_slot[self.current_slot] += 1;
+    }
+
+    pub fn inc_success(&mut self) {
+        self.rotate();
+        self.success_slot[self.current_slot] += 1;
+    }
+
+    pub fn err_value(&self) -> u64 {
+        self.err_slot.iter().sum()
+    }
+
+    pub fn success_value(&self) -> u64 {
+        self.success_slot.iter().sum()
     }
 }

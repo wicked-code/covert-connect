@@ -173,16 +173,19 @@ impl ClientService {
             .get_servers()
             .await?
             .iter()
-            .map(|s| ServerInfo {
-                state: ServerState {
-                    rx_total: s.state.rx_total.load(Ordering::Relaxed),
-                    tx_total: s.state.tx_total.load(Ordering::Relaxed),
-                    err_count: s.state.err_count.lock().value(),
-                    success_count: s.state.success_count.lock().value(),
-                },
-                config: s.config.clone().into(),
-                ip: s.connect_info.as_ref().map(|info| info.address.ip().to_string()),
-                port: s.connect_info.as_ref().map(|info| info.address.port()),
+            .map(|s| {
+                let (err_count, success_count) = s.state.counter_values();
+                ServerInfo {
+                    state: ServerState {
+                        rx_total: s.state.rx_total.load(Ordering::Relaxed),
+                        tx_total: s.state.tx_total.load(Ordering::Relaxed),
+                        err_count,
+                        success_count,
+                    },
+                    config: s.config.clone().into(),
+                    ip: s.connect_info.as_ref().map(|info| info.address.ip().to_string()),
+                    port: s.connect_info.as_ref().map(|info| info.address.port()),
+                }
             })
             .collect();
 

@@ -276,7 +276,7 @@ pub async fn process_tunnel(
     };
 
     if !server.is_success() {
-        state.err_count.lock().inc();
+        state.counter.lock().inc_err();
     }
 
     result?;

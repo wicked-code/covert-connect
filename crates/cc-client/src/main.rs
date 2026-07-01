@@ -359,12 +359,13 @@ async fn monitor_client() -> Result<()> {
                     None => "not connected".to_string(),
                 },
             );
+            let (err_count, success_count) = srv.state.counter_values();
             print!(
                 "\x1b[K\tIn: {} \tOut: {} \tSuccess: {} \tErrors: {} {}",
                 srv.state.rx_total.load(Ordering::Relaxed),
                 srv.state.tx_total.load(Ordering::Relaxed),
-                srv.state.success_count.lock().value(),
-                srv.state.err_count.lock().value(),
+                success_count,
+                err_count,
                 if idx < servers.len() - 1 { "\n" } else { "" }
             );
         }
