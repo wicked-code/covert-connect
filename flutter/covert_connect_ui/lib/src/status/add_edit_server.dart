@@ -145,7 +145,7 @@ class _AddEditServerPageState extends State<AddEditServerPage> {
         return;
       }
 
-      if (!data!.text!.startsWith("http")) {
+      if (!data!.text!.startsWith("cc")) {
         return;
       }
 
