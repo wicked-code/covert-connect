@@ -186,7 +186,8 @@ impl Client {
         match proxy_state {
             ClientState::Off => {
                 self.tun_service.stop().await;
-                self.router.cancel_all().await;
+                self.router.cancel_all().await;                
+                self.info.clear_stats().await;
             }
             ClientState::Smart => {
                 self.router.set_no_direct(false);

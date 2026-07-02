@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, atomic::Ordering};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -225,6 +225,16 @@ impl ClientInfo {
 
     pub async fn get_servers(&self) -> Vec<ServerInfo> {
         self.servers.read().await.iter().cloned().collect()
+    }
+
+    pub async fn clear_stats(&self) {
+        let servers = self.servers.read().await;
+        for srv in servers.iter() {
+            let state = &srv.state;
+            state.counter.lock().clear();
+            state.rx_total.store(0, Ordering::Relaxed);
+            state.tx_total.store(0, Ordering::Relaxed);
+        }
     }
 }
 

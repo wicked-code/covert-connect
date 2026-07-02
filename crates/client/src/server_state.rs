@@ -72,4 +72,10 @@ impl BufferedCounter {
     pub fn success_value(&self) -> u64 {
         self.success_slot.iter().sum()
     }
+
+    pub fn clear(&mut self) {
+        self.err_slot.fill(0);
+        self.success_slot.fill(0);
+        self.current_slot_start = Instant::now();
+    }
 }
