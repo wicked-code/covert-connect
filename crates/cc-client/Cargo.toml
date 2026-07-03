@@ -30,10 +30,10 @@ windows = { version = "0.62.2", features = [
     "Win32_Security",
     "Win32_System_SystemServices",
 ] }
-windows-service = "0.7.0"
+windows-service = "0.8.1"
 enable-ansi-support = "0.3.1"
-sntpc = { version = "0.9.0", features = ["std"] }
-sntpc-net-tokio = "1.1.0"
+sntpc = { version = "0.10.1", features = ["std"] }
+sntpc-net-tokio = "1.2.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tikv-jemallocator.workspace = true

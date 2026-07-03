@@ -15,7 +15,6 @@ colored.workspace = true
 config.workspace = true
 is-terminal.workspace = true
 rand.workspace = true
-rand_chacha.workspace = true
 serde.workspace = true
 shellexpand.workspace = true
 tokio.workspace = true

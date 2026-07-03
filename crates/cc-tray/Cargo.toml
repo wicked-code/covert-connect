@@ -15,9 +15,9 @@ anyhow.workspace = true
 log = "0.4"
 
 auto-launch = "0.6.0"
-tray-icon = "0.22.1"
-tao = "0.35.0"
+tray-icon = "0.24.1"
+tao = "0.35.3"
 image = { version = "0.25", default-features = false, features = ["png"] }
 dark-light = "2.0.0"
 single-instance = "0.3.3"
-rfd = "0.15.4"
+rfd = "0.17.2"

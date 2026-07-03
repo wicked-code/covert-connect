@@ -15,7 +15,7 @@ use tokio::{
 };
 
 use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
+use rand::{SeedableRng, rngs::{StdRng, SysRng}};
 
 use crate::{
     egress::{Egress, StreamType},
@@ -85,7 +85,7 @@ impl Router {
         let ttfb = Arc::new(AtomicU64::new(0));
         let req_stream = TtfbStream::new(ttfb.clone());
 
-        let rng = ChaCha20Rng::from_entropy();
+        let rng = StdRng::try_from_rng(&mut SysRng).unwrap();
         let endpoint = domain.to_owned() + ":80";
         self.start_tunnel_with_server(req_stream, DataProtocol::Tcp, &endpoint, server, rng)
             .await?;
@@ -100,7 +100,7 @@ impl Router {
         target_host: &str,
         client_addr: SocketAddr,
     ) -> Result<Option<(impl AsyncWriteExt + Unpin + AsyncRead, CancellableTaskHandle)>> {
-        let mut rng = ChaCha20Rng::from_entropy();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
         let (protocol_str, search_protocol) = match data_protocol {
             DataProtocol::Tcp => (String::from(""), Protocol::TCP),
@@ -252,7 +252,7 @@ impl Router {
             100_usize.checked_div(unweighted_count)?
         };
 
-        let rnd_val = rng.gen_range(0..avr_weight * srv_count);
+        let rnd_val = rng.random_range(0..avr_weight * srv_count);
 
         let mut result = None;
         let mut cur_weight = 0_usize;

@@ -2,7 +2,7 @@
 use aws_lc_rs::aead::{AES_256_GCM, Aad, Algorithm, CHACHA20_POLY1305, LessSafeKey, NONCE_LEN, Nonce, UnboundKey};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 #[cfg(feature = "ring")]
 use ring::aead::{AES_256_GCM, Aad, Algorithm, CHACHA20_POLY1305, LessSafeKey, NONCE_LEN, Nonce, UnboundKey};
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,7 @@ impl<C> CipherBase<C>
 where
     C: GetAlgo,
 {
-    pub fn new(key: &[u8], mut rng: impl CryptoRng + RngCore) -> Self {
+    pub fn new(key: &[u8], mut rng: impl CryptoRng + Rng) -> Self {
         let unbound_key = UnboundKey::new(C::algo(), key).unwrap();
 
         let mut nonce = [0u8; NONCE_LEN];

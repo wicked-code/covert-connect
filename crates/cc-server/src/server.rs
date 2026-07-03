@@ -10,7 +10,7 @@ use crypto::{
 };
 use net_packet::MTU_DEFAULT;
 use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
+use rand::{SeedableRng, rngs::{StdRng, SysRng}};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     mem,
@@ -177,7 +177,7 @@ async fn start_tunnel(
         server_cipher,
         cfg.protocol.data_padding,
         cfg.protocol.encryption_limit,
-        ChaCha20Rng::from_entropy(),
+        StdRng::try_from_rng(&mut SysRng).unwrap(),
     );
 
     if is_udp {
@@ -332,9 +332,9 @@ pub async fn try_special_request(
     }
 
     // response with config
-    let mut rng = ChaCha20Rng::from_entropy();
-    let padding_begin: u16 = rng.gen_range(range.clone());
-    let padding_end: u16 = rng.gen_range(range);
+    let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
+    let padding_begin: u16 = rng.random_range(range.clone());
+    let padding_end: u16 = rng.random_range(range);
 
     let mut response_key = BytesMut::zeroed(key_size);
     kdf.derive_protocol_response_key(cfg.protocol.key.as_bytes(), &salt, &mut response_key)?;
@@ -454,12 +454,14 @@ async fn lookup_host_and_bind(host: &str, egress: &Egress) -> Result<(SocketAddr
 
 async fn terminate_slowly(stream: &mut TcpStream, cooldown: Range<u16>) {
     // avoid testing for required header size
-    let mut rng = ChaCha20Rng::from_entropy();
+    let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
-    let max_read: u16 = rng.r#gen();
-    let max_time_ms = rng.gen_range(cooldown) as u64;
+    let max_read: u16 = rng.random();
+    let max_time_ms = rng.random_range(cooldown) as u64;
 
-    let mut data = BytesMut::with_capacity(max_read as usize);
+    let max_read = max_read as usize;
+    let mut data = BytesMut::with_capacity(max_read);
+    data.resize(max_read, 0);
     timeout(Duration::from_millis(max_time_ms), stream.read_exact(&mut data))
         .await
         .ok();

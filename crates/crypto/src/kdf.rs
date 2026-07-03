@@ -5,7 +5,7 @@ use blake2::{Blake2b512, Digest};
 use hex_literal::hex;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
+use rand::{SeedableRng, rngs::{StdRng, SysRng}};
 use serde::{Deserialize, Serialize};
 
 #[repr(u8)]
@@ -75,7 +75,7 @@ impl Kdf {
     pub fn generate_new_key() -> String {
         let mut key_data = [0u8; KEY_LEN];
 
-        let mut rng = ChaCha20Rng::from_entropy();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
         rng.fill_bytes(&mut key_data);
 
         URL_SAFE_NO_PAD.encode(key_data)

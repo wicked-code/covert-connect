@@ -8,7 +8,6 @@ version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-axum.workspace = true
 hyper-util.workspace = true
 hyper.workspace = true
 serde.workspace = true
@@ -16,12 +15,10 @@ tokio.workspace = true
 tokio-util.workspace = true
 tarpc.workspace = true
 tokio-serde.workspace = true
-tower.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 chrono.workspace = true
 rand.workspace = true
-rand_chacha.workspace = true
 pin-project-lite.workspace = true
 bytes.workspace = true
 parking_lot.workspace = true
@@ -44,17 +41,16 @@ cc-server.workspace = true
 
 if-addrs = "0.15.0"
 toml = "1.1.2"
-#tun = {version = "0.8.6", features = ["async"]}
-tun = {git = "https://github.com/wicked-code/rust-tun", features = ["async"]}
+tun = {version = "0.8.13", features = ["async"]}
 
 futures-util = "0.3.32"
-arc-swap = "1.9.0"
+arc-swap = "1.9.2"
 net-route = "0.4.6"
 
-hickory-client = { version = "0.25", default-features = false }
-hickory-server = { version = "0.25", default-features = false }
-hickory-proto = { version = "0.25", default-features = false }
-hickory-resolver = { version = "0.25", default-features = false, features = ["webpki-roots"] }
+hickory-server = { version = "0.26", default-features = false }
+hickory-net = { version = "0.26", default-features = false }
+hickory-proto = { version = "0.26", default-features = false }
+hickory-resolver = { version = "0.26", default-features = false, features = ["webpki-roots"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61.2", features = [
@@ -64,18 +60,34 @@ windows-sys = { version = "0.61.2", features = [
 [features]
 aws_lc_rs = [
     "tokio-rustls/aws_lc_rs",
+    "hickory-server/tls-aws-lc-rs",
     "hickory-server/https-aws-lc-rs",
     "hickory-server/h3-aws-lc-rs",
+    "hickory-server/dnssec-aws-lc-rs",
     "hickory-proto/dnssec-aws-lc-rs",
-    "hickory-resolver/quic-aws-lc-rs",
+    "hickory-resolver/tls-aws-lc-rs",
     "hickory-resolver/https-aws-lc-rs",
+    "hickory-resolver/h3-aws-lc-rs",
+    "hickory-resolver/dnssec-aws-lc-rs",
+    "hickory-net/tls-aws-lc-rs",
+    "hickory-net/https-aws-lc-rs",
+    "hickory-net/h3-aws-lc-rs",
+    "hickory-net/dnssec-aws-lc-rs",
 ]
 default = ["rustls_ring"]
 rustls_ring = [
     "tokio-rustls/ring",
+    "hickory-server/tls-ring",
     "hickory-server/https-ring",
     "hickory-server/h3-ring",
+    "hickory-server/dnssec-ring",
     "hickory-proto/dnssec-ring",
-    "hickory-resolver/quic-ring",
+    "hickory-resolver/tls-ring",
     "hickory-resolver/https-ring",
+    "hickory-resolver/quic-ring",
+    "hickory-resolver/h3-ring",
+    "hickory-net/tls-ring",
+    "hickory-net/https-ring",
+    "hickory-net/h3-ring",
+    "hickory-net/dnssec-ring",
 ]

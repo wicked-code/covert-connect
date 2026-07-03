@@ -3,8 +3,8 @@ use bytes::{BufMut, BytesMut};
 use futures::{Future, ready};
 use net_packet::MAX_PACKET_SIZE;
 use pin_project_lite::pin_project;
-use rand::Rng;
-use rand_core::{CryptoRng, RngCore};
+use rand::{Rng, RngExt};
+use rand_core::{CryptoRng, Rng as RngCore};
 use std::{
     cmp,
     io::{self, ErrorKind},
@@ -171,7 +171,7 @@ where
             );
 
             if padding_max > 0 {
-                padding = this.rng.gen_range(0..padding_max);
+                padding = this.rng.random_range(0..padding_max);
             }
 
             this.write_buffer.put_u16(padding);
@@ -366,7 +366,7 @@ mod tests {
     use anyhow::Result;
     use bytes::{BufMut, BytesMut};
     use rand::prelude::*;
-    use rand_chacha::ChaCha20Rng;
+    use rand::{SeedableRng, rngs::{StdRng, SysRng}};
     use std::{
         cmp::min,
         io,
@@ -424,7 +424,7 @@ mod tests {
 
         let pass = "QrD15a25tK0wVXdnlECwyNBemc6yLsa4iYnf1vRBx7A";
         let salt = "QrD15a25tK0wVXdnlECwyNBemc6yLsa4iYnf1vRBx5A".as_bytes();
-        let rng = ChaCha20Rng::from_entropy();
+        let rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
         let (read_cipher, write_cipher) = new_client_server(CipherType::Aes256Gcm, Kdf::Blake3, pass, &salt).unwrap();
 
@@ -466,7 +466,7 @@ mod tests {
         assert_eq!(stream.read_u128().await.unwrap(), u128val);
 
         // uneven read write chunks
-        let mut rng = ChaCha20Rng::from_entropy();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
         let data_size = 4096;
         let mut data = BytesMut::zeroed(data_size);

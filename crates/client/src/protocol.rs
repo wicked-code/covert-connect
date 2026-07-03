@@ -12,7 +12,7 @@ use crypto::{
     stream::EncryptedStream,
 };
 use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
+use rand::{SeedableRng, rngs::{StdRng, SysRng}};
 use std::{mem, sync::Arc};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
@@ -37,7 +37,7 @@ pub async fn get_server_protocol(
 
     let kdf = Kdf::Argon2;
     let cipher_type = CipherType::Aes256Gcm;
-    let mut rng = ChaCha20Rng::from_entropy();
+    let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
 
     // prepare header
     let tag_size = cipher_type.tag_size();
@@ -70,7 +70,7 @@ pub async fn get_server_protocol(
     // create first packet
     packet.put(header_cipher_aes.nonce());
 
-    let padding_size = rng.gen_range(MIN_GET_PROTOCOL_HEADER_PADDING..MAX_GET_PROTOCOL_HEADER_PADDING);
+    let padding_size = rng.random_range(MIN_GET_PROTOCOL_HEADER_PADDING..MAX_GET_PROTOCOL_HEADER_PADDING);
     packet.put(salt.as_ref());
     packet.put_u16(padding_size);
 
@@ -195,8 +195,8 @@ pub async fn process_tunnel(
     let mut host = host.to_string();
     match data_protocol {
         DataProtocol::Tcp => (),
-        DataProtocol::Udp => host.insert(rng.gen_range(0..host.len() - 1), '!'),
-        DataProtocol::Icmp => host.insert(rng.gen_range(0..host.len() - 1), '~'),
+        DataProtocol::Udp => host.insert(rng.random_range(0..host.len() - 1), '!'),
+        DataProtocol::Icmp => host.insert(rng.random_range(0..host.len() - 1), '~'),
     };
 
     // prepare header
@@ -229,7 +229,7 @@ pub async fn process_tunnel(
     // create first packet
     packet.put(header_cipher.nonce());
 
-    let padding_size = rng.gen_range(header_padding.start..header_padding.end);
+    let padding_size = rng.random_range(header_padding.start..header_padding.end);
     packet.put(salt.as_ref());
     packet.put_u16(padding_size);
     packet.put_u8((host.len() - MIN_HOST_LEN) as u8);

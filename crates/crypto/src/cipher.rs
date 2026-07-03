@@ -1,7 +1,7 @@
 use super::kdf::Kdf;
 use anyhow::Result;
 use bytes::BytesMut;
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 
 #[cfg(any(feature = "aws_lc_rs", feature = "ring"))]
 mod ring_like_crypto;
@@ -23,7 +23,7 @@ pub enum Cipher {
 
 impl Cipher {
     #[allow(clippy::useless_conversion)]
-    pub fn new(cipher: CipherType, key: &[u8], rng: impl CryptoRng + RngCore) -> Self {
+    pub fn new(cipher: CipherType, key: &[u8], rng: impl CryptoRng + Rng) -> Self {
         match cipher {
             CipherType::Aes256Gcm => Cipher::Aes256Gcm(CipherBase::new(key, rng).into()),
             CipherType::ChaCha20Poly1305 => Cipher::ChaCha20Poly1305(CipherBase::new(key, rng).into()),

@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use rand::prelude::*;
-use rand_chacha::ChaCha20Rng;
+use rand::{SeedableRng, rngs::{StdRng, SysRng}};
 use std::{
     net::{IpAddr, Ipv4Addr},
     sync::{
@@ -41,12 +41,12 @@ impl IpRecord {
 
 impl DnsMapper {
     pub fn new() -> Arc<Self> {
-        let mut rng = ChaCha20Rng::from_entropy();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
         Arc::new(Self {
             dns_lru: Mutex::new(DnsLRU::new(DNS_LRU_MAX_CAPACITY)),
             // safe for use 198.18.0.0/15 (For use in benchmark tests of network interconnect devices)
             base_ip: Ipv4Addr::new(198, 18, 0, 0),
-            address_index: AtomicU32::new(rng.gen_range(0..MAX_IP_RANGE)),
+            address_index: AtomicU32::new(rng.random_range(0..MAX_IP_RANGE)),
             default_ttl: DEFAULT_TTL,
         })
     }

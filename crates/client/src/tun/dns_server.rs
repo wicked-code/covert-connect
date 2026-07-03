@@ -1,14 +1,14 @@
 use crate::tun::dns_mapper::DnsMapper;
 use anyhow::{Result, anyhow, bail};
+use hickory_net::{xfer::Protocol as HickoryProtocol, runtime::Time};
 use hickory_proto::{
-    op::{Header, LowerQuery, MessageType, OpCode, ResponseCode},
+    op::{Header, HeaderCounts, LowerQuery, MessageType, Metadata, OpCode, ResponseCode},
     rr::{Name, RData, Record, RecordType},
-    xfer::Protocol as HickoryProtocol,
 };
 use hickory_server::{
-    ServerFuture,
-    authority::MessageResponseBuilder,
+    server::Server,
     server::{Request, RequestHandler, ResponseHandler, ResponseInfo},
+    zone_handler::MessageResponseBuilder,
 };
 use parking_lot::Mutex;
 use std::{
@@ -21,6 +21,7 @@ use sys_process::Protocol as ProcessProtocol;
 use sys_process::process_path_by_local_addr;
 use tokio::net::{TcpListener, UdpSocket};
 
+const DEFAULT_STREAM_BUFFER_SIZE: usize = 32;
 static DEFAULT_DNS_SERVER_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone)]
@@ -30,35 +31,36 @@ struct DnsHandler {
 
 pub struct DnsServer {
     dns_mapper: Arc<DnsMapper>,
-    server: Mutex<Option<ServerFuture<DnsHandler>>>,
+    server: Mutex<Option<Server<DnsHandler>>>,
 }
 
 impl DnsHandler {
     async fn handle<H: ResponseHandler>(&self, request: &Request, mut response_handle: H) -> Result<ResponseInfo> {
-        if request.op_code() != OpCode::Query {
-            bail!("invalid OP code: {}", request.op_code());
+        let metadata = request.request_info()?.metadata;
+        if metadata.op_code != OpCode::Query {
+            bail!("invalid OP code: {}", metadata.op_code);
         }
 
-        if request.message_type() != MessageType::Query {
-            bail!("invalid message type: {}", request.message_type());
+        if metadata.message_type != MessageType::Query {
+            bail!("invalid message type: {}", metadata.message_type);
         }
 
         // ignore multiple queries
-        let query = request.queries().first().ok_or_else(|| anyhow!("no query"))?;
+        let query = request.queries.queries().first().ok_or_else(|| anyhow!("no query"))?;
 
         let builder = MessageResponseBuilder::from_message_request(request);
-        let mut header = Header::response_from_request(request.header());
+        let mut response_metadata = Metadata::response_from_request(metadata);
 
         Ok(match query.query_type() {
             RecordType::AAAA => {
                 // IPv6 support just adds complexity and has no any additional value
-                header.set_authoritative(true);
+                response_metadata.authoritative = true;
 
-                let response = builder.build_no_records(header);
+                let response = builder.build_no_records(response_metadata);
                 response_handle.send_response(response).await?
             }
             RecordType::A => {
-                header.set_authoritative(true);
+                response_metadata.authoritative = true;
 
                 let ip_record = self
                     .dns_mapper
@@ -73,19 +75,19 @@ impl DnsHandler {
                         .as_secs() as u32,
                     RData::A(ip_record.ip.into()),
                 )];
-                let response = builder.build(header, &records, &[], &[], &[]);
+                let response = builder.build(response_metadata, &records, &[], &[], &[]);
                 response_handle.send_response(response).await?
             }
             RecordType::PTR => {
-                header.set_authoritative(true);
+                response_metadata.authoritative = true;
 
-                let response = builder.build_no_records(header);
+                let response = builder.build_no_records(response_metadata);
                 response_handle.send_response(response).await?
             }
             RecordType::SVCB => {
-                header.set_authoritative(true);
+                response_metadata.authoritative = true;
 
-                let response = builder.build_no_records(header);
+                let response = builder.build_no_records(response_metadata);
                 response_handle.send_response(response).await?
             }
             _ => self.forward_to_upstream(query, response_handle).await?,
@@ -112,7 +114,7 @@ impl DnsHandler {
 
 #[async_trait::async_trait]
 impl RequestHandler for DnsHandler {
-    async fn handle_request<H: ResponseHandler>(&self, request: &Request, response_handle: H) -> ResponseInfo {
+    async fn handle_request<R: ResponseHandler, T: Time>(&self, request: &Request, response_handle: R) -> ResponseInfo {
         self.handle(request, response_handle).await.unwrap_or_else(|e| {
             let from = match process_path_by_local_addr(
                 request.src(),
@@ -131,9 +133,16 @@ impl RequestHandler for DnsHandler {
             };
 
             tracing::error!("dns request from {}, error: {}", from, e);
-            let mut h = Header::new();
-            h.set_response_code(ResponseCode::ServFail);
-            h.into()
+            let mut metadata = Metadata::new(
+                request.metadata.id,
+                MessageType::Response,
+                request.metadata.op_code,
+            );
+            metadata.response_code = ResponseCode::ServFail;
+            ResponseInfo::from(Header {
+                metadata,
+                counts: HeaderCounts::default(),
+            })
         })
     }
 }
@@ -160,7 +169,7 @@ impl DnsServer {
         let handler = DnsHandler {
             dns_mapper: self.dns_mapper.clone(),
         };
-        let mut s = ServerFuture::new(handler);
+        let mut s = Server::new(handler);
 
         let mut has_server = UdpSocket::bind(SocketAddr::new(IpAddr::V4(addr), 53))
             .await
@@ -177,7 +186,7 @@ impl DnsServer {
             .await
             .map(|x| {
                 tracing::info!("TCP dns server listening on: {}", addr);
-                s.register_listener(x, DEFAULT_DNS_SERVER_TIMEOUT);
+                s.register_listener(x, DEFAULT_DNS_SERVER_TIMEOUT, DEFAULT_STREAM_BUFFER_SIZE);
             })
             .inspect_err(|x| {
                 tracing::error!("failed to listen TCP DNS server on {}: {}", addr, x);

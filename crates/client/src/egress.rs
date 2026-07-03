@@ -1,10 +1,10 @@
 use anyhow::Result;
 use arc_swap::ArcSwap;
-use hickory_proto::xfer::Protocol as DnsProtocol;
+use hickory_net::runtime::TokioRuntimeProvider;
 use hickory_resolver::{
-    Resolver,
-    config::{NameServerConfig, ResolverConfig},
-    name_server::TokioConnectionProvider,
+    TokioResolver,
+    config::{CLOUDFLARE, GOOGLE, ResolverConfig, ServerGroup},
+    lookup_ip::LookupIp,
 };
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
@@ -32,6 +32,11 @@ pub enum StreamType {
     UpgradeStream(Box<UpgradeStream<TlsStream<TcpStream>>>),
 }
 
+pub struct Resolver {
+    local: Option<TokioResolver>,
+    fallback: Vec<TokioResolver>,
+}
+
 pub struct Egress {
     outbound_ipv4: ArcSwap<SocketAddr>,
     outbound_ipv6: ArcSwap<SocketAddr>,
@@ -41,7 +46,7 @@ pub struct Egress {
     outbound_if_index: ArcSwap<u32>,
     outbound_dns: ArcSwap<Vec<IpAddr>>,
     tls_cfg: Arc<rustls::ClientConfig>,
-    resolver: ArcSwap<Resolver<TokioConnectionProvider>>,
+    resolver: ArcSwap<Resolver>,
     update_task: CancellableTask,
 }
 
@@ -68,9 +73,7 @@ impl Egress {
             outbound_if_index: ArcSwap::from_pointee(0),
             outbound_dns: ArcSwap::from_pointee(Vec::new()),
             tls_cfg: Arc::new(tls_cfg),
-            resolver: ArcSwap::from_pointee(
-                Resolver::builder_with_config(ResolverConfig::new(), TokioConnectionProvider::default()).build(),
-            ),
+            resolver: ArcSwap::from_pointee(Resolver::new(None)),
             update_task: CancellableTask::new("EgressUpdateTask"),
         })
     }
@@ -261,38 +264,26 @@ impl Egress {
     }
 
     async fn update_resolver(self: &Arc<Self>, dns_list: Vec<IpAddr>, if_ipv4: IpAddr, if_ipv6: IpAddr) -> Result<()> {
-        let mut config = ResolverConfig::new();
+        let valid_list = dns_list.into_iter().filter(|ip| !is_invalid_address(*ip)).collect::<Vec<_>>();
+        let local_config = if valid_list.is_empty() {
+            None
+        } else {
+            Some(with_bind_addr(
+                ResolverConfig::udp_and_tcp(&ServerGroup {
+                    ips: &valid_list,
+                    server_name: "",
+                    path: "/dns-query",
+                }),
+                if_ipv4,
+                if_ipv6,
+            ))
+        };
 
-        for dns_ip in dns_list {
-            if is_invalid_address(dns_ip) {
-                tracing::warn!("skipping invalid IF DNS server: {}", dns_ip);
-                continue;
-            }
+        let mut resolver = Resolver::new(local_config);
+        resolver.add_fallback(&GOOGLE, if_ipv4, if_ipv6);
+        resolver.add_fallback(&CLOUDFLARE, if_ipv4, if_ipv6);
 
-            let mut ns = NameServerConfig::new(SocketAddr::new(dns_ip, 53), DnsProtocol::Udp);
-            // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-            ns.bind_addr = Some(SocketAddr::new(if dns_ip.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
-            config.add_name_server(ns);
-        }
-
-        // fallback to public dns if we can't get dns from IF
-        // TODO: ??? move to options, same as in outbound.rs
-        let dns_ips = [
-            ("8.8.8.8:443".parse().unwrap(), "dns.google"),
-            ("1.1.1.1:443".parse().unwrap(), "cloudflare-dns.com"),
-        ];
-
-        for dns_ip in dns_ips {
-            let mut ns = NameServerConfig::new(dns_ip.0, DnsProtocol::Https);
-            // set bind_addr to outbound IF for all name servers, so resolver will use correct IF to send dns queries
-            ns.bind_addr = Some(SocketAddr::new(if dns_ip.0.is_ipv4() { if_ipv4 } else { if_ipv6 }, 0));
-            ns.tls_dns_name = Some(dns_ip.1.to_string());
-            config.add_name_server(ns);
-        }
-
-        self.resolver.store(Arc::new(
-            Resolver::builder_with_config(config, TokioConnectionProvider::default()).build(),
-        ));
+        self.resolver.store(Arc::new(resolver));
 
         Ok(())
     }
@@ -327,6 +318,18 @@ where
     }
 }
 
+// set bind_addr to outbound IF for all name server connections, so resolver will use correct IF to send dns queries
+fn with_bind_addr(config: ResolverConfig, if_ipv4: IpAddr, if_ipv6: IpAddr) -> ResolverConfig {
+    let (domain, search, mut name_servers) = config.into_parts();
+    for ns in &mut name_servers {
+        let bind_ip = if ns.ip.is_ipv4() { if_ipv4 } else { if_ipv6 };
+        for conn in &mut ns.connections {
+            conn.bind_addr = Some(SocketAddr::new(bind_ip, 0));
+        }
+    }
+    ResolverConfig::from_parts(domain, search, name_servers)
+}
+
 fn is_invalid_address(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
@@ -337,5 +340,59 @@ fn is_invalid_address(ip: IpAddr) -> bool {
             || (octets[0] == 100 && (octets[1] & 0xC0) == 64)
         }
         _ => false,
+    }
+}
+
+impl Resolver {
+    pub fn new(local_config: Option<ResolverConfig>) -> Self {
+        let local = local_config.and_then(|config| {
+            match TokioResolver::builder_with_config(config, TokioRuntimeProvider::default()).build() {
+                Ok(resolver) => Some(resolver),
+                Err(err) => {
+                    tracing::error!("Failed to create local resolver: {:?}", err);
+                    None
+                }
+            }
+        });
+
+        Self {
+            local,
+            fallback: Vec::new(),
+        }
+    }
+
+    pub fn add_fallback(&mut self, group: &ServerGroup, if_ipv4: IpAddr, if_ipv6: IpAddr) {
+        self.add_fallback_with_config(with_bind_addr(ResolverConfig::https(group), if_ipv4, if_ipv6));
+        self.add_fallback_with_config(with_bind_addr(ResolverConfig::tls(group), if_ipv4, if_ipv6));
+    }
+
+    pub fn add_fallback_with_config(&mut self, config: ResolverConfig) {
+        match TokioResolver::builder_with_config(config, TokioRuntimeProvider::default()).build() {
+            Ok(resolver) => self.fallback.push(resolver),
+            Err(err) => {
+                tracing::error!("Failed to create fallback resolver: {:?}", err);
+            }
+        }
+    }
+
+    pub async fn lookup_ip(&self, host: &str) -> Result<LookupIp> {
+        if let Some(local) = &self.local {
+            match local.lookup_ip(host).await {
+                Ok(res) => return Ok(res),
+                Err(err) => {
+                    tracing::warn!("resolver (local) failed for {}: {:?}", host, err);
+                }
+            }
+        }
+        for fallback in &self.fallback {
+            match fallback.lookup_ip(host).await {
+                Ok(res) => return Ok(res),
+                Err(err) => {
+                    tracing::warn!("resolver failed for {}: {:?}", host, err);
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!("All resolvers failed for {}", host))
     }
 }
