@@ -1,5 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use parking_lot::Mutex;
+#[cfg(target_os = "macos")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
@@ -60,6 +62,8 @@ pub struct TunService {
     tun_loop_task: Arc<CancellableTask>,
     ipv6_serve_task: Arc<CancellableTask>,
     ipv4_serve_cancellation: Mutex<Option<CancellationToken>>,
+    #[cfg(target_os = "macos")]
+    proxy_started: AtomicBool,
 }
 
 impl TunService {
@@ -74,6 +78,8 @@ impl TunService {
             tun_loop_task: Arc::new(CancellableTask::new("TunServiceTunLoopTask")),
             ipv6_serve_task: Arc::new(CancellableTask::new("TunServiceIpv6ServeTask")),
             ipv4_serve_cancellation: Mutex::new(None),
+            #[cfg(target_os = "macos")]
+            proxy_started: AtomicBool::new(false),
         })
     }
 
@@ -83,6 +89,9 @@ impl TunService {
     }
 
     pub async fn stop(&self) {
+        #[cfg(target_os = "macos")]
+        self.proxy_started.store(false, Ordering::Relaxed);
+
         // stop in parallel and wait for all to stop
         let mut set = JoinSet::new();
         set.spawn({
@@ -187,6 +196,8 @@ impl TunService {
         self.ipv4_serve_cancellation.lock().replace(token.clone());
 
         on_started();
+        #[cfg(target_os = "macos")]
+        self.proxy_started.store(true, Ordering::Relaxed);
 
         self.tcp_proxy_nat_v4
             .serve_proxy(listener, IpAddr::V4(if_addr_v4), router.clone(), token)
@@ -387,7 +398,7 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
-            if should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
+            if self.should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
                 return ProcessResult::WriteBack;
             }
 
@@ -473,7 +484,7 @@ impl TunService {
     }
 
     fn process_udp_v4_packet(&self, ipv4: &mut Ipv4Header, udp: &mut UdpHeader, address_v4: Ipv4Addr) -> ProcessResult {
-        if should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
+        if self.should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
             return ProcessResult::WriteBack;
         }
 
@@ -542,6 +553,21 @@ impl TunService {
     fn process_igmp_v6_packet(&self, ipv6: &mut Ipv6Header, igmp: &mut IgmpHeader) {
         tracing::debug!("IGMPv6 packet: {:?}, to {}", igmp, ipv6.dst_addr());
     }
+
+    #[cfg(target_os = "macos")]
+    fn should_reinject_local_v4(&self, dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
+        // macOS can emit scoped traffic for the utun interface address onto the
+        // utun device instead of delivering it directly to local sockets. A packet
+        // read from utun is on the outbound side; writing it back injects it as
+        // inbound traffic, allowing the kernel to deliver it to listeners bound to
+        // address_v4.
+        dst_addr == address_v4 && self.proxy_started.load(Ordering::Relaxed)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn should_reinject_local_v4(&self, _: Ipv4Addr, _: Ipv4Addr) -> bool {
+        false
+    }
 }
 
 fn make_rst_packet(src_addr: IpAddr, dst_addr: IpAddr, tcp: &TcpHeader) -> ProcessResult {
@@ -594,21 +620,6 @@ fn make_rst_packet(src_addr: IpAddr, dst_addr: IpAddr, tcp: &TcpHeader) -> Proce
 
 fn is_local_v4(addr: Ipv4Addr) -> bool {
     addr.is_loopback() || addr.is_link_local() || addr.is_broadcast() || addr.is_private() || addr.is_multicast()
-}
-
-#[cfg(target_os = "macos")]
-fn should_reinject_local_v4(dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
-    // macOS can emit scoped traffic for the utun interface address onto the
-    // utun device instead of delivering it directly to local sockets. A packet
-    // read from utun is on the outbound side; writing it back injects it as
-    // inbound traffic, allowing the kernel to deliver it to listeners bound to
-    // address_v4.
-    dst_addr == address_v4
-}
-
-#[cfg(not(target_os = "macos"))]
-fn should_reinject_local_v4(_: Ipv4Addr, _: Ipv4Addr) -> bool {
-    false
 }
 
 fn is_local_v6(addr: Ipv6Addr) -> bool {
