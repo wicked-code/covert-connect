@@ -203,8 +203,15 @@ impl ClientInfo {
     pub async fn set_enabled(&self, host: &str, value: bool) -> Result<()> {
         let mut wr_servers = self.servers.write().await;
         if let Some(idx) = wr_servers.iter().position(|s| s.config.host == host) {
-            (*wr_servers)[idx].config.enabled = value;
+            let srv = &mut (*wr_servers)[idx];
+            if value && srv.config.enabled != value {
+                let state = &srv.state;
+                state.counter.lock().clear();
+                state.rx_total.store(0, Ordering::Relaxed);
+                state.tx_total.store(0, Ordering::Relaxed);
+            }
 
+            srv.config.enabled = value;
             Ok(())
         } else {
             Err(anyhow!("server not found"))
