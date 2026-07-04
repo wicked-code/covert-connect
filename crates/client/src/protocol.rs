@@ -275,7 +275,8 @@ pub async fn process_tunnel(
         }
     };
 
-    if !server.is_success() {
+    if result.is_ok() && !server.is_success() {
+        // if the connection is closed without any data transfer, we consider it as an error
         state.counter.lock().inc_err();
     }
 

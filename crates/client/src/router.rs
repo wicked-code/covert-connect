@@ -15,7 +15,10 @@ use tokio::{
 };
 
 use rand::prelude::*;
-use rand::{SeedableRng, rngs::{StdRng, SysRng}};
+use rand::{
+    SeedableRng,
+    rngs::{StdRng, SysRng},
+};
 
 use crate::{
     egress::{Egress, StreamType},
@@ -121,8 +124,9 @@ impl Router {
 
         if let Some(server) = self.select_server(target_host, &process_name, &mut rng) {
             tracing::info!("{} connecting to {}{}", process_path, target_host, protocol_str);
-            self.start_tunnel_with_server(client, data_protocol, target_host, server, rng)
-                .await?;
+            self.start_tunnel_with_server(client, data_protocol, target_host, server.clone(), rng)
+                .await
+                .inspect_err(|_| server.state.counter.lock().inc_err())?;
             Ok(None)
         } else {
             tracing::info!("{} direct connecting to {}{}", process_path, target_host, protocol_str);
