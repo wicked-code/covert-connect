@@ -358,7 +358,7 @@ impl TunService {
                 NextHeader::Tcp(mut tcp) => {
                     return self.process_tcp_v6_packet(&mut ipv6, &mut tcp, address_v6, gateway_v6);
                 }
-                NextHeader::Udp(mut udp) => self.process_udp_v6_packet(&mut ipv6, &mut udp),
+                NextHeader::Udp(mut udp) => return self.process_udp_v6_packet(&mut ipv6, &mut udp, address_v6),
                 NextHeader::Icmpv6(mut icmp) => self.process_icmp_v6_packet(&mut ipv6, &mut icmp),
                 NextHeader::Igmp(mut igmp) => self.process_igmp_v6_packet(&mut ipv6, &mut igmp),
                 _ => (),
@@ -398,7 +398,7 @@ impl TunService {
             ipv4.compute_checksum();
             tcp.compute_checksum_v4(src_ip_v4, dst_ip_v4);
         } else {
-            if self.should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
+            if self.should_reinject_local(ipv4.dst_addr(), address_v4) {
                 return ProcessResult::WriteBack;
             }
 
@@ -458,6 +458,10 @@ impl TunService {
 
             tcp.compute_checksum_v6(src_ip_v6, dst_ip_v6);
         } else {
+            if self.should_reinject_local(ipv6.dst_addr(), address_v6) {
+                return ProcessResult::WriteBack;
+            }
+
             if is_local_v6(ipv6.dst_addr()) {
                 return ProcessResult::Consume;
             }
@@ -484,7 +488,7 @@ impl TunService {
     }
 
     fn process_udp_v4_packet(&self, ipv4: &mut Ipv4Header, udp: &mut UdpHeader, address_v4: Ipv4Addr) -> ProcessResult {
-        if self.should_reinject_local_v4(ipv4.dst_addr(), address_v4) {
+        if self.should_reinject_local(ipv4.dst_addr(), address_v4) {
             return ProcessResult::WriteBack;
         }
 
@@ -501,9 +505,13 @@ impl TunService {
         ProcessResult::Consume
     }
 
-    fn process_udp_v6_packet(&self, ipv6: &mut Ipv6Header, udp: &mut UdpHeader) {
+    fn process_udp_v6_packet(&self, ipv6: &mut Ipv6Header, udp: &mut UdpHeader, address_v6: Ipv6Addr) -> ProcessResult {
+        if self.should_reinject_local(ipv6.dst_addr(), address_v6) {
+            return ProcessResult::WriteBack;
+        }
+
         if is_local_v6(ipv6.dst_addr()) {
-            return;
+            return ProcessResult::Consume;
         }
 
         self.udp_nat.send(
@@ -511,6 +519,8 @@ impl TunService {
             SocketAddr::new(IpAddr::V6(ipv6.dst_addr()), udp.dst_port()),
             udp.payload(),
         );
+
+        ProcessResult::Consume
     }
 
     fn process_icmp_v4_packet(&self, ipv4: &mut Ipv4Header, icmp: &mut Icmpv4Header) {
@@ -555,17 +565,17 @@ impl TunService {
     }
 
     #[cfg(target_os = "macos")]
-    fn should_reinject_local_v4(&self, dst_addr: Ipv4Addr, address_v4: Ipv4Addr) -> bool {
+    fn should_reinject_local<A: PartialEq>(&self, dst_addr: A, address: A) -> bool {
         // macOS can emit scoped traffic for the utun interface address onto the
         // utun device instead of delivering it directly to local sockets. A packet
         // read from utun is on the outbound side; writing it back injects it as
         // inbound traffic, allowing the kernel to deliver it to listeners bound to
-        // address_v4.
-        dst_addr == address_v4 && self.proxy_started.load(Ordering::Relaxed)
+        // the interface address.
+        dst_addr == address && self.proxy_started.load(Ordering::Relaxed)
     }
 
     #[cfg(not(target_os = "macos"))]
-    fn should_reinject_local_v4(&self, _: Ipv4Addr, _: Ipv4Addr) -> bool {
+    fn should_reinject_local<A: PartialEq>(&self, _: A, _: A) -> bool {
         false
     }
 }
