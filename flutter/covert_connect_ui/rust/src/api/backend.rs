@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use client::log::LogLine;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
-use client::Client;
+use client::{client::Client, log::get_trace_log};
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use std::sync::Arc;
 

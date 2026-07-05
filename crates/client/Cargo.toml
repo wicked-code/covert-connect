@@ -45,7 +45,6 @@ tun = {version = "0.8.13", features = ["async"]}
 
 futures-util = "0.3.32"
 arc-swap = "1.9.2"
-net-route = "0.4.6"
 
 hickory-server = { version = "0.26", default-features = false }
 hickory-net = { version = "0.26", default-features = false }
@@ -56,6 +55,7 @@ hickory-resolver = { version = "0.26", default-features = false, features = ["we
 windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation"
 ] }
+net-route = "0.4.6"
 
 [features]
 aws_lc_rs = [

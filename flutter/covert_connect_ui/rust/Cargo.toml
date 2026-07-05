@@ -12,7 +12,6 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.11.1"
 futures-util = "0.3"
 directories = "6.0.0"
-privesc = "1.2.0"
 
 tokio-rustls.workspace = true 
 webpki-roots.workspace = true
@@ -31,6 +30,9 @@ crypto.workspace = true
 client.workspace = true
 async-trait.workspace = true
 tarpc.workspace = true
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+privesc = "1.2.0"
 
 [features]
 default = ["rustls_ring"]
