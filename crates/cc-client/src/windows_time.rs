@@ -18,7 +18,7 @@ const SERVERS: &[&str] = &[
     "time.windows.com:123",
     "pool.ntp.org:123",
 ];
-const MAX_OFFSET: Duration = Duration::from_secs(2);
+const MAX_OFFSET: Duration = Duration::from_secs(1);
 
 pub struct WindowsTimeSync {
     cancel_token: CancellationToken,
